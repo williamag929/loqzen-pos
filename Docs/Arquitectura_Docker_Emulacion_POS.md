@@ -1,0 +1,66 @@
+# Arquitectura de Simulación de Hardware POS con Docker
+
+Este documento define la estructura en Docker Compose para emular por completo el ecosistema de hardware del punto de venta (POS) y sus periféricos (impresora térmica, balanza, cajón monedero, doble pantalla y pasarelas de pago) durante la fase de desarrollo e integración.
+
+## 1. Topología del Contenedor de Emulación
+
+La arquitectura se divide en microservicios independientes que simulan la red local y los puertos físicos del terminal Volcora POS:
+
+```yaml
+version: '3.8'
+
+services:
+  # 1. Base de datos local SQLite compartida por la app de escritorio (Avalonia UI)
+  pos-db-sync:
+    image: alpine:latest
+    container_name: pos-db-sync
+    volumes:
+      - ./data:/app/data
+
+  # 2. Servidor TCP simulador de Impresora Térmica Epson / Cajón Monedero (Puerto 9100)
+  thermal-printer-emulator:
+    build:
+      context: ./emulator/printer
+    container_name: thermal-printer-emulator
+    ports:
+      - "9100:9100"
+    environment:
+      - LOG_LEVEL=debug
+
+  # 3. Emulador de Puerto Serie / Balanza CAS SW-20RS (Vía socat + script Python)
+  serial-scale-emulator:
+    build:
+      context: ./emulator/scale
+    container_name: serial-scale-emulator
+    devices:
+      - "/dev/ptmx:/dev/ptmx"
+    environment:
+      - SCALE_MODEL=CAS-SW20RS
+      - WEIGHT_STEP_SECONDS=3
+
+  # 4. Mock API para Canales de Delivery (Rappi / Uber Eats) y Pasarelas de Pago
+  delivery-webhook-mock:
+    image: node:18-alpine
+    container_name: delivery-webhook-mock
+    working_dir: /app
+    volumes:
+      - ./emulator/webhook:/app
+    ports:
+      - "5000:5000"
+    command: ["node", "server.js"]
+```
+
+## 2. Descripción de Componentes Emulados
+
+### A. Impresora Térmica y Cajón Monedero (Puerto 9100)
+
+Tecnología: Un servicio ligero en Node.js o Python que escucha en el puerto TCP 9100.
+Funcionamiento: Recibe los bytes en formato ESC/POS enviados por la aplicación Avalonia UI. Si detecta la secuencia de pulso de apertura (0x1B 0x70), registra en la consola del emulador: [CASHOUT] Cajón monedero abierto con éxito. Si recibe texto, simula el corte de papel y guarda una traza del recibo generado.
+### B. Balanza de Peso Serie (CAS SW-20RS)
+
+Tecnología: Contenedor Linux con socat y un script de Python enlazado.
+Funcionamiento: Crea un puerto serial virtual que emite periódicamente tramas de peso formateadas (ej. ST,GS,+001.25kg\r\n). La aplicación .NET conectada mediante System.IO.Ports lee este flujo exactamente igual que si estuviera conectada al puerto RS232 físico de la terminal Volcora.
+### C. Webhook Simulator para Delivery (Rappi / Uber Eats)
+
+Tecnología: API ligera en Node.js.
+Funcionamiento: Permite disparar peticiones HTTP POST manuales o automatizadas para simular la llegada de una orden de delivery, la cual se comunica vía SignalR o API REST local con la aplicación POS para la impresión automática de comanda en cocina.

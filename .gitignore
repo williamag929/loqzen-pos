@@ -1,0 +1,138 @@
+# ==============================================================================
+# .gitignore for Loqzen POS (.NET 8/9, Avalonia UI, SQLite, Docker, Python/Node)
+# ==============================================================================
+
+# ------------------------------------------------------------------------------
+# Build results and compiled files (.NET / C#)
+# ------------------------------------------------------------------------------
+[Dd]ebug/
+[Dd]ebugPublic/
+[Rr]elease/
+[Rr]eleases/
+x64/
+x86/
+[Aa][Rr][Mm]/
+[Aa][Rr][Mm]64/
+bld/
+[Bb]in/
+[Oo]bj/
+[Ll]og/
+[Ll]ogs/
+
+# ------------------------------------------------------------------------------
+# Visual Studio / Visual Studio Code / JetBrains Rider
+# ------------------------------------------------------------------------------
+.vs/
+.idea/
+*.user
+*.userosscache
+*.sln.docstates
+*.suo
+*.userprefs
+*.launch
+*.rsuser
+
+# Visual Studio Code workspace (keep tasks/launch if explicitly needed, ignore user caches)
+.vscode/*
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+
+# Rider / ReSharper
+_ReSharper*/
+*.ReSharper
+*.DotSettings.user
+
+# ------------------------------------------------------------------------------
+# NuGet Packages & Assets
+# ------------------------------------------------------------------------------
+*.nupkg
+*.snupkg
+*.nuget.props
+*.nuget.targets
+project.lock.json
+project.assets.json
+packages/
+
+# ------------------------------------------------------------------------------
+# Test results & Code Coverage
+# ------------------------------------------------------------------------------
+[Tt]est[Rr]esult*/
+TestResults/
+*.trx
+coverage*.json
+coverage*.xml
+coverage*.info
+
+# ------------------------------------------------------------------------------
+# Avalonia UI artifacts
+# ------------------------------------------------------------------------------
+.avalonia/
+
+# ------------------------------------------------------------------------------
+# SQLite Local Databases & Outbox Store
+# ------------------------------------------------------------------------------
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+/data/
+docker/data/
+
+# ------------------------------------------------------------------------------
+# Docker and Local Emulators
+# ------------------------------------------------------------------------------
+docker-compose.override.yml
+.docker/
+
+# Python Emulator artifacts
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+env/
+venv/
+.venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Node.js Emulator artifacts
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ------------------------------------------------------------------------------
+# Operating System files
+# ------------------------------------------------------------------------------
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+[Dd]esktop.ini
+*~
+*.swp
+*.swo
+
+# ------------------------------------------------------------------------------
+# Temporary and Scratch Files
+# ------------------------------------------------------------------------------
+*.tmp
+*.bak
+*.orig
+*.pid
+*.seed
+*.pid.lock
+
+# AI Assistant / IDE Extensions local caches
+.cline/
+.claude/
