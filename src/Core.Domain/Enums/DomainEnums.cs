@@ -29,3 +29,12 @@ public enum SyncStatus
     Synced = 1,
     Failed = 2
 }
+
+public enum KitchenOrderStatus
+{
+    Pending = 0,        // Pendiente por iniciar
+    InPreparation = 1,  // En preparación
+    Ready = 2,          // Listo para entrega
+    Delivered = 3,      // Entregado a mesa
+    Cancelled = 4       // Cancelado
+}

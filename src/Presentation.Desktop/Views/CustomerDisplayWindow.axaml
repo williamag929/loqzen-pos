@@ -1,0 +1,151 @@
+<Window xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:vm="using:Presentation.Desktop.ViewModels"
+        xmlns:dtos="using:Core.Application.DTOs"
+        xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+        xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+        mc:Ignorable="d" d:DesignWidth="1024" d:DesignHeight="768"
+        x:Class="Presentation.Desktop.Views.CustomerDisplayWindow"
+        x:DataType="vm:CustomerDisplayViewModel"
+        Title="Visor del Cliente - Loqzen POS"
+        Width="1024" Height="768"
+        WindowStartupLocation="CenterScreen"
+        Background="#0B132B">
+
+    <Grid RowDefinitions="Auto, *">
+        <!-- Top Banner -->
+        <Border Grid.Row="0" Background="#1C2541" Padding="24,16" BorderBrush="#3A506B" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Spacing="4">
+                    <TextBlock Text="{Binding StoreName}" Foreground="#48CAE4" FontSize="24" FontWeight="Black"/>
+                    <TextBlock Text="{Binding StoreTagline}" Foreground="#94A3B8" FontSize="13"/>
+                </StackPanel>
+
+                <Border Grid.Column="1" Background="#0B132B" CornerRadius="8" Padding="14,8" BorderBrush="#48CAE4" BorderThickness="1">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <TextBlock Text="🖥️ PANTALLA CLIENTE" Foreground="#48CAE4" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- Main Body Grid: Left Items List, Right Dynamic Payment & Totals -->
+        <Grid Grid.Row="1" ColumnDefinitions="3*, 2*" Margin="20">
+            <!-- LEFT PANEL: TICKET DETAIL -->
+            <Border Grid.Column="0" Background="#1C2541" CornerRadius="12" Padding="20" Margin="0,0,14,0" BorderBrush="#3A506B" BorderThickness="1">
+                <Grid RowDefinitions="Auto, *, Auto">
+                    <TextBlock Grid.Row="0" Text="📋 Detalle de su Compra" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+
+                    <!-- Scrollable items list -->
+                    <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                        <ItemsControl ItemsSource="{Binding Items}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="dtos:CartItemDto">
+                                    <Border Background="#0B132B" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#3A506B" BorderThickness="1">
+                                        <Grid ColumnDefinitions="*, Auto, Auto">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#94A3B8" FontSize="13"/>
+                                                    <TextBlock Text="×" Foreground="#64748B" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Quantity}" Foreground="#48CAE4" FontSize="13" FontWeight="Bold"/>
+                                                    <TextBlock IsVisible="{Binding IsWeighed}" Text="{Binding WeightKg, StringFormat='({0:F2} kg)'}" Foreground="#10B981" FontSize="13"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
+
+                    <!-- Breakdown at bottom -->
+                    <Border Grid.Row="2" Background="#0B132B" CornerRadius="8" Padding="14" Margin="0,14,0,0">
+                        <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Subtotal:" Foreground="#94A3B8" FontSize="14"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Subtotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Impuestos incluidos:" Foreground="#94A3B8" FontSize="14" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14" Margin="0,4,0,0"/>
+                        </Grid>
+                    </Border>
+                </Grid>
+            </Border>
+
+            <!-- RIGHT PANEL: DYNAMIC TOTAL & QR / PAYMENT VISOR -->
+            <Border Grid.Column="1" Background="#1C2541" CornerRadius="12" Padding="20" BorderBrush="#3A506B" BorderThickness="1">
+                <Grid RowDefinitions="Auto, *, Auto">
+                    <!-- Total Header Box -->
+                    <Border Grid.Row="0" Background="#0B132B" CornerRadius="10" Padding="16" BorderBrush="#10B981" BorderThickness="2" Margin="0,0,0,16">
+                        <StackPanel Spacing="4" HorizontalAlignment="Center">
+                            <TextBlock Text="TOTAL A PAGAR" Foreground="#94A3B8" FontSize="14" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="36" FontWeight="Black" HorizontalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Middle Dynamic Panel: QR Code and Payment state -->
+                    <Border Grid.Row="1" Background="#0B132B" CornerRadius="10" Padding="16" HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+                        <StackPanel Spacing="12" VerticalAlignment="Center" HorizontalAlignment="Center">
+                            <TextBlock Text="📱 PAGO ELECTRÓNICO / QR" Foreground="#48CAE4" FontSize="16" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            
+                            <!-- Stylized QR Code Graphic Container -->
+                            <Border Width="160" Height="160" Background="White" CornerRadius="8" Padding="10" HorizontalAlignment="Center">
+                                <Grid RowDefinitions="*, *, *" ColumnDefinitions="*, *, *">
+                                    <!-- QR Finder Patterns -->
+                                    <Border Grid.Row="0" Grid.Column="0" Background="Black" CornerRadius="4" Margin="3">
+                                        <Border Background="White" Margin="4">
+                                            <Border Background="Black" Margin="3"/>
+                                        </Border>
+                                    </Border>
+                                    <Border Grid.Row="0" Grid.Column="2" Background="Black" CornerRadius="4" Margin="3">
+                                        <Border Background="White" Margin="4">
+                                            <Border Background="Black" Margin="3"/>
+                                        </Border>
+                                    </Border>
+                                    <Border Grid.Row="2" Grid.Column="0" Background="Black" CornerRadius="4" Margin="3">
+                                        <Border Background="White" Margin="4">
+                                            <Border Background="Black" Margin="3"/>
+                                        </Border>
+                                    </Border>
+                                    <!-- QR Data Dots Emulation -->
+                                    <StackPanel Grid.Row="1" Grid.Column="1" VerticalAlignment="Center" HorizontalAlignment="Center">
+                                        <TextBlock Text="LOQZEN" FontSize="9" FontWeight="Black" Foreground="Black" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="PAY" FontSize="8" FontWeight="Bold" Foreground="#0284C7" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                    <Border Grid.Row="0" Grid.Column="1" Background="Black" Width="8" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Border Grid.Row="1" Grid.Column="0" Background="Black" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Border Grid.Row="1" Grid.Column="2" Background="Black" Width="8" Height="12" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Border Grid.Row="2" Grid.Column="1" Background="Black" Width="12" Height="8" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                    <Border Grid.Row="2" Grid.Column="2" Background="Black" Width="10" Height="10" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Border>
+
+                            <TextBlock Text="Escanee con Bancolombia / Nequi / App Bancaria" Foreground="#94A3B8" FontSize="12" TextWrapping="Wrap" TextAlignment="Center" HorizontalAlignment="Center"/>
+
+                            <!-- Cash Payment Recap -->
+                            <Border Background="#1C2541" CornerRadius="6" Padding="10" Margin="0,8,0,0">
+                                <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
+                                    <TextBlock Grid.Row="0" Grid.Column="0" Text="Monto Recibido:" Foreground="#94A3B8" FontSize="13"/>
+                                    <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="14" FontWeight="Bold"/>
+
+                                    <TextBlock Grid.Row="1" Grid.Column="0" Text="Su Cambio:" Foreground="#94A3B8" FontSize="13" Margin="0,4,0,0"/>
+                                    <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="16" FontWeight="Black" Margin="0,4,0,0"/>
+                                </Grid>
+                            </Border>
+                        </StackPanel>
+                    </Border>
+
+                    <!-- Footer Message -->
+                    <Border Grid.Row="2" Background="#0B132B" CornerRadius="8" Padding="12" Margin="0,14,0,0">
+                        <TextBlock Text="✨ ¡Gracias por preferirnos! Su factura electrónica será enviada a su correo." 
+                                   Foreground="#A5B4FC" 
+                                   FontSize="12" 
+                                   TextWrapping="Wrap" 
+                                   TextAlignment="Center"/>
+                    </Border>
+                </Grid>
+            </Border>
+        </Grid>
+    </Grid>
+</Window>

@@ -12,6 +12,7 @@ using Infrastructure.Data.Context;
 using Infrastructure.Data.Seed;
 using Infrastructure.Hardware.Printers;
 using Infrastructure.Hardware.Scales;
+using Infrastructure.Hardware.Scanners;
 using Microsoft.EntityFrameworkCore;
 
 namespace Presentation.Desktop.ViewModels;
@@ -21,6 +22,9 @@ public partial class CheckoutViewModel : ObservableObject
     private readonly PosDbContext _dbContext;
     private readonly IPrinterService _printerService;
     private readonly IScaleService _scaleService;
+    private readonly IBarcodeScannerService _scannerService;
+
+    public CustomerDisplayViewModel? CustomerDisplay { get; set; }
 
     [ObservableProperty]
     private string _searchQuery = string.Empty;
@@ -62,6 +66,7 @@ public partial class CheckoutViewModel : ObservableObject
         _dbContext = new PosDbContext();
         _printerService = new MockPrinterService();
         _scaleService = new MockScaleService();
+        _scannerService = new MockBarcodeScannerService();
 
         _scaleService.WeightChanged += (s, e) =>
         {
@@ -69,7 +74,49 @@ public partial class CheckoutViewModel : ObservableObject
         };
         _scaleService.StartListening();
 
+        _scannerService.BarcodeScanned += (s, barcode) =>
+        {
+            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
+            {
+                AddProductByBarcode(barcode);
+            });
+        };
+        _scannerService.StartListening();
+
         _ = InitializeAsync();
+    }
+
+    [RelayCommand]
+    public void ScanBarcode(string barcode)
+    {
+        AddProductByBarcode(barcode);
+    }
+
+    [RelayCommand]
+    public void TriggerSampleScan()
+    {
+        var sampleBarcodes = new[] { "7701234567890", "7701234567891", "7701234567892", "7701234567894" };
+        var randomBarcode = sampleBarcodes[Random.Shared.Next(sampleBarcodes.Length)];
+        AddProductByBarcode(randomBarcode);
+    }
+
+    public void AddProductByBarcode(string barcode)
+    {
+        if (string.IsNullOrWhiteSpace(barcode)) return;
+
+        var product = _allProducts.FirstOrDefault(p => 
+            (p.Barcode != null && p.Barcode.Equals(barcode.Trim(), StringComparison.OrdinalIgnoreCase)) || 
+            p.Sku.Equals(barcode.Trim(), StringComparison.OrdinalIgnoreCase));
+
+        if (product != null)
+        {
+            AddProduct(product);
+            StatusMessage = $"⚡ Escaneado: {product.Name} (Código: {barcode})";
+        }
+        else
+        {
+            StatusMessage = $"⚠️ Código de barras no encontrado: {barcode}";
+        }
     }
 
     public async Task InitializeAsync()
@@ -226,12 +273,14 @@ public partial class CheckoutViewModel : ObservableObject
         TenderedAmount = Total;
         ChangeAmount = 0;
         IsPaymentModalOpen = true;
+        NotifyCartTotalsChanged();
     }
 
     [RelayCommand]
     public void ClosePaymentModal()
     {
         IsPaymentModalOpen = false;
+        NotifyCartTotalsChanged();
     }
 
     [RelayCommand]
@@ -245,6 +294,7 @@ public partial class CheckoutViewModel : ObservableObject
             {
                 TenderedAmount = val;
                 ChangeAmount = Math.Max(0, TenderedAmount - Total);
+                NotifyCartTotalsChanged();
             }
         }
     }
@@ -254,6 +304,7 @@ public partial class CheckoutViewModel : ObservableObject
     {
         TenderedAmount = 0;
         ChangeAmount = 0;
+        NotifyCartTotalsChanged();
     }
 
     [RelayCommand]
@@ -309,8 +360,32 @@ public partial class CheckoutViewModel : ObservableObject
             Status = SyncStatus.Pending
         };
 
+        // Automatic dispatch to KDS (Kitchen Display System)
+        var kitchenOrder = new KitchenOrder
+        {
+            OrderNumber = order.OrderNumber,
+            OrderId = order.Id,
+            TableNumber = "Mostrador Principal",
+            WaiterName = "Cajero",
+            Station = "Cocina Caliente",
+            Status = KitchenOrderStatus.Pending,
+            CreatedAt = DateTime.UtcNow
+        };
+
+        foreach (var item in CartItems)
+        {
+            kitchenOrder.Items.Add(new KitchenOrderItem
+            {
+                ProductId = item.ProductId,
+                ProductName = item.Name,
+                Quantity = item.Quantity,
+                Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
+            });
+        }
+
         _dbContext.Orders.Add(order);
         _dbContext.OutboxMessages.Add(outboxMsg);
+        _dbContext.KitchenOrders.Add(kitchenOrder);
         await _dbContext.SaveChangesAsync();
 
         // Print receipt
@@ -339,10 +414,16 @@ public partial class CheckoutViewModel : ObservableObject
             await _printerService.OpenCashDrawerAsync();
         }
 
+        var completedOrderNumber = order.OrderNumber;
+        var completedTotal = order.Total;
+        var completedChange = ChangeAmount;
+
         IsPaymentModalOpen = false;
         CartItems.Clear();
         NotifyCartTotalsChanged();
-        StatusMessage = $"¡Venta {order.OrderNumber} completada con éxito!";
+        
+        CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
+        StatusMessage = $"¡Venta {completedOrderNumber} completada y enviada a Cocina (KDS)!";
     }
 
     private void NotifyCartTotalsChanged()
@@ -351,5 +432,15 @@ public partial class CheckoutViewModel : ObservableObject
         OnPropertyChanged(nameof(TaxTotal));
         OnPropertyChanged(nameof(Total));
         OnPropertyChanged(nameof(TotalItems));
+
+        CustomerDisplay?.UpdateFromCheckout(
+            CartItems,
+            Subtotal,
+            TaxTotal,
+            Total,
+            IsPaymentModalOpen,
+            TenderedAmount,
+            ChangeAmount,
+            SelectedPaymentMethod.ToString());
     }
 }

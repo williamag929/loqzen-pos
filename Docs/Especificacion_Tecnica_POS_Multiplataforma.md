@@ -18,3 +18,15 @@ Medios de Pago: Soporte mixto (Efectivo, Tarjeta, Transferencias, y pasarelas de
 
 Recepción de órdenes de plataformas externas (Uber Eats, Rappi) mediante un servicio local (POS Delivery Bridge / Daemon) conectado directamente a sus APIs y Webhooks.
 Ingreso directo de pedidos al POS local con alertas sonoras, impresión automática de comanda en cocina y descuento de stock directo en la base de datos SQLite local de forma autónoma.
+
+## 4. Arquitectura UI y Especificaciones del Agente Frontend (Avalonia UI)
+
+- **Patrón de Diseño MVVM:** Estructura basada en `CommunityToolkit.Mvvm` / `ReactiveUI` para mantener la lógica de negocio estrictamente separada de las vistas (XAML).
+- **Diseño Adaptativo Táctil (Touch-First):**
+  - Optimizado para pantallas táctiles industriales de 15.6" y 18.5" (targets táctiles mínimos de 48 × 48 px).
+  - Distribución en paneles fijos en la vista principal de cobro (`CheckoutView.axaml`):
+    - **Panel Izquierdo:** Catálogo de productos, categorías y barra de búsqueda con escucha global de códigos de barras (USB HID).
+    - **Panel Derecho:** Ticket de venta dinámico con controles de cantidad y subtotales en tiempo real.
+    - **Modales de Cobro:** Teclado numérico táctil (Numpad) para cálculo rápido de cambio en efectivo y selección de medios de pago.
+- **Doble Pantalla (Customer Display):**
+  - Gestión nativa de la ventana secundaria (`CustomerDisplayWindow.axaml`) para proyectar el detalle de la cuenta al cliente y códigos QR de cobro electrónico dinámicos.

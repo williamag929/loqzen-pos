@@ -133,6 +133,72 @@ public static class DbInitializer
             Address = "Local"
         });
 
+        // 5. Default Active Kitchen Orders (For KDS)
+        var order1 = new KitchenOrder
+        {
+            OrderNumber = "ORD-KDS-101",
+            TableNumber = "Mesa 4",
+            WaiterName = "Carlos M.",
+            Station = "Cocina Caliente",
+            Status = Core.Domain.Enums.KitchenOrderStatus.Pending,
+            GeneralNotes = "Mesa VIP - Entregar juntos",
+            CreatedAt = DateTime.UtcNow.AddMinutes(-3) // Green (< 5 min)
+        };
+        order1.Items.Add(new KitchenOrderItem
+        {
+            ProductName = "Hamburguesa Especial",
+            Quantity = 2,
+            Notes = "1 sin cebolla, 1 con tocineta extra"
+        });
+        order1.Items.Add(new KitchenOrderItem
+        {
+            ProductName = "Pizza Personal Artesanal",
+            Quantity = 1,
+            Notes = "Masa delgada bien dorada"
+        });
+
+        var order2 = new KitchenOrder
+        {
+            OrderNumber = "ORD-KDS-102",
+            TableNumber = "Mesa 2",
+            WaiterName = "Ana R.",
+            Station = "Barra",
+            Status = Core.Domain.Enums.KitchenOrderStatus.InPreparation,
+            GeneralNotes = "Para llevar",
+            CreatedAt = DateTime.UtcNow.AddMinutes(-9) // Yellow (5 - 15 min)
+        };
+        order2.Items.Add(new KitchenOrderItem
+        {
+            ProductName = "Jugo Natural de Fruta",
+            Quantity = 2,
+            Notes = "En agua, sin azúcar"
+        });
+        order2.Items.Add(new KitchenOrderItem
+        {
+            ProductName = "Croissant de Mantequilla",
+            Quantity = 2,
+            Notes = "Calentar 30 segundos"
+        });
+
+        var order3 = new KitchenOrder
+        {
+            OrderNumber = "ORD-KDS-103",
+            TableNumber = "Mesa 7",
+            WaiterName = "Juan P.",
+            Station = "Cocina Caliente",
+            Status = Core.Domain.Enums.KitchenOrderStatus.Pending,
+            GeneralNotes = "Prioridad urgente",
+            CreatedAt = DateTime.UtcNow.AddMinutes(-18) // Red (> 15 min)
+        };
+        order3.Items.Add(new KitchenOrderItem
+        {
+            ProductName = "Hamburguesa Especial",
+            Quantity = 3,
+            Notes = "Término 3/4 con papas rústicas"
+        });
+
+        context.KitchenOrders.AddRange(order1, order2, order3);
+
         await context.SaveChangesAsync();
     }
 }

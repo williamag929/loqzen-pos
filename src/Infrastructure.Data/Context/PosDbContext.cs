@@ -16,6 +16,8 @@ public class PosDbContext : DbContext
     public DbSet<Payment> Payments => Set<Payment>();
     public DbSet<CashShift> CashShifts => Set<CashShift>();
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
+    public DbSet<KitchenOrder> KitchenOrders => Set<KitchenOrder>();
+    public DbSet<KitchenOrderItem> KitchenOrderItems => Set<KitchenOrderItem>();
 
     public PosDbContext()
     {
@@ -138,6 +140,30 @@ public class PosDbContext : DbContext
             entity.Property(m => m.EventType).IsRequired().HasMaxLength(100);
             entity.HasIndex(m => m.Status);
             entity.HasIndex(m => m.CreatedAt);
+        });
+
+        // KitchenOrder
+        modelBuilder.Entity<KitchenOrder>(entity =>
+        {
+            entity.HasKey(k => k.Id);
+            entity.Property(k => k.OrderNumber).IsRequired().HasMaxLength(50);
+            entity.Property(k => k.TableNumber).IsRequired().HasMaxLength(50);
+            entity.Property(k => k.Station).IsRequired().HasMaxLength(100);
+            entity.HasIndex(k => k.Status);
+            entity.HasIndex(k => k.CreatedAt);
+
+            entity.HasMany(k => k.Items)
+                  .WithOne(i => i.KitchenOrder)
+                  .HasForeignKey(i => i.KitchenOrderId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // KitchenOrderItem
+        modelBuilder.Entity<KitchenOrderItem>(entity =>
+        {
+            entity.HasKey(ki => ki.Id);
+            entity.Property(ki => ki.ProductName).IsRequired().HasMaxLength(200);
+            entity.Property(ki => ki.Quantity).HasPrecision(18, 3);
         });
     }
 }
