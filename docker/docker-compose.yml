@@ -1,0 +1,40 @@
+version: '3.8'
+
+services:
+  # 1. Base de datos local SQLite compartida por la app de escritorio (Avalonia UI)
+  pos-db-sync:
+    image: alpine:latest
+    container_name: pos-db-sync
+    volumes:
+      - ./data:/app/data
+
+  # 2. Servidor TCP simulador de Impresora Térmica Epson / Cajón Monedero (Puerto 9100)
+  thermal-printer-emulator:
+    build:
+      context: ./emulator/printer
+    container_name: thermal-printer-emulator
+    ports:
+      - "9100:9100"
+    environment:
+      - LOG_LEVEL=debug
+
+  # 3. Emulador de Puerto Serie / Balanza CAS SW-20RS (Vía socat + script Python)
+  serial-scale-emulator:
+    build:
+      context: ./emulator/scale
+    container_name: serial-scale-emulator
+    devices:
+      - "/dev/ptmx:/dev/ptmx"
+    environment:
+      - SCALE_MODEL=CAS-SW20RS
+      - WEIGHT_STEP_SECONDS=3
+
+  # 4. Mock API para Canales de Delivery (Rappi / Uber Eats) y Pasarelas de Pago
+  delivery-webhook-mock:
+    build:
+      context: ./emulator/webhook
+    container_name: delivery-webhook-mock
+    ports:
+      - "5000:5000"
+    environment:
+      - PORT=5000

@@ -1,0 +1,301 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:models="using:Core.Domain.Entities"
+             xmlns:dtos="using:Core.Application.DTOs"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
+             x:Class="Presentation.Desktop.Views.CheckoutView"
+             x:DataType="vm:CheckoutViewModel">
+
+    <Grid ColumnDefinitions="*, 440">
+        <!-- LEFT PANEL: CATALOG & SEARCH -->
+        <Border Grid.Column="0" Background="#0F172A" Padding="16">
+            <Grid RowDefinitions="Auto, Auto, *, Auto">
+                <!-- Top Toolbar: Search & Scale Indicator -->
+                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                    <TextBox Grid.Column="0" 
+                             Height="50"
+                             Watermark="🔍 Buscar por nombre, código de barras o SKU..." 
+                             Text="{Binding SearchQuery, Mode=TwoWay}"
+                             FontSize="16"
+                             VerticalContentAlignment="Center"
+                             CornerRadius="8"
+                             Padding="12,0"/>
+                    
+                    <!-- CAS Scale Indicator Badge -->
+                    <Border Grid.Column="1" 
+                            Background="#1E293B" 
+                            BorderBrush="#38BDF8" 
+                            BorderThickness="1" 
+                            CornerRadius="8" 
+                            Padding="16,8" 
+                            Margin="12,0,0,0">
+                        <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                            <TextBlock Text="⚖️ BALANZA:" Foreground="#94A3B8" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{Binding ScaleWeightKg, StringFormat='{}{0:F2} kg'}" 
+                                       Foreground="#38BDF8" 
+                                       FontSize="18" 
+                                       FontWeight="Bold" 
+                                       VerticalAlignment="Center"/>
+                        </StackPanel>
+                    </Border>
+                </Grid>
+
+                <!-- Category Pills (Horizontal Scroll) -->
+                <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
+                    <StackPanel Orientation="Horizontal" Spacing="8">
+                        <Button Height="48" 
+                                MinWidth="100" 
+                                Background="#334155" 
+                                Foreground="White" 
+                                FontWeight="Bold" 
+                                CornerRadius="8"
+                                Content="Todos" 
+                                Command="{Binding SelectCategoryCommand}" 
+                                CommandParameter="{x:Null}"/>
+                        
+                        <ItemsControl ItemsSource="{Binding Categories}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <StackPanel Orientation="Horizontal" Spacing="8"/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="models:Category">
+                                    <Button Height="48" 
+                                            MinWidth="110" 
+                                            Background="{Binding ColorHex}" 
+                                            Foreground="White" 
+                                            FontWeight="Bold" 
+                                            CornerRadius="8"
+                                            Content="{Binding Name}"
+                                            Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).SelectCategoryCommand}"
+                                            CommandParameter="{Binding .}"/>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+
+                <!-- Products Grid -->
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding FilteredProducts}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal" HorizontalAlignment="Left" />
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="models:Product">
+                                <Button Width="170" 
+                                        Height="130" 
+                                        Margin="6" 
+                                        Background="#1E293B" 
+                                        BorderBrush="#334155" 
+                                        BorderThickness="1" 
+                                        CornerRadius="10" 
+                                        Padding="10"
+                                        Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).AddProductCommand}"
+                                        CommandParameter="{Binding .}">
+                                    <Grid RowDefinitions="*, Auto, Auto">
+                                        <TextBlock Grid.Row="0" 
+                                                   Text="{Binding Name}" 
+                                                   Foreground="White" 
+                                                   FontWeight="SemiBold" 
+                                                   FontSize="15" 
+                                                   TextWrapping="Wrap" 
+                                                   MaxLines="2"/>
+                                        
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
+                                            <Border IsVisible="{Binding IsWeighed}" 
+                                                    Background="#047857" 
+                                                    CornerRadius="4" 
+                                                    Padding="4,2">
+                                                <TextBlock Text="⚖️ Peso" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                            </Border>
+                                            <TextBlock Text="{Binding Sku}" Foreground="#64748B" FontSize="11" VerticalAlignment="Center"/>
+                                        </StackPanel>
+
+                                        <TextBlock Grid.Row="2" 
+                                                   Text="{Binding Price, StringFormat='${0:N0}'}" 
+                                                   Foreground="#34D399" 
+                                                   FontSize="16" 
+                                                   FontWeight="Bold" 
+                                                   Margin="0,4,0,0"/>
+                                    </Grid>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Status Bar -->
+                <Border Grid.Row="3" Background="#1E293B" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="#94A3B8" FontSize="13"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- RIGHT PANEL: CART & CHECKOUT -->
+        <Border Grid.Column="1" Background="#020617" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="16">
+            <Grid RowDefinitions="Auto, *, Auto, Auto">
+                <!-- Cart Header -->
+                <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                    <TextBlock Text="🛒 Ticket de Venta" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <Button Grid.Column="1" 
+                            Content="Abrir Cajón" 
+                            Height="40" 
+                            Padding="12,0" 
+                            Background="#334155" 
+                            Foreground="White" 
+                            CornerRadius="6"
+                            Command="{Binding OpenCashDrawerCommand}"/>
+                </Grid>
+
+                <!-- Cart Items List -->
+                <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding CartItems}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dtos:CartItemDto">
+                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*, Auto, Auto">
+                                        <!-- Item info -->
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#94A3B8" FontSize="12"/>
+                                                <TextBlock Text="x" Foreground="#64748B" FontSize="12"/>
+                                                <TextBlock Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="12" FontWeight="Bold"/>
+                                                <TextBlock IsVisible="{Binding IsWeighed}" Text="{Binding WeightKg, StringFormat='({0:F2} kg)'}" Foreground="#10B981" FontSize="12"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#34D399" FontSize="14" FontWeight="Bold"/>
+                                        </StackPanel>
+
+                                        <!-- Quantity Controls -->
+                                        <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0">
+                                            <Button Width="36" Height="36" CornerRadius="6" Background="#334155" Foreground="White" Content="-" FontWeight="Bold"
+                                                    Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).DecrementItemCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                            <Button Width="36" Height="36" CornerRadius="6" Background="#334155" Foreground="White" Content="+" FontWeight="Bold"
+                                                    Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).IncrementItemCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                        </StackPanel>
+
+                                        <!-- Delete Item Button -->
+                                        <Button Grid.Column="2" Width="36" Height="36" CornerRadius="6" Background="#7F1D1D" Foreground="White" Content="✕"
+                                                Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).RemoveItemCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+
+                <!-- Totals Breakdown -->
+                <Border Grid.Row="2" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,12">
+                    <StackPanel Spacing="6">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Subtotal:" Foreground="#94A3B8" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Impuestos (IVA 19%):" Foreground="#94A3B8" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                        </Grid>
+                        <Separator Background="#334155" Margin="0,4"/>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="TOTAL A PAGAR:" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="24" FontWeight="Black"/>
+                        </Grid>
+                    </StackPanel>
+                </Border>
+
+                <!-- Action Buttons -->
+                <Grid Grid.Row="3" ColumnDefinitions="*, 2*">
+                    <Button Grid.Column="0" 
+                            Height="60" 
+                            Margin="0,0,8,0" 
+                            Background="#334155" 
+                            Foreground="White" 
+                            FontSize="16" 
+                            FontWeight="Bold" 
+                            CornerRadius="8" 
+                            Content="Cancelar"
+                            Command="{Binding ClearCartCommand}"/>
+                    
+                    <Button Grid.Column="1" 
+                            Height="60" 
+                            Background="#059669" 
+                            Foreground="White" 
+                            FontSize="20" 
+                            FontWeight="Black" 
+                            CornerRadius="8" 
+                            Content="💳 COBRAR"
+                            Command="{Binding StartPaymentCommand}"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <!-- MODAL OVERLAY: PAYMENT DIALOG WITH NUMPAD -->
+        <Border Grid.ColumnSpan="2" 
+                Background="#CC000000" 
+                IsVisible="{Binding IsPaymentModalOpen}"
+                HorizontalAlignment="Stretch"
+                VerticalAlignment="Stretch">
+            <Border Width="500" 
+                    Background="#0F172A" 
+                    BorderBrush="#38BDF8" 
+                    BorderThickness="1" 
+                    CornerRadius="16" 
+                    Padding="24" 
+                    VerticalAlignment="Center" 
+                    HorizontalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="Finalizar Cobro" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    
+                    <!-- Amount info -->
+                    <Border Background="#1E293B" CornerRadius="10" Padding="16">
+                        <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Total:" Foreground="#94A3B8" FontSize="16"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="20" FontWeight="Bold"/>
+                            
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Recibido:" Foreground="#94A3B8" FontSize="16" Margin="0,8,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="22" FontWeight="Bold" Margin="0,8,0,0"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Cambio:" Foreground="#94A3B8" FontSize="16" Margin="0,8,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="20" FontWeight="Bold" Margin="0,8,0,0"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Touch Numpad Grid -->
+                    <Grid RowDefinitions="55, 55, 55, 55" ColumnDefinitions="*, *, *">
+                        <Button Grid.Row="0" Grid.Column="0" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="7" Command="{Binding AppendNumpadCommand}" CommandParameter="7"/>
+                        <Button Grid.Row="0" Grid.Column="1" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="8" Command="{Binding AppendNumpadCommand}" CommandParameter="8"/>
+                        <Button Grid.Row="0" Grid.Column="2" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="9" Command="{Binding AppendNumpadCommand}" CommandParameter="9"/>
+
+                        <Button Grid.Row="1" Grid.Column="0" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="4" Command="{Binding AppendNumpadCommand}" CommandParameter="4"/>
+                        <Button Grid.Row="1" Grid.Column="1" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="5" Command="{Binding AppendNumpadCommand}" CommandParameter="5"/>
+                        <Button Grid.Row="1" Grid.Column="2" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="6" Command="{Binding AppendNumpadCommand}" CommandParameter="6"/>
+
+                        <Button Grid.Row="2" Grid.Column="0" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="1" Command="{Binding AppendNumpadCommand}" CommandParameter="1"/>
+                        <Button Grid.Row="2" Grid.Column="1" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="2" Command="{Binding AppendNumpadCommand}" CommandParameter="2"/>
+                        <Button Grid.Row="2" Grid.Column="2" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="3" Command="{Binding AppendNumpadCommand}" CommandParameter="3"/>
+
+                        <Button Grid.Row="3" Grid.Column="0" Margin="4" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="18" FontWeight="Bold" Content="C" Command="{Binding ClearNumpadCommand}"/>
+                        <Button Grid.Row="3" Grid.Column="1" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="0" Command="{Binding AppendNumpadCommand}" CommandParameter="0"/>
+                        <Button Grid.Row="3" Grid.Column="2" Margin="4" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="18" FontWeight="Bold" Content="00" Command="{Binding AppendNumpadCommand}" CommandParameter="00"/>
+                    </Grid>
+
+                    <!-- Modal Action Buttons -->
+                    <Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="8" Content="Volver" Command="{Binding ClosePaymentModalCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#059669" Foreground="White" FontSize="16" FontWeight="Black" CornerRadius="8" Content="Confirmar Pago" Command="{Binding CompleteSaleAsyncCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+    </Grid>
+</UserControl>
