@@ -8,7 +8,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="Presentation.Desktop.Views.CheckoutView"
-             x:DataType="vm:CheckoutViewModel">
+             x:DataType="vm:CheckoutViewModel"
+             x:Name="CheckoutRoot">
     
     <UserControl.Resources>
         <conv:BoolToColorConverter x:Key="BoolToColor"/>
@@ -76,7 +77,7 @@
                                             FontWeight="Bold" 
                                             CornerRadius="8"
                                             Content="{Binding Name}"
-                                            Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).SelectCategoryCommand}"
+                                            Command="{Binding #CheckoutRoot.DataContext.SelectCategoryCommand}"
                                             CommandParameter="{Binding .}"/>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
@@ -102,7 +103,7 @@
                                         BorderThickness="1" 
                                         CornerRadius="10" 
                                         Padding="10"
-                                        Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).AddProductCommand}"
+                                        Command="{Binding #CheckoutRoot.DataContext.AddProductCommand}"
                                         CommandParameter="{Binding .}">
                                     <Grid RowDefinitions="*, Auto, Auto">
                                         <TextBlock Grid.Row="0" 
@@ -181,16 +182,16 @@
                                         <!-- Quantity Controls (48x48 min touch targets) -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0">
                                             <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="-" FontSize="20" FontWeight="Bold"
-                                                    Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).DecrementItemCommand}"
+                                                    Command="{Binding #CheckoutRoot.DataContext.DecrementItemCommand}"
                                                     CommandParameter="{Binding .}"/>
                                             <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="+" FontSize="20" FontWeight="Bold"
-                                                    Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).IncrementItemCommand}"
+                                                    Command="{Binding #CheckoutRoot.DataContext.IncrementItemCommand}"
                                                     CommandParameter="{Binding .}"/>
                                         </StackPanel>
 
                                         <!-- Delete Item Button (48x48 min touch target) -->
                                         <Button Grid.Column="2" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="✕" FontSize="18"
-                                                Command="{Binding ((vm:CheckoutViewModel)$parent[UserControl].DataContext).RemoveItemCommand}"
+                                                Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}"
                                                 CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>

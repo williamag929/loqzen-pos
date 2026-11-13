@@ -6,7 +6,8 @@
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
              x:Class="Presentation.Desktop.Views.KdsView"
-             x:DataType="vm:KdsViewModel">
+             x:DataType="vm:KdsViewModel"
+             x:Name="KdsRoot">
 
     <Grid RowDefinitions="Auto, *">
         <!-- TOP TOOLBAR: STATIONS & STATS -->
@@ -31,7 +32,7 @@
                                         FontWeight="SemiBold" 
                                         CornerRadius="8"
                                         Content="{Binding .}"
-                                        Command="{Binding ((vm:KdsViewModel)$parent[UserControl].DataContext).SelectStationCommand}"
+                                        Command="{Binding #KdsRoot.DataContext.SelectStationCommand}"
                                         CommandParameter="{Binding .}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
