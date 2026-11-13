@@ -68,6 +68,16 @@ public partial class CheckoutViewModel : ObservableObject
     [ObservableProperty]
     private decimal _discountTotal = 0m;
 
+    /// <summary>"Cambio a entregar" screen after a paid sale; null = hidden. Cleared by Nueva venta or by adding a product.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSaleCompletedVisible))]
+    private SaleSummaryViewModel? _lastSale;
+
+    public bool IsSaleCompletedVisible => LastSale != null;
+
+    [RelayCommand]
+    public void DismissSale() => LastSale = null;
+
     public bool IsCashPayment => SelectedPaymentMethod == PaymentMethod.Cash;
     public bool IsCardPayment => SelectedPaymentMethod == PaymentMethod.Card;
     public bool IsTransferPayment => SelectedPaymentMethod == PaymentMethod.Transfer;
@@ -238,6 +248,8 @@ public partial class CheckoutViewModel : ObservableObject
     [RelayCommand]
     public void AddProduct(Product product)
     {
+        LastSale = null; // next sale starts: hide the change screen (also when the scanner fires)
+
         // Warn if no shift is open but still allow adding
         if (!IsShiftOpen)
         {
@@ -613,7 +625,12 @@ public partial class CheckoutViewModel : ObservableObject
             NotifyCartTotalsChanged();
             
             CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
-            StatusMessage = $"✅ ¡Venta {completedOrderNumber} completada y enviada a Cocina (KDS)!";
+            // Keep the change on screen until the cashier taps "Nueva venta": closing the modal used to
+            // hide it immediately and she had to read it off the receipt.
+            LastSale = new SaleSummaryViewModel(completedOrderNumber, completedTotal,
+                SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : completedTotal,
+                completedChange, SelectedPaymentMethod, null, DismissSale);
+            StatusMessage = $"✅ Venta {completedOrderNumber} completada · Cambio {Core.Application.Receipts.ReceiptFormatter.Cop(completedChange)}";
         }
         catch (Exception ex)
         {

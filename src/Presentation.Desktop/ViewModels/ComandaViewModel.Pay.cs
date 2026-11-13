@@ -84,6 +84,16 @@ public partial class ComandaViewModel
         StatusMessage = ok ? "🖨️ Pre-cuenta impresa" : "⚠️ Impresora no disponible (guardada como TXT)";
     }
 
+    /// <summary>"Cambio a entregar" screen after paying; null = hidden.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsSaleCompletedVisible))]
+    private SaleSummaryViewModel? _lastSale;
+
+    public bool IsSaleCompletedVisible => LastSale != null;
+
+    [RelayCommand]
+    private void DismissSale() => LastSale = null;
+
     /// <summary>Generates the invoice, prints it from the PERSISTED order, opens drawer if cash.</summary>
     [RelayCommand]
     private async Task CloseAndPayAsync()
@@ -119,6 +129,8 @@ public partial class ComandaViewModel
         ClearCurrent();
         await RefreshListOnlyAsync();
         StatusMessage = $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · Cambio {ReceiptFormatter.Cop(result.ChangeAmount)}";
+        LastSale = new SaleSummaryViewModel(result.OrderNumber, comanda.Total,
+            method == PaymentMethod.Cash ? tendered : comanda.Total, result.ChangeAmount, method, comanda.TableName, DismissSale);
 
         // Sale is committed. Printer/drawer failures must not undo it — only report.
         if (order != null)

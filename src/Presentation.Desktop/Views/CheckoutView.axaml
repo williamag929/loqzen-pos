@@ -391,5 +391,10 @@
                 </StackPanel>
             </Border>
         </Border>
+
+        <!-- "Cambio a entregar" after a paid sale (IsVisible on the wrapper, see CONTRIBUTING) -->
+        <Panel Grid.ColumnSpan="3" IsVisible="{Binding IsSaleCompletedVisible}">
+            <views:SaleCompletedOverlay DataContext="{Binding LastSale}"/>
+        </Panel>
     </Grid>
 </UserControl>

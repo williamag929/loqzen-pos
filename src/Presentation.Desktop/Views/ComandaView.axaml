@@ -45,6 +45,11 @@
             <views:ComandaNotesEditor/>
         </Panel>
 
+        <!-- "Cambio a entregar" after closing a table -->
+        <Panel Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding IsSaleCompletedVisible}">
+            <views:SaleCompletedOverlay DataContext="{Binding LastSale}"/>
+        </Panel>
+
         <!-- Status bar -->
         <Border Grid.Row="2" Background="#1E293B" Padding="16,10">
             <Grid ColumnDefinitions="*, Auto">
