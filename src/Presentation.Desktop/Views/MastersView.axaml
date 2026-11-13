@@ -342,6 +342,32 @@
                                 <CheckBox IsChecked="{Binding ProductIsWeighed, Mode=TwoWay}"
                                           Foreground="White" FontSize="15" Content="⚖️ Venta por peso (balanza)"/>
                             </Border>
+                            <!-- Category: decides the catalog filter, the comanda tiles and the kitchen station (Bebidas -> Barra) -->
+                            <StackPanel Grid.Row="4" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                                <TextBlock Text="Categoría" Foreground="#94A3B8" FontSize="13"/>
+                                <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding ProductCategory, Mode=TwoWay}"
+                                          PlaceholderText="Sin categoría" Height="48" CornerRadius="8" FontSize="15"
+                                          HorizontalAlignment="Stretch" VerticalContentAlignment="Center">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="entities:Category">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
+                            <!-- Tax -->
+                            <StackPanel Grid.Row="4" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
+                                <TextBlock Text="Impuesto" Foreground="#94A3B8" FontSize="13"/>
+                                <ComboBox ItemsSource="{Binding Taxes}" SelectedItem="{Binding ProductTax, Mode=TwoWay}"
+                                          PlaceholderText="Sin impuesto" Height="48" CornerRadius="8" FontSize="15"
+                                          HorizontalAlignment="Stretch" VerticalContentAlignment="Center">
+                                    <ComboBox.ItemTemplate>
+                                        <DataTemplate x:DataType="entities:Tax">
+                                            <TextBlock Text="{Binding Name}"/>
+                                        </DataTemplate>
+                                    </ComboBox.ItemTemplate>
+                                </ComboBox>
+                            </StackPanel>
                         </Grid>
 
                         <!-- Action Buttons -->
