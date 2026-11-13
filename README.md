@@ -1,286 +1,253 @@
 # Loqzen POS
 
-> **Multiplatform Standalone Point of Sale (POS) & Kitchen Display System (KDS)**  
-> Developed in **.NET 8/9** with **Avalonia UI**, operating under a 100% **Offline-First** paradigm with local **SQLite** persistence, hardware abstraction for real & emulated peripherals, and dual-screen customer display.
+> **Punto de venta (POS) + modo restaurante (comandas multi-mesa) + KDS de cocina**, offline-first.
+> .NET 8 · Avalonia UI 11 · SQLite (EF Core) · periféricos reales o emulados con Docker.
+
+[![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](#-stack)
+[![Avalonia UI](https://img.shields.io/badge/Avalonia%20UI-11.2-blueviolet)](#-stack)
+[![SQLite](https://img.shields.io/badge/SQLite-Offline--First-003B57?logo=sqlite&logoColor=white)](#-stack)
+[![Tests](https://img.shields.io/badge/tests-91%20passing-success)](#-tests)
+
+👉 **¿Vas a colaborar? Lee primero [`CONTRIBUTING.md`](CONTRIBUTING.md).**
 
 ---
 
-[![.NET](https://img.shields.io/badge/.NET-8.0%20%7C%209.0-512BD4?logo=dotnet&logoColor=white)](#-tech-stack)
-[![Avalonia UI](https://img.shields.io/badge/Avalonia%20UI-11.x-blueviolet?logo=avalonia&logoColor=white)](#-tech-stack)
-[![SQLite](https://img.shields.io/badge/SQLite-Offline--First-003B57?logo=sqlite&logoColor=white)](#-tech-stack)
-[![Docker](https://img.shields.io/badge/Docker-Emulators-2496ED?logo=docker&logoColor=white)](#-hardware-simulation-docker)
-[![Architecture](https://img.shields.io/badge/Architecture-Clean%20Architecture-success)](#-project-structure)
+## 📖 Contenido
+
+- [Estado actual](#-estado-actual)
+- [Inicio rápido](#-inicio-rápido)
+- [Funcionalidades](#-funcionalidades)
+- [Stack](#-stack)
+- [Estructura del proyecto](#-estructura-del-proyecto)
+- [Configuración](#️-configuración)
+- [Base de datos y migraciones](#️-base-de-datos-y-migraciones)
+- [Hardware y emuladores Docker](#-hardware-y-emuladores-docker)
+- [Tests](#-tests)
+- [Reglas de arquitectura](#-reglas-de-arquitectura)
+- [Roadmap](#️-roadmap)
+- [Documentación](#-documentación)
 
 ---
 
-## 📖 Table of Contents
+## 📌 Estado actual
 
-- [Overview](#-overview)
-- [Key Features](#-key-features)
-- [Tech Stack](#-tech-stack)
-- [Project Structure](#-project-structure)
-- [Hardware & Peripheral Architecture](#-hardware--peripheral-architecture)
-- [Hardware Simulation (Docker)](#-hardware-simulation-docker)
-- [Architectural Principles & Rules](#-architectural-principles--rules)
-- [Development Roadmap](#-development-roadmap)
-- [Multi-Agent Team Orchestration](#-multi-agent-team-orchestration)
-- [Getting Started](#-getting-started)
-- [Documentation Index](#-documentation-index)
+*Actualizado: 2026-11-12.* Lo que **funciona hoy** en el escritorio (Linux/Windows):
 
----
+| Área | Estado |
+|---|---|
+| Venta rápida (catálogo, carrito, descuento 10%, devoluciones en carrito, pago efectivo/tarjeta/transferencia) | ✅ |
+| **Tirilla en pantalla** idéntica a la impresa (mismo formateador) | ✅ |
+| **Modo restaurante**: comandas por mesa, 3 paneles táctiles, productos amarillo→verde con espera configurable, notas por producto | ✅ |
+| **KDS cocina**: actualización automática, luz en el borde de órdenes nuevas, alerta por tiempo, estado de impresión, archivo con deshacer | ✅ |
+| Turno de caja: apertura, **cuadre por denominaciones** (COP), resumen por medio de pago | ✅ |
+| Maestros (productos, categorías, impuestos, clientes) | ✅ |
+| Impresión ESC/POS por TCP 9100 + respaldo TXT si falla + pulso de cajón | ✅ |
+| Visor de cliente (segunda pantalla) | ✅ venta rápida · ⚠️ no muestra comandas |
+| Servidor Kestrel (REST + WebSocket para KDS/comanderas) | ⚠️ proceso **separado**, no embebido |
+| Usuarios / PIN / autorización de gerente | ❌ pendiente |
+| Android, ZPL, mDNS, sincronización con ERP | ❌ pendiente (diseñado, no implementado) |
 
-## 🌟 Overview
-
-**Loqzen POS** is an enterprise-grade, standalone point of sale and local backoffice solution designed to run natively on **Windows, Linux, and Android**. 
-
-Built with an **Offline-First** architecture, Loqzen POS operates with complete autonomy: it manages its own local catalog, pricing, taxes, customers, and transactions directly in a local SQLite database using the Outbox Pattern. When network connectivity is absent or unstable, operations continue seamlessly without latency or interruptions.
-
-For restaurant and hospitality environments, Loqzen POS includes an embedded local web and WebSocket server (powered by Kestrel) that turns the main terminal into a master hub for mobile waiter handhelds (comanderas) and Kitchen Display System (KDS) screens over the local LAN.
+Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
 
 ---
 
-## ✨ Key Features
+## 🚀 Inicio rápido
 
-- **100% Standalone & Autonomous**: Local administration of master records (products, categories, pricing, taxes, and customers). No mandatory external cloud or ERP dependency for sales operations.
-- **Offline-First Resilience**: Transactions are instantly committed to local SQLite storage. An Outbox Pattern queues events for optional background synchronization.
-- **Cross-Platform Touch UI**: Built with [Avalonia UI](https://avaloniaui.net/) using MVVM (`CommunityToolkit.Mvvm`). Optimized for touch interactions on 15.6" and 18.5" touchscreens (touch targets $\ge 48\times 48\text{ px}$).
-- **Dual Screen Support**: Secondary dedicated customer display window showing real-time itemized basket, promotions, total amounts, and dynamic payment QR codes.
-- **Comprehensive Hardware Integration**:
-  - **Thermal Receipt & Kitchen Printing**: ESC/POS and ZPL drivers over TCP/IP (Port 9100) and USB.
-  - **Cash Drawer**: Automatic solenoid pulse ejection via ESC/POS command (`0x1B 0x70`) routed through the printer RJ11/RJ12 port.
-  - **Commercial Serial Scale**: Real-time continuous weight reading via RS-232 serial connection (`System.IO.Ports`) for CAS SW-20RS scales.
-  - **Barcode Scanning**: USB HID keyboard emulation with global event hook listeners to avoid loss of focus.
-- **Restaurant & Hospitality Extension (KDS & Comandas)**:
-  - Embedded Kestrel HTTP/WebSocket server running inside the POS application.
-  - Push notifications to kitchen station screens (Hot Kitchen, Cold, Bar) with time-based visual aging cues (< 5 min green, 5–15 min yellow, > 15 min red).
-  - Multicast status updates back to waiter handhelds.
-  - Automatic fallback to physical kitchen ticket printing if a KDS screen disconnects.
-- **Delivery Integration Bridge**: Local bridge/webhook receiver for external delivery platforms (Uber Eats, Rappi) to inject orders directly into the local POS pipeline.
-
----
-
-## 🛠 Tech Stack
-
-| Layer | Technology | Purpose |
-|---|---|---|
-| **Platform / Runtime** | [.NET 8 / 9](https://dotnet.microsoft.com/) | High-performance, cross-platform runtime |
-| **UI Framework** | [Avalonia UI 11.x](https://avaloniaui.net/) | Cross-platform XAML Desktop & Mobile UI |
-| **MVVM Toolkit** | CommunityToolkit.Mvvm / ReactiveUI | MVVM architecture, observable properties, relay commands |
-| **Local Persistence** | SQLite + Entity Framework Core | Offline-first relational data store with migrations |
-| **Embedded Server** | ASP.NET Core Kestrel | Embedded LAN server for KDS WebSockets & Comandas |
-| **Hardware I/O** | `System.IO.Ports`, Raw TCP Sockets, USB HID | Serial scales, network printers, barcode scanners |
-| **Testing & Emulation** | Docker Compose (Python / Node.js / Alpine / socat) | Virtualized POS hardware environment for dev/CI |
-
----
-
-## 📂 Project Structure
-
-The project strictly follows **Clean Architecture** principles to isolate business rules from frameworks, UI, and physical hardware:
-
-```text
-loqzen-pos/
-├── Docs/                          # Technical documentation & architecture specs
-│   ├── Arquitectura_Docker_Emulacion_POS.md
-│   ├── Especificacion_Tecnica_KDS_Comandas.md
-│   ├── Especificacion_Tecnica_POS_Multiplataforma.md
-│   ├── Hardware_POS_Seleccionado.md
-│   ├── pos-prompt-antigravity.md
-│   └── README.md
-├── docker/                        # Hardware simulation environment
-│   ├── docker-compose.yml         # Emulator topology (Printer, Scale, Delivery Mock)
-│   └── emulator/
-│       ├── printer/               # TCP 9100 ESC/POS simulator & cash drawer logger
-│       ├── scale/                 # CAS SW-20RS serial weight stream via socat
-│       └── webhook/               # Rappi / Uber Eats webhook mock server
-├── src/
-│   ├── Core.Domain/               # Pure Domain: Entities, Enums, Value Objects (UUIDs/Guids)
-│   ├── Core.Application/          # Use Cases, CQRS/DTOs, Hardware Interfaces (IPrinterService, etc.)
-│   ├── Infrastructure.Data/       # SQLite DbContext, EF Core mappings, Outbox Pattern
-│   ├── Infrastructure.Hardware/   # Peripheral drivers (ESC/POS, ZPL, System.IO.Ports, USB HID)
-│   ├── Presentation.Desktop/      # Avalonia UI app (Cashier touch UI, dual screen window)
-│   └── Presentation.Server/       # Embedded Kestrel server for local LAN KDS & Comandas
-├── .gitignore                     # Production-ready git ignore
-└── README.md                      # Project master documentation
-```
-
----
-
-## 🔌 Hardware & Peripheral Architecture
-
-### Selected Reference Hardware
-
-| Device | Model | Interface / Protocol | Purpose |
-|---|---|---|---|
-| **POS Terminal** | Volcora POS Standard Plus (18.5") | Intel N97, USB, RS-232, Dual HDMI/VGA | Central cashier terminal & primary touch display |
-| **Receipt Printer** | Epson TM-T20III / TM-T88VI | TCP/IP (Port 9100) / USB (ESC/POS) | Customer receipts & vouchers |
-| **Kitchen Printer** | Epson / Zebra | TCP/IP or USB (ESC/POS & ZPL) | Physical kitchen preparation tickets |
-| **Cash Drawer** | Volcora Heavy-Duty 16" | RJ11 / RJ12 via Printer DKD | Ejection triggered by pulse command (`0x1B 0x70`) |
-| **Commercial Scale** | CAS SW-20RS (NTEP Certified) | RS-232 Serial (`System.IO.Ports`) | Continuous weigh-ins for weighed items |
-| **Barcode Scanner** | 1D/2D Hands-free Scanner | USB HID (Keyboard emulation) | Instant product barcode lookup |
-| **Customer Display** | Secondary 10.1"–15.6" Screen | HDMI / Extended Desktop | Live order breakdown and dynamic payment QR |
-
-### Connection Diagram
-
-```text
-  [ Epson Thermal Printer ] <--- (TCP/IP 9100 or USB) --- [ Avalonia UI (.NET POS) ]
-              |                                                   |
-              +--- (RJ11/RJ12 Cable) ---> [ Volcora Cash Drawer ]  |
-                                                                  +--- (RS-232 Serial) ---> [ CAS SW-20RS Scale ]
-                                                                  |
-                                                                  +--- (Secondary Display) -> [ Customer Screen ]
-```
-
----
-
-## 🐳 Hardware Simulation (Docker)
-
-To allow development and automated testing without requiring physical POS peripherals attached, a Docker Compose simulation suite is provided:
-
-```yaml
-version: '3.8'
-
-services:
-  # 1. Shared SQLite storage volume
-  pos-db-sync:
-    image: alpine:latest
-    container_name: pos-db-sync
-    volumes:
-      - ./data:/app/data
-
-  # 2. Virtual Thermal Printer & Cash Drawer (TCP 9100)
-  thermal-printer-emulator:
-    build: ./emulator/printer
-    container_name: thermal-printer-emulator
-    ports:
-      - "9100:9100"
-    environment:
-      - LOG_LEVEL=debug
-
-  # 3. Virtual CAS SW-20RS Serial Scale (socat + Python stream)
-  serial-scale-emulator:
-    build: ./emulator/scale
-    container_name: serial-scale-emulator
-    devices:
-      - "/dev/ptmx:/dev/ptmx"
-    environment:
-      - SCALE_MODEL=CAS-SW20RS
-      - WEIGHT_STEP_SECONDS=3
-
-  # 4. Delivery Webhook & Payment Gateway Mock (Rappi / Uber Eats)
-  delivery-webhook-mock:
-    image: node:18-alpine
-    container_name: delivery-webhook-mock
-    working_dir: /app
-    volumes:
-      - ./emulator/webhook:/app
-    ports:
-      - "5000:5000"
-    command: ["node", "server.js"]
-```
-
----
-
-## 📐 Architectural Principles & Rules
-
-1. **Clean Architecture Strictness**:
-   - The UI (`Presentation.Desktop`) and Data/Hardware layers only depend inward on `Core.Application` and `Core.Domain`.
-   - Business and pricing logic reside exclusively in `Core.Domain` and `Core.Application`.
-2. **Universal UUIDs (Guids)**:
-   - All master entities (`Product`, `Category`, `Customer`, `Tax`) and transaction records (`Order`, `OrderItem`, `Payment`, `CashShift`) use `Guid` primary keys to prevent collisions in distributed/offline nodes.
-3. **Hardware Decoupling via Interfaces**:
-   - Views and ViewModels must never invoke physical hardware directly.
-   - All peripherals are injected through domain interfaces (`IPrinterService`, `IScaleService`, `IBarcodeScannerService`, `ICashDrawerService`), allowing transparent switching between real hardware and Docker emulators.
-4. **Outbox Pattern for Resilience**:
-   - Any transaction intended for eventual cloud synchronization is recorded into a local `OutboxMessages` table in SQLite during the same database transaction.
-
----
-
-## 🗺 Development Roadmap
-
-```mermaid
-flowchart LR
-    F1["Phase 1: Core POS Standalone<br/>• Clean Architecture<br/>• SQLite & EF Core<br/>• Avalonia Touch UI<br/>• Master Data & Cash Shifts"] --> F2["Phase 2: Hardware & Docker<br/>• ESC/POS & ZPL Drivers<br/>• CAS SW-20RS Serial Scale<br/>• Cash Drawer Integration<br/>• Docker Simulation Suite"]
-    F2 --> F3["Phase 3: Dual Display & KDS<br/>• Customer Screen & QRs<br/>• Embedded Kestrel Server<br/>• KDS Kitchen Displays<br/>• Mobile Waiter Comandas"]
-```
-
-### Phase 1: Core POS Standalone & Local DB
-- Establish Clean Architecture solution structure in .NET 8/9.
-- Configure SQLite DbContext, Outbox table, and initial migrations.
-- Implement touch-friendly cash register UI in Avalonia (catalog search, categories, cart management, split payments, cash open/close).
-
-### Phase 2: Hardware Drivers & Emulation Environment
-- Implement `IPrinterService` (ESC/POS formatting, paper cut, DKD cash drawer pulse `0x1B 0x70`, ZPL kitchen labels).
-- Implement `IScaleService` reading continuous RS-232 serial weight frames (`ST,GS,+001.25kg\r\n`).
-- Implement global USB HID barcode reader hook.
-- Configure and launch Docker Compose emulation suite.
-
-### Phase 3: Dual Screen & Restaurant KDS / Comandas
-- Implement `CustomerDisplayWindow.axaml` for secondary customer-facing monitor.
-- Embed Kestrel server in POS host for local LAN WebSocket communication.
-- Implement KDS kitchen view with time-based visual status color tags.
-- Implement mobile order dispatch and offline queue fallback.
-
----
-
-## 🤖 Multi-Agent Team Orchestration
-
-For development with multi-agent systems (e.g. Google Antigravity, Claude Code, or autonomous agent swarms), responsibilities are partitioned as follows:
-
-| Role | Focus & Responsibilities | Key Deliverables |
-|---|---|---|
-| `@dotnet-backend-architect` | Domain modeling, Clean Architecture, SQLite persistence, EF Core, Outbox pattern. | Solution skeleton, `Core.Domain`, `Infrastructure.Data`, SQLite migrations. |
-| `@ui-ux-frontend-architect` | Touchscreen UI/UX in Avalonia XAML, MVVM ViewModels, responsive layouts, numpads. | `CheckoutView.axaml`, `CustomerDisplayWindow.axaml`, tactile payment dialogs. |
-| `@hardware-infrastructure-agent` | Peripheral drivers, raw socket/serial I/O, ESC/POS, ZPL, Docker Compose test suite. | `Infrastructure.Hardware`, `IPrinterService`, `IScaleService`, Docker emulators. |
-| `@networking-kds-agent` | Embedded Kestrel server, WebSockets, mDNS LAN discovery, KDS protocol. | `Presentation.Server`, WebSocket handlers, KDS screen synchronization. |
-
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [.NET 8.0 SDK](https://dotnet.microsoft.com/download) or [.NET 9.0 SDK](https://dotnet.microsoft.com/download)
-- [Docker & Docker Compose](https://www.docker.com/) (for hardware emulation)
-- Git & [GitHub CLI (`gh`)](https://cli.github.com/)
-
-### 1. Clone Repository
+**Requisitos:** [.NET 8 SDK](https://dotnet.microsoft.com/download/dotnet/8.0) (probado con 8.0.428). Docker es opcional (solo para emular hardware).
 
 ```bash
-gh repo clone williamag929/loqzen-pos
+git clone https://github.com/williamag929/loqzen-pos.git
 cd loqzen-pos
-```
-
-### 2. Start Hardware Emulators (Docker)
-
-```bash
-docker compose -f docker/docker-compose.yml up -d
-```
-
-### 3. Build & Run POS Application
-
-```bash
-# Restore and build the Clean Architecture solution
-dotnet build
-
-# Run desktop presentation app
+dotnet tool restore                                   # instala dotnet-ef 8.0.11 (herramienta local)
+dotnet build LoqzenPos.sln
+dotnet test                                           # 91 tests, ~1 s
 dotnet run --project src/Presentation.Desktop
 ```
 
+Al primer arranque la app **crea la base SQLite, aplica migraciones y carga datos demo** (productos, 14 mesas, órdenes de KDS).
+Por defecto usa impresora/balanza/escáner **simulados** (ver [Configuración](#️-configuración)).
+
+Flujo para probar en 2 minutos:
+1. **💼 Turno de Caja** → Abrir turno.
+2. **🍽️ Mesas / Comandas** → tocar "Mesa 1" → elegir categoría → producto (queda amarillo 30 s) → 📝 Nota → guardar.
+3. **👨‍🍳 KDS Cocina** → la orden aparece con luz en el borde → PREPARAR → LISTO → ENTREGAR (20 s con deshacer).
+4. Volver a Comandas → **Cerrar ▶** → cobrar → se genera la factura.
+5. Turno de Caja → **Cerrar turno / Arqueo** → contar billetes y monedas.
+
+Abrir directamente en una pestaña (pantallas dedicadas, p. ej. cocina):
+```bash
+LOQZEN_START_VIEW=kds dotnet run --project src/Presentation.Desktop   # kds | comandas | caja | maestros
+```
+
 ---
 
-## 📚 Documentation Index
+## ✨ Funcionalidades
 
-All in-depth technical specifications are available in the [`Docs/`](file:///home/spatial/loqzen-pos/Docs) directory:
+### Venta rápida (🛒 Punto de Venta)
+Búsqueda por nombre/SKU/código de barras, filtros por categoría, productos por peso (balanza), +/−, descuento rápido, **devolución en el mismo ticket** (🔄 → sección *NOTA CREDITO* en el recibo), pago con numpad táctil y tirilla en vivo.
 
-- [Technical Specification: Multiplatform POS (Offline-First)](file:///home/spatial/loqzen-pos/Docs/Especificacion_Tecnica_POS_Multiplataforma.md)
-- [Technical Specification: Restaurant KDS & Mobile Comandas](file:///home/spatial/loqzen-pos/Docs/Especificacion_Tecnica_KDS_Comandas.md)
-- [Docker Hardware Simulation Architecture](file:///home/spatial/loqzen-pos/Docs/Arquitectura_Docker_Emulacion_POS.md)
-- [Selected POS Hardware Specifications](file:///home/spatial/loqzen-pos/Docs/Hardware_POS_Seleccionado.md)
-- [Multi-Agent Master Initialization Prompt](file:///home/spatial/loqzen-pos/Docs/pos-prompt-antigravity.md)
-- [AI Team Instructions & Project Guide](file:///home/spatial/loqzen-pos/Docs/README.md)
+### Modo restaurante (🍽️ Mesas / Comandas)
+Navegación por 3 paneles con flechas ◀ ▶ (64 px) o deslizando el dedo:
+- **Izquierda:** comandas abiertas + mapa de mesas (libre/ocupada).
+- **Centro:** categorías → productos; cada producto entra **amarillo** con cuenta regresiva (anulable, con 📝 nota) y pasa a **verde** = enviado a cocina. Una orden de cocina por estación (bebidas → Barra).
+- **Derecha:** pre-cuenta, cobro y **factura** (Order + Payment + Outbox en una sola transacción).
+
+### KDS (👨‍🍳 KDS Cocina)
+Orden de llegada, filtro por estación, verde/amarillo/rojo por tiempo (rojo parpadea al superar el máximo), luz que recorre el borde de las órdenes nuevas, 🖨️ verde = no impresa / gris = impresa, entregar → 20 s atenuada con ↩ Deshacer.
+
+### Turno y cuadre de caja (💼 Turno de Caja)
+Apertura con fondo inicial; cierre con conteo por denominación (100.000 … 50), esperado vs. contado vs. diferencia, ventas por medio de pago. No permite cerrar con comandas abiertas.
 
 ---
 
-## 📄 License
+## 🛠 Stack
 
-Proprietary — All rights reserved © Loqzen POS.
+| Capa | Tecnología |
+|---|---|
+| Runtime | .NET 8 (`net8.0` en todos los proyectos) |
+| UI | Avalonia UI 11.2 + Fluent, MVVM con **CommunityToolkit.Mvvm 8.3** |
+| Persistencia | SQLite + EF Core 8.0.11, **migraciones** (`dotnet-ef` herramienta local) |
+| DI / config | Microsoft.Extensions.DependencyInjection + `appsettings.json` |
+| Servidor LAN | ASP.NET Core minimal API + WebSockets (`Presentation.Server`, proceso aparte) |
+| Hardware | TCP raw (ESC/POS), `System.IO.Ports` (balanza CAS), USB HID (escáner) |
+| Tests | xUnit, FluentAssertions, Moq, EF InMemory + SQLite real |
+| Emuladores | Docker Compose + Python |
+
+---
+
+## 📂 Estructura del proyecto
+
+```text
+loqzen-pos/
+├── src/
+│   ├── Core.Domain/              # Entidades (Guid PK), enums. Sin dependencias.
+│   ├── Core.Application/         # DTOs, interfaces de servicios y hardware,
+│   │   ├── Receipts/             #   ReceiptFormatter (único layout de tirilla), ReceiptDtoFactory
+│   │   └── Kitchen/              #   KdsSettings, KdsTiming (reglas de tiempo del KDS)
+│   ├── Infrastructure.Data/      # PosDbContext, Migrations/, Seed/DbInitializer, Services/
+│   ├── Infrastructure.Hardware/  # Impresora ESC/POS (+EscPosRenderer), balanza, escáner (reales y mock)
+│   ├── Presentation.Desktop/     # App Avalonia: Views/, ViewModels/, Controls/, Converters/
+│   └── Presentation.Server/      # Kestrel: REST KDS/catálogo + WebSocket /ws/kds
+├── tests/Loqzen.Tests/           # Domain/, Services/, Integration/ (SQLite real), Receipts/, Ui/
+├── docker/                       # docker-compose.yml + emulator/{printer,scale,webhook}
+├── Docs/                         # Especificaciones, handoff.md (estado y pendientes)
+├── memory-bank/                  # Contexto para agentes IA (activeContext.md = estado técnico)
+├── CONTRIBUTING.md               # Guía para colaboradores
+└── LoqzenPos.sln
+```
+
+---
+
+## ⚙️ Configuración
+
+`src/Presentation.Desktop/appsettings.json` (se copia al directorio de salida; también se lee `appsettings.{DOTNET_ENVIRONMENT}.json`):
+
+| Sección | Clave | Default | Qué hace |
+|---|---|---|---|
+| `Hardware` | `UseMockPrinter` / `UseMockScale` / `UseMockScanner` | `true` | `false` = usar dispositivo real |
+| | `PrinterHost`, `PrinterPort` | `127.0.0.1`, `9100` | Impresora ESC/POS por red (o el emulador Docker) |
+| | `ScalePortName`, `ScaleBaudRate` | `/dev/ttyUSB0`, `9600` | Balanza CAS SW-20RS por RS-232 |
+| `Comanda` | `ConfirmationDelaySeconds` | `30` | Espera (amarillo) antes de enviar a cocina |
+| | `QuickNotes` | 12 notas | Botones de notas rápidas ("Sin cebolla"…) |
+| `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
+| | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
+| | `PollSeconds` | `3` | Cada cuánto el KDS revisa órdenes nuevas |
+
+Variables de entorno: `DOTNET_ENVIRONMENT` (default `Development`), `LOQZEN_START_VIEW`.
+
+---
+
+## 🗄️ Base de datos y migraciones
+
+- Ubicación: `~/.local/share/LoqzenPos/pos.db` (Linux) · `%LOCALAPPDATA%\LoqzenPos\pos.db` (Windows).
+  Para una base aislada en pruebas: `XDG_DATA_HOME=/tmp/loqzen dotnet run --project src/Presentation.Desktop` (Linux).
+- Al arrancar, `DbInitializer` aplica las migraciones pendientes **conservando los datos**.
+- Bases creadas por versiones antiguas (sin historial de migraciones) se **renombran** a `pos.db.legacy-<fecha>.bak` (nunca se borran) y se crea una nueva.
+- Crear una migración tras cambiar entidades:
+  ```bash
+  dotnet tool run dotnet-ef migrations add NombreDescriptivo \
+    --project src/Infrastructure.Data --startup-project src/Infrastructure.Data --output-dir Migrations
+  ```
+
+---
+
+## 🔌 Hardware y emuladores Docker
+
+| Dispositivo (referencia) | Conexión | Implementación |
+|---|---|---|
+| Impresora Epson TM-T20III / TM-T88VI | TCP 9100 | `EscPosNetworkPrinterService` (si falla → TXT en `LoqzenPos/FailedReceipts/`) |
+| Cajón monedero | RJ11 a la impresora, pulso `ESC p` (`0x1B 0x70`) | `IPrinterService.OpenCashDrawerAsync` |
+| Balanza CAS SW-20RS | RS-232, tramas `ST,GS,+001.25kg` | `CasSerialScaleService` |
+| Escáner USB HID | teclado | `UsbHidBarcodeScannerService` |
+| Visor de cliente | 2ª pantalla | `CustomerDisplayWindow` |
+
+Emuladores (desarrollo sin hardware):
+```bash
+docker compose -f docker/docker-compose.yml up -d
+```
+| Servicio | Puerto | Notas |
+|---|---|---|
+| `thermal-printer-emulator` | TCP 9100 | Recibe ESC/POS y registra el pulso de cajón |
+| `serial-scale-emulator` | TCP 9101 | Tramas CAS por TCP (no puerto serie) |
+| `delivery-webhook-mock` | HTTP 5000 | Mock de Rappi/Uber Eats |
+
+Para imprimir en el emulador: `"UseMockPrinter": false` en `appsettings.json`.
+
+---
+
+## 🧪 Tests
+
+```bash
+dotnet test                                         # todo
+dotnet test --filter FullyQualifiedName~Comanda     # un área
+```
+Incluye tests con **SQLite real** (flujo completo y migraciones sobre archivos) y tests de **XAML** que fallan si un binding de comando no existe o si una vista combina `DataContext` + `IsVisible` en el mismo elemento (dos bugs reales que dejaron botones/pestañas muertos).
+
+> Los tests de XAML leen el ensamblado compilado del escritorio: ejecuta `dotnet build LoqzenPos.sln` antes de `dotnet test --no-build`.
+
+---
+
+## 📐 Reglas de arquitectura
+
+1. **Clean Architecture:** `Presentation.*` e `Infrastructure.*` dependen hacia adentro; la lógica de negocio vive en servicios de `Core.Application` / `Infrastructure.Data`, nunca en Views.
+2. **Guid PK** en todas las entidades (seguro para nodos offline).
+3. **Hardware solo por interfaces** (`IPrinterService`, `IScaleService`, `IBarcodeScannerService`); real vs. mock se elige por configuración.
+4. **Offline-first + Outbox:** cada transacción se guarda localmente y escribe su `OutboxMessage` en el **mismo** `SaveChanges`.
+5. **Táctil:** botones ≥ 48×48 px; textos de UI en español, código en inglés.
+
+Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
+
+---
+
+## 🗺️ Roadmap
+
+- [x] Fase 1 – POS core, SQLite + migraciones, maestros, turno de caja
+- [x] Fase 2 – ESC/POS, cajón, balanza, escáner, emuladores Docker
+- [x] Fase 3 (parcial) – visor de cliente, comandas multi-mesa, KDS
+- [ ] Usuarios/PIN y autorización de gerente (devoluciones, descuentos)
+- [ ] Kestrel embebido en el escritorio + KDS/comanderas en red en tiempo real (WebSocket)
+- [ ] Visor de cliente para comandas
+- [ ] ZPL, mDNS, Android, sincronización del Outbox con ERP
+
+---
+
+## 📚 Documentación
+
+| Documento | Para qué |
+|---|---|
+| [`CONTRIBUTING.md`](CONTRIBUTING.md) | **Guía para colaboradores** (empezar aquí) |
+| [`Docs/handoff.md`](Docs/handoff.md) | Estado de la última sesión y pendientes |
+| [`memory-bank/activeContext.md`](memory-bank/activeContext.md) | Estado técnico detallado y deuda |
+| [`Docs/Especificacion_Tecnica_POS_Multiplataforma.md`](Docs/Especificacion_Tecnica_POS_Multiplataforma.md) | Especificación POS (visión original) |
+| [`Docs/Especificacion_Tecnica_KDS_Comandas.md`](Docs/Especificacion_Tecnica_KDS_Comandas.md) | Especificación KDS y comandas |
+| [`Docs/Arquitectura_Docker_Emulacion_POS.md`](Docs/Arquitectura_Docker_Emulacion_POS.md) | Emuladores Docker |
+| [`Docs/Hardware_POS_Seleccionado.md`](Docs/Hardware_POS_Seleccionado.md) | Hardware de referencia |
+| [`Docs/in-cart-returns.md`](Docs/in-cart-returns.md) | Devoluciones en carrito |
+
+> Las especificaciones en `Docs/` describen la **visión** (incluye .NET 9, Android, ZPL, mDNS). La tabla [Estado actual](#-estado-actual) indica lo que realmente está implementado.
+
+---
+
+## 📄 Licencia
+
+Propietario — Todos los derechos reservados © Loqzen POS.

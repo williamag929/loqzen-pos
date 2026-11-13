@@ -2,6 +2,8 @@
 **Fecha:** 2026-11-12  
 **Última sesión:** Implementación Sistema de Devoluciones en Carrito (Fase 1)
 
+
+> 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 ---
 
 ---
