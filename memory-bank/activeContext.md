@@ -1,12 +1,14 @@
 # Active Context & Progress (snapshot 2025-01-15)
 
 ## Git state
-- Commits: `58df566` docs → `9a26337` scaffold (Clean Arch, domain, SQLite, touch UI, docker) → `9634800` dual display, KDS, scanner, Kestrel.
-- **Uncommitted WIP**: CheckoutViewModel refactored to use ISalesService, MVP E2E tests added.
+- Latest commit: `10ecb6f` feat: add in-sale return/credit note system (Fase 1)
+- Previous commits: `730490e` Report Service → `3bfc464` Customer Display discounts → `545cfe7` 10% discount → `b25793f` ESC/POS receipt
+- **Fully committed**: In-cart returns, receipt printing, discount system, report service, customer display.
 
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
-- ✅ `dotnet test` passes (42 tests, including 4 new MVP E2E integration tests).
+- ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
+- ✅ In-cart return system fully implemented and tested.
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -14,6 +16,11 @@
 - Entities with Guid PKs, PosDbContext with precisions/indexes, seed data.
 - Real + Mock printer/scale/scanner drivers. **Docker emulators verified and enhanced** (printer, scale, webhook).
 - **CheckoutView completed for full sales cycle** (see details below).
+- **In-cart return/credit note system (Fase 1)** with receipt printing and validation.
+- **10% quick discount system** with UI, DB persistence, and customer display sync.
+- **Report Service** (daily/Z-report/period analytics) with IReportService interface.
+- **Enhanced receipt printing** with ESC/POS formatting, store config, fallback to TXT.
+- **Customer Display dual-screen support** with discount tracking and return item warnings.
 - Checkout, KDS, CustomerDisplay, CashShift, Masters views (last two WIP).
 
 ### CheckoutView Completion (2026-11-12)
@@ -134,9 +141,40 @@
 - ✅ Receipt printed after successful payment
 - ✅ Cash drawer opened for cash payments
 
+### In-Cart Return System (Fase 1 completed 2026-11-12)
+**Business Logic:**
+- Clicking "🔄" button on cart item now ADDS a return item (negative qty) instead of deleting
+- Validates: cannot return more than added in same sale
+- Return items have `IsReturn=true` flag in DTOs
+- Cart displays: normal items + return items side-by-side
+
+**Receipt Printing:**
+- Separate sections: normal items, then "*** NOTA CREDITO ***"
+- Return items prefixed with "DEVOL:" and "(Ajuste en venta)"
+- Clear for customer to see credit note on same receipt
+
+**UI Changes:**
+- CheckoutView: Return items with red background (#450A0A), border #991B1B
+- Label: "🔄 DEVOLUCIÓN: [name]" + "(Nota crédito - ajuste en venta)"
+- CustomerDisplay: Same styling, shows "⚠️ DEVOLUCIÓN" to customer
+- Both normal and return items visible simultaneously in cart
+
+**Implementation:**
+- `CartItemDto.IsReturn` flag + `DisplayName` property
+- `ReceiptItemDto.IsReturn` flag
+- `CheckoutViewModel.RemoveItem` → ReturnItem logic with validation
+- `PrinterService` separates `Items.Where(!IsReturn)` vs `Items.Where(IsReturn)`
+- CheckoutView.axaml and CustomerDisplayWindow.axaml with Panel containers for dual templates
+
+**TODO (Fase 2):**
+- Manager authorization PIN modal
+- ManagerOverride entity for audit trail
+- Configurable actions requiring authorization (appsettings.json)
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
-2. Add EF Core migrations.
-3. Add integration tests for printer output against Docker emulator.
-4. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.
-5. Commit changes.
+2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
+3. Add EF Core migrations.
+4. Implement manager authorization system (Fase 2 of returns).
+5. Add integration tests for printer output against Docker emulator.
+6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.
