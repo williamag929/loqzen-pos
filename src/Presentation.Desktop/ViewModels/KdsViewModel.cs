@@ -1,254 +1,154 @@
 using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Hardware;
-using Core.Domain.Entities;
+using Core.Application.Kitchen;
+using Core.Application.Services;
 using Core.Domain.Enums;
-using Infrastructure.Data.Context;
-using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Presentation.Desktop.ViewModels;
 
-public partial class KitchenOrderCardViewModel : ObservableObject
+/// <summary>
+/// Kitchen Display. Cards are in ARRIVAL order. A 1s UI tick updates colours/countdowns; every
+/// PollSeconds it re-reads the DB and MERGES (adds new cards, updates existing in place, removes gone)
+/// so running animations don't restart. Each operation uses its own DI scope (fresh DbContext).
+/// </summary>
+public partial class KdsViewModel : ObservableObject, IDisposable
 {
-    private readonly KitchenOrder _entity;
-    private readonly PosDbContext _dbContext;
+    private readonly IServiceScopeFactory _scopes;
     private readonly IPrinterService _printerService;
-    private readonly Action _onStatusChanged;
+    private readonly KdsSettings _settings;
+    private readonly TimeProvider _clock;
+    private readonly DispatcherTimer _timer;
+    private int _ticksSincePoll;
+    private bool _loading;
 
-    public Guid Id => _entity.Id;
-    public string OrderNumber => _entity.OrderNumber;
-    public string TableNumber => _entity.TableNumber;
-    public string WaiterName => _entity.WaiterName;
-    public string Station => _entity.Station;
-    public string? GeneralNotes => _entity.GeneralNotes;
-    public DateTime CreatedAt => _entity.CreatedAt;
+    [ObservableProperty] private string _selectedStation = "Todas";
+    [ObservableProperty] private int _pendingCount;
+    [ObservableProperty] private int _inPrepCount;
+    [ObservableProperty] private int _readyCount;
+    [ObservableProperty] private string _kdsTitle = "KDS - Sistema de Pantallas de Cocina";
+    [ObservableProperty] private string _statusMessage = string.Empty;
 
-    [ObservableProperty]
-    private KitchenOrderStatus _status;
+    public ObservableCollection<string> Stations { get; } = new() { "Todas", "Cocina Caliente", "Barra", "Parrilla" };
+    public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
+    private readonly List<KitchenOrderCardViewModel> _allOrders = new();
 
-    [ObservableProperty]
-    private int _elapsedMinutes;
-
-    [ObservableProperty]
-    private string _urgencyColorHex = "#10B981";
-
-    public ObservableCollection<KitchenOrderItem> Items { get; } = new();
-
-    public string StatusText => Status switch
+    public KdsViewModel(IServiceScopeFactory scopes, IPrinterService printerService, KdsSettings settings, TimeProvider clock)
     {
-        KitchenOrderStatus.Pending => "PENDIENTE",
-        KitchenOrderStatus.InPreparation => "EN PREPARACIÓN",
-        KitchenOrderStatus.Ready => "LISTO",
-        KitchenOrderStatus.Delivered => "ENTREGADO",
-        _ => "CANCELADO"
-    };
-
-    public string ActionButtonText => Status switch
-    {
-        KitchenOrderStatus.Pending => "👨‍🍳 PREPARAR",
-        KitchenOrderStatus.InPreparation => "🔔 MARCAR LISTO",
-        KitchenOrderStatus.Ready => "✔️ ENTREGAR",
-        _ => "ARCHIVAR"
-    };
-
-    public string ActionButtonColorHex => Status switch
-    {
-        KitchenOrderStatus.Pending => "#3B82F6",      // Blue
-        KitchenOrderStatus.InPreparation => "#10B981",// Green
-        KitchenOrderStatus.Ready => "#6366F1",        // Indigo
-        _ => "#64748B"
-    };
-
-    public KitchenOrderCardViewModel(KitchenOrder entity, PosDbContext dbContext, IPrinterService printerService, Action onStatusChanged)
-    {
-        _entity = entity;
-        _dbContext = dbContext;
+        _scopes = scopes;
         _printerService = printerService;
-        _onStatusChanged = onStatusChanged;
-        _status = entity.Status;
+        _settings = settings;
+        _clock = clock;
 
-        foreach (var item in entity.Items)
-        {
-            Items.Add(item);
-        }
-
-        UpdateElapsed();
+        _ = LoadOrdersAsync();
+        _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _timer.Tick += async (_, _) => await TickAsync();
+        _timer.Start();
     }
 
-    public void UpdateElapsed()
-    {
-        var elapsed = (DateTime.UtcNow - _entity.CreatedAt).TotalMinutes;
-        ElapsedMinutes = (int)Math.Max(0, elapsed);
+    private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
-        if (ElapsedMinutes < 5)
+    public void Dispose() => _timer.Stop();
+
+    private async Task TickAsync()
+    {
+        var expired = _allOrders.Where(c => !c.Tick(UtcNow)).ToList();
+        if (expired.Count > 0)
         {
-            UrgencyColorHex = "#10B981"; // Verde
+            foreach (var c in expired) _allOrders.Remove(c);
+            FilterOrders();
+            RecalculateCounts();
         }
-        else if (ElapsedMinutes <= 15)
+
+        if (++_ticksSincePoll >= Math.Max(1, _settings.PollSeconds))
         {
-            UrgencyColorHex = "#F59E0B"; // Amarillo
-        }
-        else
-        {
-            UrgencyColorHex = "#EF4444"; // Rojo
+            _ticksSincePoll = 0;
+            await LoadOrdersAsync();
         }
     }
 
-    [RelayCommand]
-    public async Task AdvanceStatusAsync()
+    /// <summary>Merge DB state into the card list without recreating existing cards.</summary>
+    public async Task LoadOrdersAsync()
     {
-        var nextStatus = Status switch
-        {
-            KitchenOrderStatus.Pending => KitchenOrderStatus.InPreparation,
-            KitchenOrderStatus.InPreparation => KitchenOrderStatus.Ready,
-            KitchenOrderStatus.Ready => KitchenOrderStatus.Delivered,
-            _ => KitchenOrderStatus.Delivered
-        };
-
-        Status = nextStatus;
-        _entity.Status = nextStatus;
-
+        if (_loading) return;
+        _loading = true;
         try
         {
-            var dbOrder = await _dbContext.KitchenOrders.FindAsync(_entity.Id);
-            if (dbOrder != null)
+            IReadOnlyList<Core.Domain.Entities.KitchenOrder> active;
+            using (var scope = _scopes.CreateScope())
+                active = await scope.ServiceProvider.GetRequiredService<IKitchenService>().GetActiveAsync();
+
+            var byId = active.ToDictionary(k => k.Id);
+            var changed = false;
+
+            // Remove cards that are no longer active — EXCEPT archived ones still in their undo window.
+            foreach (var card in _allOrders.Where(c => !byId.ContainsKey(c.Id) && !c.IsArchived).ToList())
             {
-                dbOrder.Status = nextStatus;
-                await _dbContext.SaveChangesAsync();
+                _allOrders.Remove(card);
+                changed = true;
             }
+
+            foreach (var ko in active)
+            {
+                var existing = _allOrders.FirstOrDefault(c => c.Id == ko.Id);
+                if (existing != null)
+                {
+                    existing.Apply(ko);
+                }
+                else
+                {
+                    _allOrders.Add(new KitchenOrderCardViewModel(ko, _settings, UtcNow, AdvanceAsync, PrintAsync, UndoAsync));
+                    changed = true;
+                }
+            }
+
+            if (changed)
+            {
+                _allOrders.Sort((a, b) => a.CreatedAt.CompareTo(b.CreatedAt)); // arrival order
+                FilterOrders();
+            }
+            RecalculateCounts();
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"[KDS Order Status Update Error]: {ex.Message}");
+            StatusMessage = $"❌ Error leyendo órdenes: {ex.Message}";
         }
-
-        OnPropertyChanged(nameof(StatusText));
-        OnPropertyChanged(nameof(ActionButtonText));
-        OnPropertyChanged(nameof(ActionButtonColorHex));
-        _onStatusChanged?.Invoke();
-    }
-
-    [RelayCommand]
-    public async Task PrintTicketAsync()
-    {
-        var receipt = new ReceiptDto
+        finally
         {
-            OrderNumber = OrderNumber,
-            Date = CreatedAt,
-            CashierName = WaiterName,
-            StoreName = $"KDS: {Station}",
-            StoreAddress = TableNumber,
-            Items = Items.Select(i => new ReceiptItemDto
-            {
-                Name = $"{i.ProductName} {(string.IsNullOrEmpty(i.Notes) ? "" : $"[{i.Notes}]")}",
-                Quantity = i.Quantity,
-                UnitPrice = 0,
-                Total = 0
-            }).ToList()
-        };
-
-        await _printerService.PrintKitchenTicketAsync(receipt, Station);
-    }
-}
-
-public partial class KdsViewModel : ObservableObject
-{
-    private readonly PosDbContext _dbContext;
-    private readonly IPrinterService _printerService;
-    private readonly System.Timers.Timer _refreshTimer;
-
-    [ObservableProperty]
-    private string _selectedStation = "Todas";
-
-    [ObservableProperty]
-    private int _pendingCount = 0;
-
-    [ObservableProperty]
-    private int _inPrepCount = 0;
-
-    [ObservableProperty]
-    private int _readyCount = 0;
-
-    [ObservableProperty]
-    private string _kdsTitle = "KDS - Sistema de Pantallas de Cocina";
-
-    public ObservableCollection<string> Stations { get; } = new()
-    {
-        "Todas",
-        "Cocina Caliente",
-        "Barra",
-        "Parrilla"
-    };
-
-    public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
-    private readonly ObservableCollection<KitchenOrderCardViewModel> _allOrders = new();
-
-    public KdsViewModel(PosDbContext dbContext, IPrinterService printerService)
-    {
-        _dbContext = dbContext;
-        _printerService = printerService;
-
-        _ = LoadOrdersAsync();
-
-        // Refresh timers every 10 seconds to update green/yellow/red urgency indicators
-        _refreshTimer = new System.Timers.Timer(10000);
-        _refreshTimer.Elapsed += (s, e) =>
-        {
-            Avalonia.Threading.Dispatcher.UIThread.Post(() =>
-            {
-                foreach (var order in _allOrders)
-                {
-                    order.UpdateElapsed();
-                }
-            });
-        };
-        _refreshTimer.Start();
-    }
-
-    public async Task LoadOrdersAsync()
-    {
-        var orders = await _dbContext.KitchenOrders
-            .Include(o => o.Items)
-            .Where(o => o.Status != KitchenOrderStatus.Delivered && o.Status != KitchenOrderStatus.Cancelled)
-            .OrderBy(o => o.CreatedAt)
-            .ToListAsync();
-
-        _allOrders.Clear();
-        foreach (var order in orders)
-        {
-            _allOrders.Add(new KitchenOrderCardViewModel(order, _dbContext, _printerService, RecalculateCounts));
+            _loading = false;
         }
-
-        FilterOrders();
-        RecalculateCounts();
     }
 
     partial void OnSelectedStationChanged(string value) => FilterOrders();
 
     [RelayCommand]
-    public void SelectStation(string station)
-    {
-        SelectedStation = station;
-    }
+    public void SelectStation(string station) => SelectedStation = station;
+
+    [RelayCommand]
+    public Task RefreshAsync() => LoadOrdersAsync();
 
     private void FilterOrders()
     {
-        FilteredOrders.Clear();
-        var query = _allOrders.AsEnumerable();
+        var wanted = _allOrders
+            .Where(o => SelectedStation == "Todas" || o.Station.Equals(SelectedStation, StringComparison.OrdinalIgnoreCase))
+            .ToList();
 
-        if (SelectedStation != "Todas")
+        // Minimal diff keeps existing card visuals alive.
+        for (var i = FilteredOrders.Count - 1; i >= 0; i--)
+            if (!wanted.Contains(FilteredOrders[i])) FilteredOrders.RemoveAt(i);
+        for (var i = 0; i < wanted.Count; i++)
         {
-            query = query.Where(o => o.Station.Equals(SelectedStation, StringComparison.OrdinalIgnoreCase));
-        }
-
-        foreach (var item in query)
-        {
-            FilteredOrders.Add(item);
+            var idx = FilteredOrders.IndexOf(wanted[i]);
+            if (idx == -1) FilteredOrders.Insert(i, wanted[i]);
+            else if (idx != i) FilteredOrders.Move(idx, i);
         }
     }
 
@@ -259,9 +159,54 @@ public partial class KdsViewModel : ObservableObject
         ReadyCount = _allOrders.Count(o => o.Status == KitchenOrderStatus.Ready);
     }
 
-    [RelayCommand]
-    public async Task RefreshAsync()
+    // ── Card actions ─────────────────────────────────────────────────────────
+    private Task AdvanceAsync(KitchenOrderCardViewModel card) =>
+        RunAsync(card, svc => svc.AdvanceAsync(card.Id), updated => updated.Status == KitchenOrderStatus.Delivered
+            ? $"✔️ {card.TableNumber} entregada · se archiva en {_settings.ArchiveDelaySeconds}s"
+            : null);
+
+    private Task UndoAsync(KitchenOrderCardViewModel card) =>
+        RunAsync(card, svc => svc.UndoDeliverAsync(card.Id), _ => $"↩ {card.TableNumber} restaurada");
+
+    private async Task PrintAsync(KitchenOrderCardViewModel card)
     {
-        await LoadOrdersAsync();
+        var receipt = new ReceiptDto
+        {
+            OrderNumber = card.OrderNumber,
+            Date = card.CreatedAt.ToLocalTime(),
+            CashierName = card.WaiterName,
+            StoreName = $"KDS: {card.Station}",
+            StoreAddress = card.TableNumber,
+            TableName = card.TableNumber,
+            Items = card.Items.Select(i => new ReceiptItemDto { Name = i.ProductName, Quantity = i.Quantity, Notes = i.Notes }).ToList()
+        };
+
+        if (!await _printerService.PrintKitchenTicketAsync(receipt, card.Station))
+        {
+            // Don't mark as printed: the button stays green so the cook knows it didn't come out.
+            StatusMessage = $"⚠️ No se pudo imprimir {card.TableNumber} (guardado como TXT)";
+            return;
+        }
+        await RunAsync(card, svc => svc.MarkPrintedAsync(card.Id), _ => $"🖨️ {card.TableNumber} impresa");
+    }
+
+    private async Task RunAsync(KitchenOrderCardViewModel card,
+        Func<IKitchenService, Task<Core.Domain.Entities.KitchenOrder>> op,
+        Func<Core.Domain.Entities.KitchenOrder, string?> message)
+    {
+        try
+        {
+            using var scope = _scopes.CreateScope();
+            var updated = await op(scope.ServiceProvider.GetRequiredService<IKitchenService>());
+            card.Apply(updated);
+            card.Tick(UtcNow);
+            RecalculateCounts();
+            if (message(updated) is { } msg) StatusMessage = msg;
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"⚠️ {ex.Message}";
+            await LoadOrdersAsync(); // resync with DB
+        }
     }
 }

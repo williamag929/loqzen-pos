@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 81 tests pass (`dotnet test`).
+- ✅ 91 tests pass (`dotnet test`).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -185,7 +185,8 @@
 **Bugs fixed this session:** 13 dead buttons (XAML *AsyncCommand vs generated *Command) + XamlCommandBindingTests guard; weighed in-cart return was charged instead of credited; returns were sent to KDS; cash close pre-filled counted = expected.
 
 **Known limitations / next:**
-- Desktop KDS reloads only on tab open/Refresh; Presentation.Server WebSocket is a separate process, desktop does not broadcast.
+- KDS (2026-11-12): IKitchenService/KitchenService (TimeProvider), KdsTiming rules, `Kds` config (WarningMinutes 5, MaxPrepMinutes 15, ArchiveDelaySeconds 20, PollSeconds 3). KdsViewModel is a singleton that polls the DB and MERGES cards (animations survive). BorderRunnerLight control = light running around NEW cards; late cards blink red; print button green until PrintedAt; Entregar -> DeliveredAt + 20s dimmed countdown with Undo. Migration KitchenOrderPrintedDelivered. `LOQZEN_START_VIEW=kds` env var opens the KDS tab at startup (kiosk).
+- Presentation.Server WebSocket is still a separate process; the desktop does not broadcast (KDS on the same machine uses DB polling).
 - Comanda notes DONE (2026-11-12): SetItemNotesAsync/SetItemHoldAsync; IsOnHold skips auto-confirm while editing; quick-note chips from `Comanda:QuickNotes`; max 200 chars; migration ComandaItemNotesHold. A hold left by a crash shows "en pausa" and is released by opening Nota -> Guardar/Cancelar.
 - Comanda: each tap adds a new line (no merge); weighed products default 1 kg (no scale in comanda).
 - Waiter is free text; no users/PIN. Manager authorization (returns phase 2) still pending.

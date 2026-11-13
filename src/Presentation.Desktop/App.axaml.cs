@@ -48,10 +48,17 @@ public partial class App : Application
         // ── Create Main Window with DI-resolved ViewModel ───────────────────────
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
-            desktop.MainWindow = new MainWindow
+            var main = Services.GetRequiredService<MainViewModel>();
+            desktop.MainWindow = new MainWindow { DataContext = main };
+
+            // Optional start tab (kiosk screens / demos): LOQZEN_START_VIEW=kds|comandas|caja|maestros
+            switch (Environment.GetEnvironmentVariable("LOQZEN_START_VIEW")?.ToLowerInvariant())
             {
-                DataContext = Services.GetRequiredService<MainViewModel>(),
-            };
+                case "kds": _ = main.ShowKdsCommand.ExecuteAsync(null); break;
+                case "comandas": _ = main.ShowComandasCommand.ExecuteAsync(null); break;
+                case "caja": _ = main.ShowCashShiftCommand.ExecuteAsync(null); break;
+                case "maestros": _ = main.ShowMastersCommand.ExecuteAsync(null); break;
+            }
         }
 
         base.OnFrameworkInitializationCompleted();

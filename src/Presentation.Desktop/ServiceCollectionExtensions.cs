@@ -27,6 +27,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton(comandaSettings);
         services.AddSingleton(TimeProvider.System);
 
+        var kdsSettings = configuration.GetSection("Kds").Get<Core.Application.Kitchen.KdsSettings>()
+                          ?? new Core.Application.Kitchen.KdsSettings();
+        services.AddSingleton(kdsSettings);
+
         // ── Database ─────────────────────────────────────────────────────────────
         services.AddDbContext<PosDbContext>(options =>
         {
@@ -48,6 +52,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ISalesService, SalesService>();
         services.AddTransient<IReportService, ReportService>();
         services.AddTransient<IComandaService, ComandaService>();
+        services.AddTransient<IKitchenService, KitchenService>();
 
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────
         if (hwSettings.UseMockPrinter)
@@ -69,7 +74,7 @@ public static class ServiceCollectionExtensions
 
         // ── ViewModels ───────────────────────────────────────────────────────────
         services.AddTransient<CheckoutViewModel>();
-        services.AddTransient<KdsViewModel>();
+        services.AddSingleton<KdsViewModel>(); // owns a timer: exactly one instance
         services.AddTransient<CashShiftViewModel>();
         services.AddTransient<MastersViewModel>();
         services.AddSingleton<CustomerDisplayViewModel>();

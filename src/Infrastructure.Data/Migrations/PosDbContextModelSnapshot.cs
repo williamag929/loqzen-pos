@@ -340,6 +340,9 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("DeliveredAt")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("GeneralNotes")
                         .HasColumnType("TEXT");
 
@@ -349,6 +352,9 @@ namespace Infrastructure.Data.Migrations
                     b.Property<string>("OrderNumber")
                         .IsRequired()
                         .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PrintedAt")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Station")

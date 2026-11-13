@@ -15,6 +15,12 @@ public class KitchenOrder : BaseEntity
     public KitchenOrderStatus Status { get; set; } = KitchenOrderStatus.Pending;
     public string Station { get; set; } = "Cocina Caliente";
     public string? GeneralNotes { get; set; }
+
+    /// <summary>First time the kitchen ticket was printed (null = never → print button shows green).</summary>
+    public DateTime? PrintedAt { get; set; }
+
+    /// <summary>When it was marked delivered/archived. The KDS keeps the card visible for a short undo window.</summary>
+    public DateTime? DeliveredAt { get; set; }
     
     public ICollection<KitchenOrderItem> Items { get; set; } = new List<KitchenOrderItem>();
 }

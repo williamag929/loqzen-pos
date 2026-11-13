@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:entities="using:Core.Domain.Entities"
+             xmlns:controls="using:Presentation.Desktop.Controls"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -9,7 +10,7 @@
              x:DataType="vm:KdsViewModel"
              x:Name="KdsRoot">
 
-    <Grid RowDefinitions="Auto, *">
+    <Grid RowDefinitions="Auto, *, Auto">
         <!-- TOP TOOLBAR: STATIONS & STATS -->
         <Border Grid.Row="0" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="20,14">
             <Grid ColumnDefinitions="Auto, *, Auto">
@@ -84,14 +85,21 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:KitchenOrderCardViewModel">
-                        <Border Width="360" 
-                                Margin="10" 
-                                Background="#0F172A" 
-                                BorderBrush="{Binding UrgencyColorHex}" 
-                                BorderThickness="2" 
-                                CornerRadius="12">
-                            <Grid RowDefinitions="Auto, Auto, *, Auto">
-                                <!-- Card Header: Table, Station, Urgency Badge -->
+                        <!-- Panel layers: card + running border light (new orders) on top. -->
+                        <Panel Width="360" Margin="10">
+                        <Border Background="#0F172A"
+                                BorderBrush="{Binding UrgencyColorHex}"
+                                BorderThickness="3"
+                                CornerRadius="12"
+                                Classes.archived="{Binding IsArchived}">
+                            <Border.Styles>
+                                <!-- Archived: dim the whole card while it counts down -->
+                                <Style Selector="Border.archived">
+                                    <Setter Property="Opacity" Value="0.55"/>
+                                </Style>
+                            </Border.Styles>
+                            <Grid RowDefinitions="Auto, Auto, *, Auto, Auto">
+                                <!-- Header -->
                                 <Border Grid.Row="0" Background="#1E293B" CornerRadius="10,10,0,0" Padding="14,10">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Grid.Column="0" Spacing="2">
@@ -100,11 +108,12 @@
                                                 <Border Background="#334155" CornerRadius="4" Padding="6,2">
                                                     <TextBlock Text="{Binding Station}" Foreground="#38BDF8" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
+                                                <Border Background="#10B981" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsNew}">
+                                                    <TextBlock Text="NUEVA" Foreground="White" FontSize="11" FontWeight="Black"/>
+                                                </Border>
                                             </StackPanel>
                                             <TextBlock Text="{Binding WaiterName, StringFormat='Atiende: {0}'}" Foreground="#94A3B8" FontSize="12"/>
                                         </StackPanel>
-
-                                        <!-- Elapsed Time Badge with Urgency Color -->
                                         <Border Grid.Column="1" Background="{Binding UrgencyColorHex}" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="⏱️" FontSize="12"/>
@@ -119,7 +128,7 @@
                                     <TextBlock Text="{Binding GeneralNotes, StringFormat='Nota: {0}'}" Foreground="#FDE047" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                 </Border>
 
-                                <!-- Items List -->
+                                <!-- Items -->
                                 <ItemsControl Grid.Row="2" ItemsSource="{Binding Items}" Margin="12,10">
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="entities:KitchenOrderItem">
@@ -130,10 +139,7 @@
                                                     </Border>
                                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
                                                         <TextBlock Text="{Binding ProductName}" Foreground="White" FontSize="15" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding Notes}" 
-                                                                   Foreground="#F59E0B" 
-                                                                   FontSize="12" 
-                                                                   FontWeight="SemiBold"
+                                                        <TextBlock Text="{Binding Notes}" Foreground="#F59E0B" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
                                                                    IsVisible="{Binding Notes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                                                     </StackPanel>
                                                 </Grid>
@@ -142,37 +148,53 @@
                                     </ItemsControl.ItemTemplate>
                                 </ItemsControl>
 
-                                <!-- Card Actions: Advance Status & Reprint -->
-                                <Border Grid.Row="3" Background="#1E293B" CornerRadius="0,0,10,10" Padding="12">
+                                <!-- Actions (active cards): advance + print (green = not printed yet, grey = printed) -->
+                                <Border Grid.Row="3" Background="#1E293B" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsActive}">
                                     <Grid ColumnDefinitions="*, Auto">
-                                        <Button Grid.Column="0" 
-                                                Height="48" 
-                                                Margin="0,0,8,0" 
-                                                Background="{Binding ActionButtonColorHex}" 
-                                                Foreground="White" 
-                                                FontSize="15" 
-                                                FontWeight="Black" 
-                                                CornerRadius="8" 
-                                                Content="{Binding ActionButtonText}"
-                                                Command="{Binding AdvanceStatusCommand}"/>
-                                        
-                                        <Button Grid.Column="1" 
-                                                Height="48" 
-                                                Width="48" 
-                                                Background="#334155" 
-                                                Foreground="White" 
-                                                CornerRadius="8" 
-                                                Content="🖨️" 
-                                                FontSize="18"
-                                                ToolTip.Tip="Imprimir comanda en impresora de cocina"
-                                                Command="{Binding PrintTicketCommand}"/>
+                                        <Button Grid.Column="0" Height="52" Margin="0,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                Background="{Binding ActionButtonColorHex}" Foreground="White" FontSize="15" FontWeight="Black" CornerRadius="8"
+                                                Content="{Binding ActionButtonText}" Command="{Binding AdvanceStatusCommand}"/>
+                                        <Button Grid.Column="1" Height="52" Width="60" HorizontalContentAlignment="Center"
+                                                Background="{Binding PrintButtonColorHex}" Foreground="White" CornerRadius="8" Content="🖨️" FontSize="20"
+                                                ToolTip.Tip="{Binding PrintTooltip}" Command="{Binding PrintTicketCommand}"/>
+                                    </Grid>
+                                </Border>
+
+                                <!-- Archived: countdown bar + undo (like the comanda countdown) -->
+                                <Border Grid.Row="4" Background="#1E293B" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsArchived}">
+                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
+                                        <TextBlock Text="{Binding ArchiveText}" Foreground="#CBD5E1" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Grid.RowSpan="2" Height="52" Padding="16,0" CornerRadius="8" Background="#92400E" Foreground="White"
+                                                FontSize="15" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                                Content="↩ Deshacer" Command="{Binding UndoArchiveCommand}"/>
+                                        <ProgressBar Grid.Row="1" Minimum="0" Maximum="1" Value="{Binding ArchiveProgress}" Height="8" Margin="0,8,12,0"
+                                                     Foreground="#64748B"/>
                                     </Grid>
                                 </Border>
                             </Grid>
                         </Border>
+
+                        <!-- Late (> MaxPrepMinutes): red overlay border blinks every second -->
+                        <Border BorderBrush="#EF4444" BorderThickness="5" CornerRadius="12" IsHitTestVisible="False"
+                                IsVisible="{Binding IsLate}" Opacity="{Binding BorderOpacity}">
+                            <Border.Transitions>
+                                <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.4"/></Transitions>
+                            </Border.Transitions>
+                        </Border>
+
+                        <!-- New (not yet PREPARAR): light running around the border in the card's colour -->
+                        <controls:BorderRunnerLight IsRunning="{Binding IsNew}" IsVisible="{Binding IsNew}"
+                                                    Color="{Binding UrgencyColorHex}" CornerRadiusValue="12" LapSeconds="2.4"/>
+                        </Panel>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
             </ItemsControl>
         </ScrollViewer>
+
+        <!-- Status bar: print failures, undo confirmations -->
+        <Border Grid.Row="2" Background="#1E293B" Padding="16,8"
+                IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding StatusMessage}" Foreground="#CBD5E1" FontSize="14"/>
+        </Border>
     </Grid>
 </UserControl>

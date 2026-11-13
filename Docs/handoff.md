@@ -19,6 +19,12 @@
 - EF Core migrations (InitialCreate). Las DB viejas se renombran a `pos.db.legacy-<fecha>.bak`.
 - 13 botones muertos arreglados (confirmar pago, abrir/cerrar turno, pestañas, guardar/eliminar maestros) + test que lo previene.
 
+### KDS mejorado + notas por producto (2026-11-12, noche)
+- Notas por producto en comanda (chips rápidos + texto libre); el producto se pausa mientras se edita la nota.
+- KDS: se actualiza solo cada 3 s; luz que recorre el borde en órdenes NUEVAS (hasta tocar PREPARAR); borde rojo parpadea al superar el tiempo máximo; 🖨️ verde = no impresa, gris = impresa; ENTREGAR deja la tarjeta 20 s atenuada con barra regresiva y ↩ Deshacer.
+- Configurable en `appsettings.json` → `Kds`. Abrir directo en KDS: `LOQZEN_START_VIEW=kds`.
+- 91 tests.
+
 **⚠️ Para el usuario:** tu DB anterior quedó en `~/.local/share/LoqzenPos/pos.db.legacy-20261112224837.bak`. Reinicia la app para ver los últimos ajustes (fuente monoespaciada de la tirilla, flechas centradas).
 
 **Pendiente:** notas por producto en comanda, KDS en tiempo real desde el desktop, mesero/usuarios con PIN, autorización de gerente (devoluciones fase 2), visor cliente para comandas.
