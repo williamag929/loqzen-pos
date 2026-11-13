@@ -9,7 +9,7 @@ using Core.Domain.Entities;
 
 namespace Presentation.Desktop.ViewModels;
 
-public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3 }
+public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4 }
 
 public partial class MastersViewModel : ObservableObject
 {
@@ -17,6 +17,8 @@ public partial class MastersViewModel : ObservableObject
     private readonly ICategoryService _categories;
     private readonly ITaxService      _taxes;
     private readonly ICustomerService _customers;
+    private readonly IUserService     _users;
+    private readonly IUserSession     _session;
 
     // ── Tab ─────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -24,6 +26,7 @@ public partial class MastersViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsCategoriesTab))]
     [NotifyPropertyChangedFor(nameof(IsTaxesTab))]
     [NotifyPropertyChangedFor(nameof(IsCustomersTab))]
+    [NotifyPropertyChangedFor(nameof(IsUsersTab))]
     private MastersTab _activeTab = MastersTab.Products;
 
     public bool IsProductsTab   => ActiveTab == MastersTab.Products;
@@ -86,12 +89,17 @@ public partial class MastersViewModel : ObservableObject
         IProductService products,
         ICategoryService categories,
         ITaxService taxes,
-        ICustomerService customers)
+        ICustomerService customers,
+        IUserService users,
+        IUserSession session)
     {
         _products = products;
         _categories = categories;
         _taxes = taxes;
         _customers = customers;
+        _users = users;
+        _session = session;
+        _session.Changed += OnSessionChangedForUsers;
 
         _ = LoadAllAsync();
     }
@@ -105,7 +113,7 @@ public partial class MastersViewModel : ObservableObject
     // ── Load All ─────────────────────────────────────────────────────────────
     public async Task LoadAllAsync()
     {
-        await Task.WhenAll(LoadProductsAsync(), LoadCategoriesAsync(), LoadTaxesAsync(), LoadCustomersAsync());
+        await Task.WhenAll(LoadProductsAsync(), LoadCategoriesAsync(), LoadTaxesAsync(), LoadCustomersAsync(), LoadUsersAsync());
     }
 
     private async Task LoadProductsAsync()

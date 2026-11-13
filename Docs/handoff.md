@@ -1,11 +1,31 @@
 # Handoff / Progress Report - Loqzen POS
-**Fecha:** 2026-11-12  
-**Última sesión:** Comandas multi-mesa, notas por producto, KDS mejorado, cuadre de caja, migraciones, README + CONTRIBUTING
+**Fecha:** 2026-11-13  
+**Última sesión:** Usuarios con PIN, roles por pestaña, autorización de gerente (devoluciones / descuentos / anular en cocina) con auditoría
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-13: Usuarios con PIN + autorización de gerente
+
+Ejecutada con el modelo de `memory-bank/orchestration.md`: el arquitecto escribió el contrato (entidades, enums, DTOs, interfaces) y tres agentes trabajaron en paralelo por carpeta — backend (`Infrastructure.Data`), UI (`Presentation.Desktop`) y QA (`tests/`).
+
+**Hecho (201 tests, build 0 errores, login y Maestros vistos en pantalla):**
+- Entidades `User` (PIN con hash PBKDF2, rol, activo) y `ManagerOverride` (auditoría). `KitchenOrderItem.IsCancelled`. Migración `UsersAndManagerOverrides`.
+- Roles `Kitchen < Waiter < Cashier < Manager < Admin` → `UserPermissions` (qué pestaña ve cada rol, quién autoriza, quién puede crear Admin).
+- `IUserService` (crear/editar/cambiar PIN/login por PIN; PIN único entre activos; no deja desactivar al último que autoriza). `IManagerAuthorizationService` (PIN de gerente → `ManagerOverride`; `RequiresAuthorization` desde `Authorization:ManagerRequiredFor`).
+- `IComandaService.CancelConfirmedItemAsync(comanda, item, overrideId)`: anula un producto ya en cocina, tacha la línea en el KDS (prefiere la línea con misma nota/cantidad), cancela la orden si ya no queda nada por cocinar (no toca órdenes Listas/Entregadas), Outbox `KitchenItemCancelled`. El override debe ser de acción `CancelKitchenItem`.
+- Desktop: pantalla de PIN al inicio (`Authorization:RequireLogin`), chip 👤 + "Cambiar usuario", pestañas/botones por rol, modal `ManagerAuthDialog` compartido vía `IManagerAuthPrompt`, hooks en devolución, descuento 10 %, cajón sin venta, anular en cocina; cajero/mesero se toman del usuario conectado; pestaña **🔑 Usuarios** en Maestros; KDS muestra **ANULADO** tachado.
+- Seed: Administrador 1234 · Cajero 1111 · Mesero 2222 (también en bases existentes).
+
+**⚠️ Para el usuario:** al abrir la app pedirá PIN (1234). Cambia los PIN por defecto en Maestros → Usuarios. Para un KDS de cocina sin login usa `appsettings.{env}.json` con `"Authorization": { "RequireLogin": false }`.
+
+**Limitaciones conocidas:** un `ManagerOverride` no se marca como consumido (se puede reutilizar); `UserService` no valida `CanAssignRole` (solo la UI); el modal de PIN no se probó con clic real (sin herramienta de input en Wayland), solo compilación + tests de bindings; no hay bloqueo por intentos fallidos.
+
+**Siguiente fase recomendada:** Kestrel embebido + KDS/comanderas en red (ver CONTRIBUTING §10).
 
 ---
 

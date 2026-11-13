@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 91 tests pass (`dotnet test`).
+- ✅ 201 tests pass (`dotnet test`) — 2026-11-13.
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -189,14 +189,23 @@
 - Presentation.Server WebSocket is still a separate process; the desktop does not broadcast (KDS on the same machine uses DB polling).
 - Comanda notes DONE (2026-11-12): SetItemNotesAsync/SetItemHoldAsync; IsOnHold skips auto-confirm while editing; quick-note chips from `Comanda:QuickNotes`; max 200 chars; migration ComandaItemNotesHold. A hold left by a crash shows "en pausa" and is released by opening Nota -> Guardar/Cancelar.
 - Comanda: each tap adds a new line (no merge); weighed products default 1 kg (no scale in comanda).
-- Waiter is free text; no users/PIN. Manager authorization (returns phase 2) still pending.
+- Waiter/cashier names come from the signed-in user (free text fallback when `RequireLogin=false`).
 - CustomerDisplay is not wired to comandas.
 - Quick-sale Checkout still uses PosDbContext directly (pre-existing debt).
+
+### Users with PIN + manager authorization (2026-11-13, verified: 201 tests, login/Maestros screenshots)
+- Domain: `User` (Name, PinHash, Role, IsActive, LastLoginAt), `ManagerOverride` (Action, Description, ManagerUserId/Name, RequestedBy*, Amount, Reference, AuthorizedAt), `KitchenOrderItem.IsCancelled`. Enums `UserRole` (Kitchen<Waiter<Cashier<Manager<Admin), `AuthorizedAction` (ReturnItem, ApplyDiscount, CancelKitchenItem, OpenCashDrawer, CloseShift). Migration `20261113051007_UsersAndManagerOverrides`.
+- Application: `Security/PinHasher` (PBKDF2-SHA256, 4–6 digits), `Security/UserPermissions` (CanAccess(role, PosView), CanAuthorize, CanManageUsers, CanAssignRole, labels), `AuthorizationSettings` (RequireLogin, ManagerRequiredFor; null = defaults, [] = none), `IUserService`, `IManagerAuthorizationService`, `IUserSession`, `IComandaService.CancelConfirmedItemAsync`.
+- Data: `UserService(db, clock)`, `ManagerAuthorizationService(db, settings, clock)` (same error message for wrong PIN / no permission), `ComandaService.CancelConfirmedItemAsync` (validates override Action==CancelKitchenItem; strikes the kitchen line matching product+notes+qty; cancels the KitchenOrder only if still Pending/InPreparation and all lines cancelled; Outbox `KitchenItemCancelled`). Seed users Administrador 1234 / Cajero 1111 / Mesero 2222 when `Users` is empty (also on existing DBs).
+- Desktop: `Services/UserSession` (singleton, IUserSession, CanAccess* for tabs), `Services/IManagerAuthPrompt` + `ManagerAuthPromptViewModel` (singleton modal; resolves NotRequired / auto-approves a signed-in manager / opens PIN dialog with TCS), `LoginViewModel`+`LoginView`, `ManagerAuthDialog`, `Numpad.ExactLabel`, `MainViewModel` (IsLoginVisible, LogoutCommand, jumps to first allowed tab on sign-in), `MastersViewModel.Users.cs` (🔑 Usuarios tab, soft deactivate), `KitchenItemViewModel` (KDS lines merge in place; ANULADO strike-through). Hooks: Checkout RemoveItemAsync/OpenDiscountModalAsync/OpenCashDrawerAsync, Comanda CancelItem (confirmed → manager), CashShift pre-fills cashier.
+- Known gaps: overrides are not single-use; service does not enforce CanAssignRole; no lockout after failed PINs; PIN modal not exercised by click (no Wayland input tool), only compile + XAML binding tests.
 
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
 3. ~~Add EF Core migrations~~ ✅ Done
-4. Implement manager authorization system (Fase 2 of returns).
+4. ~~Implement manager authorization system (Fase 2 of returns)~~ ✅ Done 2026-11-13 (users + PIN + roles + audit).
+5. Embed Kestrel in the desktop + WebSocket KDS/comanderas on other devices.
+6. Customer display for comandas.
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

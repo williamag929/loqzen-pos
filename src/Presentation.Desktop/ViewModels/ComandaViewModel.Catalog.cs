@@ -9,6 +9,7 @@ using Core.Application.DTOs;
 using Core.Application.Receipts;
 using Core.Application.Services;
 using Core.Domain.Entities;
+using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Presentation.Desktop.ViewModels;
@@ -84,15 +85,71 @@ public partial class ComandaViewModel
     private async void CancelItem(ComandaItemRowViewModel row)
     {
         if (Current == null) return;
+        if (row.IsConfirmed)
+        {
+            await CancelConfirmedItemAsync(row);
+            return;
+        }
         if (!row.IsPending)
         {
-            StatusMessage = "⚠️ Ya está en cocina. Solo se anulan productos en amarillo.";
+            StatusMessage = "⚠️ Este producto ya está anulado.";
             return;
         }
         await RunAsync(async svc =>
         {
             Apply(await svc.CancelPendingItemAsync(Current.Id, row.Dto.Id));
             StatusMessage = $"Anulado: {row.Name}";
+        });
+    }
+
+    /// <summary>Item already in the kitchen: a manager must approve; the override id is stored with the cancellation.</summary>
+    private async Task CancelConfirmedItemAsync(ComandaItemRowViewModel row)
+    {
+        if (Current == null) return;
+        var comanda = Current;
+        var description = $"Anular {row.Name} (ya en cocina) · {comanda.TableName}";
+        var reference = $"Comanda #{comanda.Number}";
+
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.CancelKitchenItem, description, row.Dto.Total, reference);
+        if (!auth.IsAllowed)
+        {
+            StatusMessage = "❌ Anulación no autorizada";
+            return;
+        }
+
+        var overrideDto = auth.Override;
+        if (overrideDto == null)
+        {
+            // Action not configured to need approval, but the cancellation still needs an audit record:
+            // only a signed-in manager can produce one silently.
+            var user = _session.CurrentUser;
+            if (user is not { CanAuthorize: true })
+            {
+                StatusMessage = "⚠️ Requiere gerente";
+                return;
+            }
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                overrideDto = await scope.ServiceProvider.GetRequiredService<IManagerAuthorizationService>()
+                    .AuthorizeAsUserAsync(new AuthorizationRequest(AuthorizedAction.CancelKitchenItem, description, row.Dto.Total, reference, user.Id, user.Name), user.Id);
+            }
+            catch (UnauthorizedAccessException)
+            {
+                StatusMessage = "⚠️ Requiere gerente";
+                return;
+            }
+            catch (Exception ex)
+            {
+                StatusMessage = $"❌ Error: {ex.Message}";
+                return;
+            }
+        }
+
+        await RunAsync(async svc =>
+        {
+            Apply(await svc.CancelConfirmedItemAsync(comanda.Id, row.Dto.Id, overrideDto.Id));
+            StatusMessage = $"🗑️ Anulado en cocina: {row.Name} · autorizó {overrideDto.ManagerName}";
         });
     }
 

@@ -23,6 +23,8 @@ public class PosDbContext : DbContext
     public DbSet<Comanda> Comandas => Set<Comanda>();
     public DbSet<ComandaItem> ComandaItems => Set<ComandaItem>();
     public DbSet<CashCountLine> CashCountLines => Set<CashCountLine>();
+    public DbSet<User> Users => Set<User>();
+    public DbSet<ManagerOverride> ManagerOverrides => Set<ManagerOverride>();
 
     public PosDbContext()
     {
@@ -234,6 +236,28 @@ public class PosDbContext : DbContext
                   .WithMany(s => s.CountLines)
                   .HasForeignKey(l => l.CashShiftId)
                   .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // User (PIN login)
+        modelBuilder.Entity<User>(entity =>
+        {
+            entity.HasKey(u => u.Id);
+            entity.Property(u => u.Name).IsRequired().HasMaxLength(100);
+            entity.Property(u => u.PinHash).IsRequired().HasMaxLength(200);
+            entity.HasIndex(u => u.IsActive);
+        });
+
+        // ManagerOverride (audit of manager approvals)
+        modelBuilder.Entity<ManagerOverride>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Description).IsRequired().HasMaxLength(300);
+            entity.Property(m => m.ManagerName).IsRequired().HasMaxLength(100);
+            entity.Property(m => m.RequestedByName).HasMaxLength(100);
+            entity.Property(m => m.Reference).HasMaxLength(200);
+            entity.Property(m => m.Amount).HasPrecision(18, 2);
+            entity.HasIndex(m => m.AuthorizedAt);
+            entity.HasIndex(m => m.Action);
         });
     }
 }

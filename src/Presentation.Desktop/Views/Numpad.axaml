@@ -3,7 +3,7 @@
              xmlns:views="using:Presentation.Desktop.Views"
              x:Class="Presentation.Desktop.Views.Numpad"
              x:Name="Root">
-    <!-- Reusable touch numpad (64px keys). Bind DigitCommand (string param), ClearCommand, ExactCommand. -->
+    <!-- Reusable touch numpad (64px keys). Bind DigitCommand (string param), ClearCommand, ExactCommand; ExactLabel renames the blue key. -->
     <UserControl.Styles>
         <Style Selector="Button.key">
             <Setter Property="Margin" Value="3"/>
@@ -34,7 +34,7 @@
         <Button Classes="key" Grid.Row="3" Grid.Column="2" Content="000" CommandParameter="000"/>
         <Button Classes="key" Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Content="C" Background="#7F1D1D"
                 Command="{Binding #Root.ClearCommand}"/>
-        <Button Classes="key" Grid.Row="2" Grid.Column="3" Grid.RowSpan="2" Content="Exacto" FontSize="16" Background="#1D4ED8"
+        <Button Classes="key" Grid.Row="2" Grid.Column="3" Grid.RowSpan="2" Content="{Binding #Root.ExactLabel}" FontSize="16" Background="#1D4ED8"
                 Command="{Binding #Root.ExactCommand}"/>
     </Grid>
 </UserControl>

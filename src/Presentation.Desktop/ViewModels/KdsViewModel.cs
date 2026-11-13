@@ -178,7 +178,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
             StoreName = $"KDS: {card.Station}",
             StoreAddress = card.TableNumber,
             TableName = card.TableNumber,
-            Items = card.Items.Select(i => new ReceiptItemDto { Name = i.ProductName, Quantity = i.Quantity, Notes = i.Notes }).ToList()
+            Items = card.Items.Where(i => !i.IsCancelled).Select(i => new ReceiptItemDto { Name = i.ProductName, Quantity = i.Quantity, Notes = i.Notes }).ToList()
         };
 
         if (!await _printerService.PrintKitchenTicketAsync(receipt, card.Station))

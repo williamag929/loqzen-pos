@@ -1,5 +1,6 @@
 using System;
 using System.Linq;
+using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Application.DTOs;
@@ -56,6 +57,82 @@ public partial class ComandaService
 
         item.Status = ComandaItemStatus.Cancelled;
         item.UpdatedAt = UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    public async Task<ComandaDto> CancelConfirmedItemAsync(Guid comandaId, Guid itemId, Guid managerOverrideId, CancellationToken ct = default)
+    {
+        // Validate everything before touching tracked entities.
+        var comanda = await RequireAsync(comandaId, ct);
+        if (!ActiveStatuses.Contains(comanda.Status))
+            throw new InvalidOperationException("La comanda no está activa; no se pueden anular productos.");
+
+        var item = comanda.Items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException("Item no encontrado en la comanda.");
+        if (item.Status == ComandaItemStatus.Pending)
+            throw new InvalidOperationException("El item aún no fue enviado a cocina; anúlelo como pendiente (CancelPendingItemAsync).");
+        if (item.Status == ComandaItemStatus.Cancelled)
+            throw new InvalidOperationException("El item ya está anulado.");
+        if (item.Status != ComandaItemStatus.Confirmed)
+            throw new InvalidOperationException("Solo se pueden anular items confirmados.");
+
+        // The approval must be a real CancelKitchenItem override (a discount/return approval cannot be reused here).
+        var overrideOk = await _db.ManagerOverrides
+            .AnyAsync(o => o.Id == managerOverrideId && o.Action == AuthorizedAction.CancelKitchenItem, ct);
+        if (!overrideOk)
+            throw new InvalidOperationException("Se requiere autorización de gerente.");
+
+        KitchenOrder? kitchenOrder = null;
+        if (item.KitchenOrderId != null)
+            kitchenOrder = await _db.KitchenOrders.Include(k => k.Items)
+                .FirstOrDefaultAsync(k => k.Id == item.KitchenOrderId, ct);
+
+        // --- mutate ---
+        item.Status = ComandaItemStatus.Cancelled;
+        item.UpdatedAt = UtcNow;
+        comanda.UpdatedAt = UtcNow;
+
+        if (kitchenOrder != null)
+        {
+            // ComandaItem has no FK to its kitchen line: prefer the line that matches product + notes +
+            // quantity (so "sin cebolla" is struck, not its twin), then fall back to product only.
+            var qty = item.WeightKg ?? item.Quantity;
+            var candidates = kitchenOrder.Items.Where(ki => ki.ProductId == item.ProductId && !ki.IsCancelled).ToList();
+            var kitchenItem = candidates.FirstOrDefault(ki => ki.Notes == item.Notes && ki.Quantity == qty)
+                           ?? candidates.FirstOrDefault(ki => ki.Notes == item.Notes)
+                           ?? candidates.FirstOrDefault();
+            if (kitchenItem != null)
+            {
+                kitchenItem.IsCancelled = true;
+                kitchenItem.UpdatedAt = UtcNow;
+            }
+            // A ticket that is already Ready/Delivered stays as it was (the dish exists); only tickets
+            // still being worked on are cancelled outright when nothing is left to cook.
+            var stillCooking = kitchenOrder.Status is KitchenOrderStatus.Pending or KitchenOrderStatus.InPreparation;
+            if (stillCooking && kitchenOrder.Items.Count > 0 && kitchenOrder.Items.All(ki => ki.IsCancelled))
+            {
+                kitchenOrder.Status = KitchenOrderStatus.Cancelled;
+                kitchenOrder.UpdatedAt = UtcNow;
+            }
+        }
+
+        _db.OutboxMessages.Add(new OutboxMessage
+        {
+            EventType = "KitchenItemCancelled",
+            AggregateType = "KitchenOrder",
+            AggregateId = kitchenOrder?.Id ?? comanda.Id,
+            PayloadJson = JsonSerializer.Serialize(new
+            {
+                comandaId = comanda.Id,
+                itemId = item.Id,
+                productName = item.ProductName,
+                managerOverrideId
+            }),
+            Status = SyncStatus.Pending,
+            UpdatedAt = UtcNow
+        });
+
         await _db.SaveChangesAsync(ct);
         return MapToDto(comanda);
     }

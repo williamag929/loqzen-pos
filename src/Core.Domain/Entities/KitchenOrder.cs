@@ -35,4 +35,7 @@ public class KitchenOrderItem : BaseEntity
     public decimal Quantity { get; set; } = 1;
     public string? Notes { get; set; }
     public bool IsPrepared { get; set; } = false;
+
+    /// <summary>Cancelled by a manager after it reached the kitchen: shown struck-through on the KDS.</summary>
+    public bool IsCancelled { get; set; } = false;
 }

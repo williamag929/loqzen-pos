@@ -10,7 +10,7 @@ namespace Presentation.Desktop.ViewModels;
 
 /// <summary>
 /// One line of the current comanda. Pending = yellow with countdown (can be cancelled);
-/// Confirmed = green (already in kitchen, cannot be cancelled here).
+/// Confirmed = green (already in kitchen; cancelling it needs a manager PIN).
 /// </summary>
 public sealed partial class ComandaItemRowViewModel : ObservableObject
 {

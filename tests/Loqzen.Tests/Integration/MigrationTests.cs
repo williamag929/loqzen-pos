@@ -1,3 +1,4 @@
+using Core.Domain.Enums;
 using FluentAssertions;
 using Infrastructure.Data.Context;
 using Infrastructure.Data.Seed;
@@ -35,6 +36,8 @@ public class MigrationTests : IDisposable
         (await check.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
         (await check.DiningTables.CountAsync()).Should().Be(14);
         (await check.Products.AnyAsync()).Should().BeTrue();
+        (await check.Users.CountAsync()).Should().Be(3, "default users are seeded");
+        (await check.Users.AnyAsync(u => u.Role == UserRole.Admin)).Should().BeTrue("there is always a way to sign in as admin");
     }
 
     [Fact]
@@ -67,6 +70,9 @@ public class MigrationTests : IDisposable
         (await check.DiningTables.AnyAsync(t => t.Name == "Terraza")).Should().BeTrue("existing data is preserved");
         Directory.GetFiles(_dir, "*.bak").Should().BeEmpty("a migrated DB must not be backed up/recreated");
         (await check.ComandaItems.CountAsync(i => i.IsOnHold)).Should().Be(0, "new column exists");
+        (await check.Users.CountAsync()).Should().Be(3, "users are seeded on upgraded DBs too");
+        (await check.Users.AnyAsync(u => u.Role == UserRole.Admin && u.IsActive)).Should().BeTrue();
+        (await check.KitchenOrderItems.CountAsync(i => i.IsCancelled)).Should().Be(0, "IsCancelled column exists after upgrade");
     }
 
     [Fact]

@@ -6,7 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](#-stack)
 [![Avalonia UI](https://img.shields.io/badge/Avalonia%20UI-11.2-blueviolet)](#-stack)
 [![SQLite](https://img.shields.io/badge/SQLite-Offline--First-003B57?logo=sqlite&logoColor=white)](#-stack)
-[![Tests](https://img.shields.io/badge/tests-91%20passing-success)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-201%20passing-success)](#-tests)
 
 👉 **¿Vas a colaborar? Lee primero [`CONTRIBUTING.md`](CONTRIBUTING.md).**
 
@@ -31,7 +31,7 @@
 
 ## 📌 Estado actual
 
-*Actualizado: 2026-11-12.* Lo que **funciona hoy** en el escritorio (Linux/Windows):
+*Actualizado: 2026-11-13.* Lo que **funciona hoy** en el escritorio (Linux/Windows):
 
 | Área | Estado |
 |---|---|
@@ -44,7 +44,8 @@
 | Impresión ESC/POS por TCP 9100 + respaldo TXT si falla + pulso de cajón | ✅ |
 | Visor de cliente (segunda pantalla) | ✅ venta rápida · ⚠️ no muestra comandas |
 | Servidor Kestrel (REST + WebSocket para KDS/comanderas) | ⚠️ proceso **separado**, no embebido |
-| Usuarios / PIN / autorización de gerente | ❌ pendiente |
+| **Usuarios con PIN** (4–6 dígitos), roles Cocina/Mesero/Cajero/Gerente/Admin, pestañas según rol | ✅ |
+| **Autorización de gerente** (PIN) para devoluciones, descuentos y anular productos ya en cocina, con auditoría (`ManagerOverrides`) | ✅ |
 | Android, ZPL, mDNS, sincronización con ERP | ❌ pendiente (diseñado, no implementado) |
 
 Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
@@ -67,11 +68,15 @@ dotnet run --project src/Presentation.Desktop
 Al primer arranque la app **crea la base SQLite, aplica migraciones y carga datos demo** (productos, 14 mesas, órdenes de KDS).
 Por defecto usa impresora/balanza/escáner **simulados** (ver [Configuración](#️-configuración)).
 
+Usuarios por defecto (cámbialos en **🗂️ Maestros → 🔑 Usuarios**): **Administrador 1234** · **Cajero 1111** · **Mesero 2222**.
+
 Flujo para probar en 2 minutos:
-1. **💼 Turno de Caja** → Abrir turno.
+0. Pantalla de PIN → **1234** (Administrador ve todas las pestañas; Cajero no ve Maestros; Mesero solo Comandas y KDS).
+1. **💼 Turno de Caja** → Abrir turno (el cajero se toma del usuario conectado).
 2. **🍽️ Mesas / Comandas** → tocar "Mesa 1" → elegir categoría → producto (queda amarillo 30 s) → 📝 Nota → guardar.
 3. **👨‍🍳 KDS Cocina** → la orden aparece con luz en el borde → PREPARAR → LISTO → ENTREGAR (20 s con deshacer).
 4. Volver a Comandas → **Cerrar ▶** → cobrar → se genera la factura.
+   Para probar la autorización: entra como **Cajero (1111)**, en Punto de Venta toca 🔄 en un producto del carrito → pide **PIN de gerente** (1234).
 5. Turno de Caja → **Cerrar turno / Arqueo** → contar billetes y monedas.
 
 Abrir directamente en una pestaña (pantallas dedicadas, p. ej. cocina):
@@ -99,6 +104,10 @@ Orden de llegada, filtro por estación, verde/amarillo/rojo por tiempo (rojo par
 Apertura con fondo inicial; cierre con conteo por denominación (100.000 … 50), esperado vs. contado vs. diferencia, ventas por medio de pago. No permite cerrar con comandas abiertas.
 
 ---
+
+### Usuarios y autorización de gerente (🔐)
+PIN de 4–6 dígitos en pantalla táctil (sin usuario, el PIN identifica a la persona; se guarda con hash PBKDF2 y no puede repetirse entre usuarios activos). Roles ordenados por privilegio: **Cocina** (solo KDS) → **Mesero** (+Comandas) → **Cajero** (+Punto de Venta, Turno) → **Gerente** (+Maestros, autoriza) → **Admin** (+crea otros Admin). Las pestañas se muestran según el rol y el chip 👤 permite **Cambiar usuario**.
+Devolver un producto, aplicar descuento o **anular un producto que ya está en cocina** abre el modal de PIN de gerente (si quien está conectado ya es gerente, se registra sin preguntar). Cada aprobación queda en `ManagerOverrides` (quién autorizó, a quién, monto, referencia, hora). En el KDS el producto anulado aparece tachado con etiqueta **ANULADO**; si no queda nada por cocinar la orden se cancela.
 
 ## 🛠 Stack
 
@@ -149,6 +158,8 @@ loqzen-pos/
 | | `ScalePortName`, `ScaleBaudRate` | `/dev/ttyUSB0`, `9600` | Balanza CAS SW-20RS por RS-232 |
 | `Comanda` | `ConfirmationDelaySeconds` | `30` | Espera (amarillo) antes de enviar a cocina |
 | | `QuickNotes` | 12 notas | Botones de notas rápidas ("Sin cebolla"…) |
+| `Authorization` | `RequireLogin` | `true` | `false` = terminal abierto sin pantalla de PIN (p. ej. KDS de cocina) |
+| | `ManagerRequiredFor` | `ReturnItem`, `ApplyDiscount`, `CancelKitchenItem` | Acciones que piden PIN de gerente (también `OpenCashDrawer`, `CloseShift`); `[]` = ninguna |
 | `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
 | | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
 | | `PollSeconds` | `3` | Cada cuánto el KDS revisa órdenes nuevas |
@@ -224,7 +235,7 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] Fase 1 – POS core, SQLite + migraciones, maestros, turno de caja
 - [x] Fase 2 – ESC/POS, cajón, balanza, escáner, emuladores Docker
 - [x] Fase 3 (parcial) – visor de cliente, comandas multi-mesa, KDS
-- [ ] Usuarios/PIN y autorización de gerente (devoluciones, descuentos)
+- [x] Usuarios/PIN y autorización de gerente (devoluciones, descuentos, anular en cocina)
 - [ ] Kestrel embebido en el escritorio + KDS/comanderas en red en tiempo real (WebSocket)
 - [ ] Visor de cliente para comandas
 - [ ] ZPL, mDNS, Android, sincronización del Outbox con ERP

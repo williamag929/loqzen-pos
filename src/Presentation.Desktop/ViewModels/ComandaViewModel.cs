@@ -10,6 +10,7 @@ using Core.Application.Hardware;
 using Core.Application.Receipts;
 using Core.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -27,15 +28,24 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     private readonly IPrinterService _printer;
     private readonly ComandaSettings _settings;
     private readonly TimeProvider _clock;
+    private readonly IManagerAuthPrompt _authPrompt;
+    private readonly IUserSession _session;
     private readonly DispatcherTimer _timer;
     private bool _tickRunning;
 
-    public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock)
+    public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock,
+        IManagerAuthPrompt authPrompt, IUserSession session)
     {
         _scopes = scopes;
         _printer = printer;
         _settings = settings;
         _clock = clock;
+        _authPrompt = authPrompt;
+        _session = session;
+
+        // The waiter is whoever signed in on this terminal (falls back to the generic label).
+        ApplySessionWaiter();
+        _session.Changed += ApplySessionWaiter;
 
         // 1s tick: confirms due items (→ green + KDS) and refreshes yellow countdowns.
         // Runs for the whole app lifetime — NOT only while this screen is visible — otherwise
@@ -92,6 +102,12 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     public string CurrentTotalText => ReceiptFormatter.Cop(Current?.Total ?? 0);
 
     [ObservableProperty] private string _waiterName = "Mesero";
+
+    private void ApplySessionWaiter()
+    {
+        if (_session.CurrentUser is { } user) WaiterName = user.Name;
+        else if (string.IsNullOrWhiteSpace(WaiterName)) WaiterName = "Mesero";
+    }
     [ObservableProperty] private string _statusMessage = string.Empty;
     [ObservableProperty] private bool _isShiftOpen;
     [ObservableProperty] private string _cashierName = string.Empty;

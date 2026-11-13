@@ -35,6 +35,8 @@ Luego lee, en este orden:
 | Drivers de hardware | `Infrastructure.Hardware/` detrás de las interfaces de `Core.Application/Hardware/HardwareInterfaces.cs` |
 | Pantallas | `Presentation.Desktop/Views/*.axaml` + `ViewModels/` (+ `Controls/`, `Converters/`) |
 | Registrar servicios / config | `Presentation.Desktop/ServiceCollectionExtensions.cs` y `appsettings.json` |
+| Pedir PIN de gerente desde una pantalla | Inyecta `IManagerAuthPrompt` (`Presentation.Desktop/Services`) y llama `RequestAsync(AuthorizedAction, descripción, monto, referencia)`; nunca abras el modal a mano |
+| Saber quién está conectado / qué puede ver | `IUserSession` (`UserSession` singleton) + `Core.Application/Security/UserPermissions.cs` |
 | Datos demo | `Infrastructure.Data/Seed/DbInitializer.cs` |
 
 ### Servicios principales
@@ -46,6 +48,8 @@ Luego lee, en este orden:
 | `IKitchenService` | KDS: órdenes activas, avanzar estado, impresa, entregar/deshacer |
 | `ICashShiftService` | Abrir turno, resumen por medio de pago, cierre con conteo por denominación |
 | `IReportService` | Reportes diarios / Z |
+| `IUserService` | Usuarios con PIN (hash, unicidad entre activos, login por PIN) |
+| `IManagerAuthorizationService` | PIN de gerente → registra `ManagerOverride` (auditoría); `RequiresAuthorization` lee `Authorization:ManagerRequiredFor` |
 | `IProductService`, `ICategoryService`, `ITaxService`, `ICustomerService` | Maestros |
 
 ---
@@ -160,11 +164,11 @@ Reglas:
 
 ## 10. Pendientes priorizados (buenos primeros aportes)
 
-1. **Usuarios con PIN** y autorización de gerente (devoluciones, descuentos, anular productos ya en cocina).
-2. **Kestrel embebido** en el escritorio + WebSocket hacia KDS/comanderas en otros equipos (hoy `Presentation.Server` es un proceso aparte con lista de sockets que nunca se limpia).
-3. **Visor de cliente** para comandas.
-4. Comandas: productos por peso leyendo la balanza (hoy 1 kg fijo); agrupar el mismo producto en una línea.
-5. Sacar `PosDbContext` de `CheckoutViewModel` y moverlo a `ISalesService`.
-6. Barra superior: en ventanas angostas los botones "Scan"/"Visor Cliente" se superponen a las pestañas.
+1. **Kestrel embebido** en el escritorio + WebSocket hacia KDS/comanderas en otros equipos (hoy `Presentation.Server` es un proceso aparte con lista de sockets que nunca se limpia).
+2. **Visor de cliente** para comandas.
+3. Comandas: productos por peso leyendo la balanza (hoy 1 kg fijo); agrupar el mismo producto en una línea.
+4. Sacar `PosDbContext` de `CheckoutViewModel` y moverlo a `ISalesService`.
+5. Barra superior: en ventanas angostas los botones "Scan"/"Visor Cliente" se superponen a las pestañas.
 
 ¿Dudas de arquitectura? Revisa `memory-bank/systemPatterns.md` y `memory-bank/projectbrief.md` (reglas invariables).
+6. Autorización: un `ManagerOverride` de `CancelKitchenItem` se puede reutilizar (no se marca como consumido); `UserService` no valida `CanAssignRole` (solo la UI); el requester queda vacío si el llamador no lo pasa en el flujo por PIN.

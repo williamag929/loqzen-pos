@@ -29,6 +29,14 @@ public interface IComandaService
     Task<ComandaDto> CancelPendingItemAsync(Guid comandaId, Guid itemId, CancellationToken ct = default);
 
     /// <summary>
+    /// Cancels a Confirmed item that is already in the kitchen. Requires a recorded manager approval
+    /// (<paramref name="managerOverrideId"/> must exist). Marks the matching KitchenOrderItem IsCancelled
+    /// (struck-through on the KDS) and, if every item of that KitchenOrder is cancelled, cancels the
+    /// KitchenOrder too. Writes an Outbox "KitchenItemCancelled" in the same SaveChanges.
+    /// </summary>
+    Task<ComandaDto> CancelConfirmedItemAsync(Guid comandaId, Guid itemId, Guid managerOverrideId, CancellationToken ct = default);
+
+    /// <summary>
     /// Sets (or clears, if empty) the notes of a Pending item and releases its hold.
     /// Throws if the item is already in the kitchen or notes exceed ComandaSettings.MaxNotesLength.
     /// </summary>

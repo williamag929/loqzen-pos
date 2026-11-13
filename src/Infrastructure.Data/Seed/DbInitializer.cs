@@ -4,7 +4,9 @@ using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
 using Microsoft.Data.Sqlite;
+using Core.Application.Security;
 using Core.Domain.Entities;
+using Core.Domain.Enums;
 using Infrastructure.Data.Context;
 using Microsoft.EntityFrameworkCore;
 
@@ -33,6 +35,17 @@ public static class DbInitializer
             context.DiningTables.Add(new DiningTable { Name = "Barra", SortOrder = 100 });
             context.DiningTables.Add(new DiningTable { Name = "Para llevar", SortOrder = 101 });
             await context.SaveChangesAsync();
+        }
+
+        // Users are seeded independently too, so existing DBs get a way to sign in.
+        if (!await context.Users.AnyAsync())
+        {
+            context.Users.AddRange(
+                new User { Name = "Administrador", PinHash = PinHasher.Hash("1234"), Role = UserRole.Admin },
+                new User { Name = "Cajero", PinHash = PinHasher.Hash("1111"), Role = UserRole.Cashier },
+                new User { Name = "Mesero", PinHash = PinHasher.Hash("2222"), Role = UserRole.Waiter });
+            await context.SaveChangesAsync();
+            Console.WriteLine("[DB] Usuarios por defecto creados: Administrador (PIN 1234), Cajero (PIN 1111), Mesero (PIN 2222). Cámbielos desde Maestros > Usuarios.");
         }
 
         if (await context.Categories.AnyAsync())

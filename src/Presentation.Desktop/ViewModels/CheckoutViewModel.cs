@@ -11,6 +11,7 @@ using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
 using Microsoft.EntityFrameworkCore;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -22,6 +23,8 @@ public partial class CheckoutViewModel : ObservableObject
     private readonly IPrinterService _printerService;
     private readonly IScaleService _scaleService;
     private readonly IBarcodeScannerService _scannerService;
+    private readonly IManagerAuthPrompt _authPrompt;
+    private readonly IUserSession _session;
 
     // Current order being built
     private Guid? _currentOrderId;
@@ -86,7 +89,9 @@ public partial class CheckoutViewModel : ObservableObject
         ICashShiftService cashShiftService,
         IPrinterService printerService,
         IScaleService scaleService,
-        IBarcodeScannerService scannerService)
+        IBarcodeScannerService scannerService,
+        IManagerAuthPrompt authPrompt,
+        IUserSession session)
     {
         _dbContext = dbContext;
         _salesService = salesService;
@@ -94,6 +99,9 @@ public partial class CheckoutViewModel : ObservableObject
         _printerService = printerService;
         _scaleService = scaleService;
         _scannerService = scannerService;
+        _authPrompt = authPrompt;
+        _session = session;
+        _session.Changed += () => RebuildReceiptPreview(); // cashier name on the live receipt
 
         _scaleService.WeightChanged += (s, e) =>
         {
@@ -303,8 +311,9 @@ public partial class CheckoutViewModel : ObservableObject
         NotifyCartTotalsChanged();
     }
 
+    /// <summary>Adds a return (credit) line for the item. Needs manager approval when configured.</summary>
     [RelayCommand]
-    public void RemoveItem(CartItemDto item)
+    public async Task RemoveItemAsync(CartItemDto item)
     {
         // If item is already a return, just remove it
         if (item.IsReturn)
@@ -327,8 +336,13 @@ public partial class CheckoutViewModel : ObservableObject
             return;
         }
 
-        // TODO: Manager authorization modal (Fase 2)
-        // For now, just add return item
+        var lineValue = item.UnitPrice * (item.IsWeighed ? Math.Abs(item.WeightKg ?? 1m) : 1m);
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ReturnItem, $"Devolver {item.Name}", lineValue, item.Name);
+        if (!auth.IsAllowed)
+        {
+            StatusMessage = "❌ Devolución no autorizada";
+            return;
+        }
 
         // Add return item with negative quantity
         var returnItem = new CartItemDto
@@ -348,7 +362,9 @@ public partial class CheckoutViewModel : ObservableObject
 
         CartItems.Add(returnItem);
         NotifyCartTotalsChanged();
-        StatusMessage = $"🔄 Devolución agregada: {item.Name}";
+        StatusMessage = auth.ManagerName is { } manager
+            ? $"🔄 Devolución agregada: {item.Name} · autorizó {manager}"
+            : $"🔄 Devolución agregada: {item.Name}";
     }
 
     [RelayCommand]
@@ -361,7 +377,7 @@ public partial class CheckoutViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void OpenDiscountModal()
+    public async Task OpenDiscountModalAsync()
     {
         // Simple implementation - applies 10% discount
         // TODO: Implement full modal with percentage/fixed amount UI
@@ -375,14 +391,23 @@ public partial class CheckoutViewModel : ObservableObject
         {
             Type = DiscountType.Percentage,
             Value = 10m,
-            Reason = "Descuento promocional",
-            AuthorizedBy = "Cajero"
+            Reason = "Descuento promocional"
         };
+        var discountAmount = Math.Min(discount.CalculateDiscount(Subtotal), Subtotal);
 
-        var discountAmount = discount.CalculateDiscount(Subtotal);
-        DiscountTotal = Math.Min(discountAmount, Subtotal);
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ApplyDiscount, "Descuento 10%", discountAmount);
+        if (!auth.IsAllowed)
+        {
+            StatusMessage = "❌ Descuento no autorizado";
+            return;
+        }
+        discount.AuthorizedBy = auth.ManagerName ?? _session.CurrentUser?.Name ?? "Cajero";
+
+        DiscountTotal = discountAmount;
         NotifyCartTotalsChanged();
-        StatusMessage = $"Descuento aplicado: ${DiscountTotal:N0}";
+        StatusMessage = auth.ManagerName is { } manager
+            ? $"Descuento aplicado: ${DiscountTotal:N0} · autorizó {manager}"
+            : $"Descuento aplicado: ${DiscountTotal:N0}";
     }
 
     [RelayCommand]
@@ -396,6 +421,13 @@ public partial class CheckoutViewModel : ObservableObject
     [RelayCommand]
     public async Task OpenCashDrawerAsync()
     {
+        // Not in the default ManagerRequiredFor list → normally no prompt.
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.OpenCashDrawer, "Abrir cajón sin venta");
+        if (!auth.IsAllowed)
+        {
+            StatusMessage = "❌ Apertura de cajón no autorizada";
+            return;
+        }
         await _printerService.OpenCashDrawerAsync();
         StatusMessage = "Cajón monedero abierto";
     }
@@ -597,7 +629,7 @@ public partial class CheckoutViewModel : ObservableObject
             ReceiptPreview.Add(line);
     }
 
-    private string CashierLabel => _currentCashierName ?? "Cajero";
+    private string CashierLabel => _session.CurrentUser?.Name ?? _currentCashierName ?? "Cajero";
     private string? _currentCashierName;
 
     private void NotifyCartTotalsChanged()

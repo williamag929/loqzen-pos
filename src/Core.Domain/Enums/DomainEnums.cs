@@ -53,3 +53,23 @@ public enum KitchenOrderStatus
     Delivered = 3,      // Entregado a mesa
     Cancelled = 4       // Cancelado
 }
+
+/// <summary>Ordered by privilege: a higher value can do everything a lower one can.</summary>
+public enum UserRole
+{
+    Kitchen = 0,   // KDS only
+    Waiter = 1,    // Comandas + KDS
+    Cashier = 2,   // + Punto de venta + Turno de caja
+    Manager = 3,   // + Maestros, autoriza devoluciones/descuentos/anulaciones
+    Admin = 4      // + gestiona usuarios
+}
+
+/// <summary>Sensitive actions that can be configured to require a manager PIN.</summary>
+public enum AuthorizedAction
+{
+    ReturnItem = 0,        // Devolución en carrito (nota crédito)
+    ApplyDiscount = 1,     // Descuento sobre la venta
+    CancelKitchenItem = 2, // Anular un producto que ya está en cocina
+    OpenCashDrawer = 3,    // Abrir cajón sin venta
+    CloseShift = 4         // Cerrar turno / arqueo
+}

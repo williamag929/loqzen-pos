@@ -2,6 +2,7 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:entities="using:Core.Domain.Entities"
+             xmlns:dtos="using:Core.Application.DTOs"
              xmlns:converters="using:Presentation.Desktop.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -36,6 +37,10 @@
                             Content="👥 Clientes"
                             Background="{Binding IsCustomersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCustomersCommand}"/>
+                    <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="🔑 Usuarios" IsVisible="{Binding CanManageUsers}"
+                            Background="{Binding IsUsersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                            Foreground="White" Command="{Binding ShowUsersCommand}"/>
                 </StackPanel>
                 <!-- Notification -->
                 <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
@@ -226,6 +231,67 @@
                 </ScrollViewer>
             </Grid>
 
+            <!-- ══ USERS TAB (PIN login staff) ═════════════════════════ -->
+            <Grid IsVisible="{Binding IsUsersTab}" RowDefinitions="Auto, *">
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Text="Cada usuario entra con su PIN. Los PIN de usuarios activos no se pueden repetir."
+                                   Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="14" FontWeight="Bold" CornerRadius="8"
+                                Content="➕ Nuevo Usuario" Command="{Binding NewUserCommand}"/>
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <ItemsControl ItemsSource="{Binding Users}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="dtos:UserDto">
+                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                        CornerRadius="10" Padding="16" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
+                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="8"
+                                                Width="48" Height="48" Margin="0,0,14,0">
+                                            <TextBlock Text="🔑" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                                <Border Background="#1E3A5F" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{Binding RoleLabel}" Foreground="#93C5FD" FontSize="11" FontWeight="Bold"/>
+                                                </Border>
+                                                <Border Background="#047857" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsActive}">
+                                                    <TextBlock Text="ACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                </Border>
+                                                <Border Background="#7F1D1D" CornerRadius="4" Padding="6,2" IsVisible="{Binding !IsActive}">
+                                                    <TextBlock Text="INACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding LastLoginAt, StringFormat='Último ingreso: {0:dd/MM/yyyy HH:mm}', TargetNullValue='Nunca ha ingresado'}"
+                                                       Foreground="#64748B" FontSize="13"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Height="48" Padding="16,0" CornerRadius="8" Margin="0,0,8,0"
+                                                Background="#1E3A5F" Foreground="White" Content="✏️ Editar" FontSize="14" FontWeight="Bold"
+                                                VerticalAlignment="Center"
+                                                Command="{Binding #MastersRoot.DataContext.EditUserCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        <Button Grid.Column="3" Height="48" Padding="16,0" CornerRadius="8"
+                                                Background="#7F1D1D" Foreground="White" Content="🚫 Desactivar" FontSize="14" FontWeight="Bold"
+                                                VerticalAlignment="Center" IsVisible="{Binding IsActive}"
+                                                Command="{Binding #MastersRoot.DataContext.ToggleUserActiveCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        <Button Grid.Column="4" Height="48" Padding="16,0" CornerRadius="8"
+                                                Background="#15803D" Foreground="White" Content="✅ Reactivar" FontSize="14" FontWeight="Bold"
+                                                VerticalAlignment="Center" IsVisible="{Binding !IsActive}"
+                                                Command="{Binding #MastersRoot.DataContext.ToggleUserActiveCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
         </Grid>
 
         <!-- ══ MODAL: PRODUCT FORM ═════════════════════════════════════════ -->
@@ -359,6 +425,44 @@
                         <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
                                 Content="💾 Guardar" Command="{Binding SaveCustomerCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ══ MODAL: USER FORM ════════════════════════════════════════════ -->
+        <Border Grid.RowSpan="2" Background="#CC000000"
+                IsVisible="{Binding IsUserFormVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="480" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+                    CornerRadius="16" Padding="28"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="{Binding UserFormTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBox Text="{Binding UserName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Rol *" Foreground="#94A3B8" FontSize="14"/>
+                        <ComboBox ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding UserRoleOption, Mode=TwoWay}"
+                                  DisplayMemberBinding="{Binding Label}"
+                                  Height="52" HorizontalAlignment="Stretch" CornerRadius="8" Padding="12,0" FontSize="16"/>
+                    </StackPanel>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="{Binding UserPinHint}" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBox Text="{Binding UserPin, Mode=TwoWay}" PasswordChar="●" MaxLength="6"
+                                 Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="20" Watermark="••••"/>
+                    </StackPanel>
+                    <ToggleSwitch IsChecked="{Binding UserIsActive, Mode=TwoWay}" OnContent="Activo" OffContent="Inactivo"
+                                  Foreground="White" FontSize="15" Content="Estado"/>
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                Content="Cancelar" Command="{Binding CancelUserFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="💾 Guardar" Command="{Binding SaveUserCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

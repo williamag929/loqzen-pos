@@ -12,6 +12,7 @@ namespace Presentation.Desktop.ViewModels;
 public partial class CashShiftViewModel : ObservableObject
 {
     private readonly ICashShiftService _service;
+    private readonly IUserSession _session;
 
     // ── Current Shift State ──────────────────────────────────────────────────
     [ObservableProperty] private CashShift? _currentShift;
@@ -38,9 +39,10 @@ public partial class CashShiftViewModel : ObservableObject
 
     [ObservableProperty] private string _notification = string.Empty;
 
-    public CashShiftViewModel(ICashShiftService cashShiftService)
+    public CashShiftViewModel(ICashShiftService cashShiftService, IUserSession session)
     {
         _service = cashShiftService;
+        _session = session;
         _ = LoadCurrentShiftAsync();
     }
 
@@ -79,7 +81,7 @@ public partial class CashShiftViewModel : ObservableObject
     [RelayCommand]
     public void ShowOpenDialog()
     {
-        CashierName = string.Empty;
+        CashierName = _session.CurrentUser?.Name ?? string.Empty; // pre-filled with the signed-in user
         OpeningAmountStr = "0";
         IsOpenDialogVisible = true;
     }

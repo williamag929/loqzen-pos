@@ -1,0 +1,50 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.ManagerAuthDialog"
+             x:DataType="vm:ManagerAuthPromptViewModel"
+             x:CompileBindings="True">
+
+    <!-- Modal: a manager types their PIN to approve a sensitive action (return, discount, cancel in kitchen). -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="#F59E0B" BorderThickness="2" CornerRadius="16" Padding="24"
+                Width="520" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="14">
+                <TextBlock Text="{Binding Title}" Foreground="White" FontSize="22" FontWeight="Black"/>
+
+                <Border Background="#1E293B" CornerRadius="10" Padding="14,10">
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="{Binding ActionLabel}" Foreground="#FCD34D" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Description}" Foreground="#E2E8F0" FontSize="15" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding AmountText}" Foreground="White" FontSize="20" FontWeight="Black"
+                                   IsVisible="{Binding HasAmount}"/>
+                    </StackPanel>
+                </Border>
+
+                <TextBlock Text="PIN del gerente" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
+                <Border Background="#020617" CornerRadius="10" Height="64" BorderBrush="#334155" BorderThickness="1">
+                    <TextBlock Text="{Binding PinDots}" Foreground="White" FontSize="36" FontWeight="Black"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="14" FontWeight="Bold"
+                           TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
+
+                <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
+                              ClearCommand="{Binding ClearCommand}"
+                              ExactCommand="{Binding ConfirmCommand}"
+                              ExactLabel="OK"/>
+
+                <Grid ColumnDefinitions="*, *">
+                    <Button Height="64" Margin="0,0,6,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="Cancelar" Command="{Binding CancelCommand}"/>
+                    <Button Grid.Column="1" Height="64" Margin="6,0,0,0" CornerRadius="10" Background="#F59E0B" Foreground="#0F172A" FontSize="18" FontWeight="Black"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="✅ Autorizar" Command="{Binding ConfirmCommand}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

@@ -1,7 +1,6 @@
 using System;
 using System.Collections.ObjectModel;
 using CommunityToolkit.Mvvm.ComponentModel;
-using Core.Domain.Entities;
 using Core.Domain.Enums;
 
 namespace Presentation.Desktop.ViewModels;
@@ -20,7 +19,7 @@ public partial class KitchenOrderCardViewModel : ObservableObject
     public string Station { get; private set; } = string.Empty;
     public string? GeneralNotes { get; private set; }
     public DateTime CreatedAt { get; private set; }
-    public ObservableCollection<KitchenOrderItem> Items { get; } = new();
+    public ObservableCollection<KitchenItemViewModel> Items { get; } = new();
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(StatusText), nameof(ActionButtonText), nameof(ActionButtonColorHex), nameof(IsNew), nameof(IsArchived), nameof(IsActive))]

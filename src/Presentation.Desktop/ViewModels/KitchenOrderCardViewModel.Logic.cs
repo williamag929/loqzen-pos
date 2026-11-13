@@ -1,4 +1,6 @@
 using System;
+using System.Collections.Generic;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.Kitchen;
@@ -24,7 +26,6 @@ public partial class KitchenOrderCardViewModel
         _undo = undo;
         Id = entity.Id;
         Apply(entity);
-        foreach (var item in entity.Items) Items.Add(item);
         AdvanceStatusCommand = new AsyncRelayCommand(() => RunBusy(_advance));
         PrintTicketCommand = new AsyncRelayCommand(() => RunBusy(_print));
         UndoArchiveCommand = new AsyncRelayCommand(() => RunBusy(_undo));
@@ -43,7 +44,10 @@ public partial class KitchenOrderCardViewModel
         finally { IsBusy = false; }
     }
 
-    /// <summary>Refreshes persisted fields IN PLACE so the card (and its animation) is not recreated.</summary>
+    /// <summary>
+    /// Refreshes persisted fields IN PLACE so the card (and its animation) is not recreated.
+    /// Items are merged by Id (update IsCancelled/Notes, add new, drop missing) for the same reason.
+    /// </summary>
     public void Apply(KitchenOrder e)
     {
         OrderNumber = e.OrderNumber;
@@ -55,6 +59,23 @@ public partial class KitchenOrderCardViewModel
         Status = e.Status;
         PrintedAt = e.PrintedAt;
         DeliveredAt = e.DeliveredAt;
+        MergeItems(e);
+    }
+
+    private void MergeItems(KitchenOrder e)
+    {
+        var incoming = e.Items ?? Array.Empty<KitchenOrderItem>();
+        var incomingIds = new HashSet<Guid>(incoming.Select(i => i.Id));
+
+        for (var i = Items.Count - 1; i >= 0; i--)
+            if (!incomingIds.Contains(Items[i].Id)) Items.RemoveAt(i);
+
+        foreach (var item in incoming)
+        {
+            var existing = Items.FirstOrDefault(x => x.Id == item.Id);
+            if (existing != null) existing.Apply(item);
+            else Items.Add(new KitchenItemViewModel(item));
+        }
     }
 
     /// <returns>false when an archived card's undo window has expired (caller removes it).</returns>

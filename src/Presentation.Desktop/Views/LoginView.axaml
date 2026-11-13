@@ -1,0 +1,45 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.LoginView"
+             x:DataType="vm:LoginViewModel"
+             x:CompileBindings="True">
+
+    <!-- Full-window PIN login (covers the whole app until someone signs in). -->
+    <Border Background="#0F172A">
+        <Border Width="460" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#020617" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="20" Padding="32">
+            <StackPanel Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                    <Border Background="#2563EB" CornerRadius="8" Padding="12,6">
+                        <TextBlock Text="LOQZEN" Foreground="White" FontWeight="Black" FontSize="18"/>
+                    </Border>
+                    <TextBlock Text="Terminal POS" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
+                </StackPanel>
+
+                <TextBlock Text="Ingrese su PIN" Foreground="#CBD5E1" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+
+                <Border Background="#0F172A" CornerRadius="12" Height="72" BorderBrush="#334155" BorderThickness="1">
+                    <TextBlock Text="{Binding PinDots}" Foreground="White" FontSize="40" FontWeight="Black"
+                               HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="15" FontWeight="Bold"
+                           TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
+
+                <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
+                              ClearCommand="{Binding ClearCommand}"
+                              ExactCommand="{Binding LoginCommand}"
+                              ExactLabel="Entrar"/>
+
+                <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                        Content="🔓 Entrar" Command="{Binding LoginCommand}"/>
+
+                <TextBlock Text="{Binding DefaultPinHint}" Foreground="#64748B" FontSize="12" TextWrapping="Wrap"
+                           HorizontalAlignment="Center" IsVisible="{Binding ShowDefaultPinHint}"/>
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

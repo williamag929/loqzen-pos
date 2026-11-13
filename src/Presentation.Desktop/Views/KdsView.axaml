@@ -131,17 +131,28 @@
                                 <!-- Items -->
                                 <ItemsControl Grid.Row="2" ItemsSource="{Binding Items}" Margin="12,10">
                                     <ItemsControl.ItemTemplate>
-                                        <DataTemplate x:DataType="entities:KitchenOrderItem">
-                                            <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="0,8">
-                                                <Grid ColumnDefinitions="Auto, *">
+                                        <DataTemplate x:DataType="vm:KitchenItemViewModel">
+                                            <!-- Cancelled by a manager after reaching the kitchen: struck-through + red badge -->
+                                            <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="0,8" Classes.cancelled="{Binding IsCancelled}">
+                                                <Border.Styles>
+                                                    <Style Selector="Border.cancelled TextBlock.item">
+                                                        <Setter Property="TextDecorations" Value="Strikethrough"/>
+                                                        <Setter Property="Foreground" Value="#EF4444"/>
+                                                    </Style>
+                                                </Border.Styles>
+                                                <Grid ColumnDefinitions="Auto, *, Auto">
                                                     <Border Grid.Column="0" Background="#1E293B" CornerRadius="6" Width="32" Height="32" Margin="0,0,10,0">
-                                                        <TextBlock Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="16" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                        <TextBlock Classes="item" Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="16" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                                        <TextBlock Text="{Binding ProductName}" Foreground="White" FontSize="15" FontWeight="SemiBold"/>
-                                                        <TextBlock Text="{Binding Notes}" Foreground="#F59E0B" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
-                                                                   IsVisible="{Binding Notes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                                                        <TextBlock Classes="item" Text="{Binding ProductName}" Foreground="White" FontSize="15" FontWeight="SemiBold"/>
+                                                        <TextBlock Classes="item" Text="{Binding Notes}" Foreground="#F59E0B" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                                   IsVisible="{Binding HasNotes}"/>
                                                     </StackPanel>
+                                                    <Border Grid.Column="2" Background="#7F1D1D" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                            IsVisible="{Binding IsCancelled}">
+                                                        <TextBlock Text="ANULADO" Foreground="White" FontSize="11" FontWeight="Black"/>
+                                                    </Border>
                                                 </Grid>
                                             </Border>
                                         </DataTemplate>

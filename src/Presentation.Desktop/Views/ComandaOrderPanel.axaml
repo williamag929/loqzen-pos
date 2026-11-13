@@ -21,7 +21,7 @@
                             <DataTemplate x:DataType="vm:ComandaItemRowViewModel">
                                 <Border Background="{Binding Background}" BorderBrush="{Binding Accent}" BorderThickness="0,0,0,4"
                                         CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
-                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto">
+                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto">
                                         <TextBlock Text="{Binding Name}" Foreground="White" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="White" FontSize="15" FontWeight="Bold" Margin="8,0,0,0"/>
                                         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
@@ -45,6 +45,12 @@
                                                     Background="#7F1D1D" Foreground="White" FontSize="18" Content="✕"
                                                     HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
                                         </Grid>
+                                        <!-- Already in the kitchen: cancelling needs a manager PIN (same CancelCommand, VM decides) -->
+                                        <Button Grid.Row="5" Grid.ColumnSpan="2" Height="52" Margin="0,8,0,0" CornerRadius="8"
+                                                Background="#7F1D1D" Foreground="White" FontSize="14" FontWeight="Bold"
+                                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                Content="✕ Anular (gerente)" IsVisible="{Binding IsConfirmed}"
+                                                Command="{Binding CancelCommand}"/>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

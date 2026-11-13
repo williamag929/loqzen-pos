@@ -10,6 +10,7 @@ using Infrastructure.Hardware.Scanners;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Services;
 using Presentation.Desktop.ViewModels;
 
 namespace Presentation.Desktop;
@@ -30,6 +31,10 @@ public static class ServiceCollectionExtensions
         var kdsSettings = configuration.GetSection("Kds").Get<Core.Application.Kitchen.KdsSettings>()
                           ?? new Core.Application.Kitchen.KdsSettings();
         services.AddSingleton(kdsSettings);
+
+        var authSettings = configuration.GetSection("Authorization").Get<Core.Application.DTOs.AuthorizationSettings>()
+                           ?? new Core.Application.DTOs.AuthorizationSettings();
+        services.AddSingleton(authSettings);
 
         // ── Database ─────────────────────────────────────────────────────────────
         services.AddDbContext<PosDbContext>(options =>
@@ -53,6 +58,15 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IReportService, ReportService>();
         services.AddTransient<IComandaService, ComandaService>();
         services.AddTransient<IKitchenService, KitchenService>();
+
+        // ── Users / authorization ────────────────────────────────────────────────
+        services.AddTransient<IUserService, UserService>();
+        services.AddTransient<IManagerAuthorizationService, ManagerAuthorizationService>();
+        services.AddSingleton<UserSession>();                       // one terminal = one session
+        services.AddSingleton<IUserSession>(sp => sp.GetRequiredService<UserSession>());
+        services.AddSingleton<ManagerAuthPromptViewModel>();        // single modal shared by every screen
+        services.AddSingleton<IManagerAuthPrompt>(sp => sp.GetRequiredService<ManagerAuthPromptViewModel>());
+        services.AddSingleton<LoginViewModel>();
 
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────
         if (hwSettings.UseMockPrinter)
