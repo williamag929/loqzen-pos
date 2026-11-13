@@ -1,0 +1,362 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:entities="using:Core.Domain.Entities"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+             x:Class="Presentation.Desktop.Views.MastersView"
+             x:DataType="vm:MastersViewModel">
+
+    <Grid RowDefinitions="Auto, *">
+
+        <!-- ── TAB BAR ───────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="#020617" Padding="20,12" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
+                    <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="📦 Productos"
+                            Background="{Binding IsProductsTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Foreground="White" Command="{Binding ShowProductsCommand}"/>
+                    <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="🏷️ Categorías"
+                            Background="{Binding IsCategoriesTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Foreground="White" Command="{Binding ShowCategoriesCommand}"/>
+                    <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="📋 Impuestos"
+                            Background="{Binding IsTaxesTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Foreground="White" Command="{Binding ShowTaxesCommand}"/>
+                    <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="👥 Clientes"
+                            Background="{Binding IsCustomersTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Foreground="White" Command="{Binding ShowCustomersCommand}"/>
+                </StackPanel>
+                <!-- Notification -->
+                <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
+                        IsVisible="{Binding Notification, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                    <TextBlock Text="{Binding Notification}" Foreground="#CBD5E1" FontSize="13"/>
+                </Border>
+            </Grid>
+        </Border>
+
+        <!-- ── CONTENT AREA ──────────────────────────────────────────── -->
+        <Grid Grid.Row="1" Background="#020617">
+
+            <!-- ══ PRODUCTS TAB ════════════════════════════════════════ -->
+            <Grid IsVisible="{Binding IsProductsTab}" RowDefinitions="Auto, *">
+                <!-- Toolbar -->
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBox Grid.Column="0" Height="48" Text="{Binding SearchQuery, Mode=TwoWay}"
+                                 Watermark="🔍 Buscar producto por nombre o SKU..."
+                                 FontSize="15" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center"/>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0"
+                                Background="#2563EB" Foreground="White"
+                                FontSize="14" FontWeight="Bold" CornerRadius="8"
+                                Content="➕ Nuevo Producto"
+                                Command="{Binding NewProductCommand}"/>
+                    </Grid>
+                </Border>
+                <!-- Product List -->
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <ItemsControl ItemsSource="{Binding Products}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="entities:Product">
+                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                        CornerRadius="10" Padding="16" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto, Auto">
+                                        <!-- SKU Badge -->
+                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="6"
+                                                Padding="10,6" Margin="0,0,14,0" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding Sku}" Foreground="#38BDF8"
+                                                       FontSize="12" FontWeight="Bold"/>
+                                        </Border>
+                                        <!-- Info -->
+                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding Name}" Foreground="White"
+                                                           FontSize="16" FontWeight="SemiBold"/>
+                                                <Border IsVisible="{Binding IsWeighed}"
+                                                        Background="#047857" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="⚖️ Pesado" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                </Border>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Category.Name}"
+                                                       Foreground="#64748B" FontSize="13"/>
+                                        </StackPanel>
+                                        <!-- Price -->
+                                        <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
+                                            <TextBlock Text="{Binding Price, StringFormat='${0:N0}'}"
+                                                       Foreground="#10B981" FontSize="18" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding StockQuantity, StringFormat='Stock: {0:N0}'}"
+                                                       Foreground="#64748B" FontSize="12"/>
+                                        </StackPanel>
+                                        <!-- Edit -->
+                                        <Button Grid.Column="3" Height="44" Width="44" CornerRadius="8"
+                                                Background="#1E3A5F" Foreground="White" Content="✏️" FontSize="18"
+                                                Margin="0,0,6,0" VerticalAlignment="Center"
+                                                Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).EditProductCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        <!-- Delete -->
+                                        <Button Grid.Column="4" Height="44" Width="44" CornerRadius="8"
+                                                Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
+                                                VerticalAlignment="Center"
+                                                Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).DeleteProductAsyncCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ══ CATEGORIES TAB ══════════════════════════════════════ -->
+            <Grid IsVisible="{Binding IsCategoriesTab}" RowDefinitions="Auto, *">
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Button Height="48" Padding="20,0" Background="#2563EB" Foreground="White"
+                            FontSize="14" FontWeight="Bold" CornerRadius="8"
+                            Content="➕ Nueva Categoría" Command="{Binding NewCategoryCommand}"/>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <ItemsControl ItemsSource="{Binding Categories}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate>
+                                <WrapPanel Orientation="Horizontal"/>
+                            </ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="entities:Category">
+                                <Border Background="{Binding ColorHex}" CornerRadius="10"
+                                        Padding="20,14" Margin="8" MinWidth="180">
+                                    <Grid RowDefinitions="Auto, Auto">
+                                        <TextBlock Grid.Row="0" Text="{Binding Name}"
+                                                   Foreground="White" FontSize="17" FontWeight="Bold"/>
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
+                                            <Button Height="38" Padding="12,0" CornerRadius="6"
+                                                    Background="#00000040" Foreground="White" Content="✏️ Editar"
+                                                    Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).EditCategoryCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                            <Button Height="38" Padding="12,0" CornerRadius="6"
+                                                    Background="#7F1D1D80" Foreground="White" Content="🗑️"
+                                                    Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).DeleteCategoryAsyncCommand}"
+                                                    CommandParameter="{Binding .}"/>
+                                        </StackPanel>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ══ TAXES TAB ═══════════════════════════════════════════ -->
+            <Border IsVisible="{Binding IsTaxesTab}" Background="#020617" Padding="24">
+                <StackPanel Spacing="10">
+                    <TextBlock Text="Impuestos configurados en el sistema" Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
+                    <ItemsControl ItemsSource="{Binding Taxes}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="entities:Tax">
+                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                        CornerRadius="10" Padding="16" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*, Auto, Auto">
+                                        <StackPanel Grid.Column="0" Spacing="3">
+                                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Rate, StringFormat='Tasa: {0:P0}'}"
+                                                       Foreground="#10B981" FontSize="14" FontWeight="SemiBold"/>
+                                        </StackPanel>
+                                        <Border Grid.Column="1" Background="#047857" CornerRadius="6" Padding="12,6"
+                                                IsVisible="{Binding IsActive}" VerticalAlignment="Center" Margin="0,0,8,0">
+                                            <TextBlock Text="ACTIVO" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                                        </Border>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </StackPanel>
+            </Border>
+
+            <!-- ══ CUSTOMERS TAB ═══════════════════════════════════════ -->
+            <Grid IsVisible="{Binding IsCustomersTab}" RowDefinitions="Auto, *">
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Button Height="48" Padding="20,0" Background="#2563EB" Foreground="White"
+                            FontSize="14" FontWeight="Bold" CornerRadius="8"
+                            Content="➕ Nuevo Cliente" Command="{Binding NewCustomerCommand}"/>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <ItemsControl ItemsSource="{Binding Customers}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="entities:Customer">
+                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                        CornerRadius="10" Padding="16" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="Auto, *, Auto, Auto">
+                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="8"
+                                                Width="48" Height="48" Margin="0,0,14,0">
+                                            <TextBlock Text="👤" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                        <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                            <TextBlock Text="{Binding FullName}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="8">
+                                                <TextBlock Text="{Binding DocumentId}" Foreground="#64748B" FontSize="13"/>
+                                                <TextBlock Text="{Binding Email}" Foreground="#38BDF8" FontSize="13"/>
+                                            </StackPanel>
+                                        </StackPanel>
+                                        <Button Grid.Column="2" Height="44" Width="44" CornerRadius="8"
+                                                Background="#1E3A5F" Foreground="White" Content="✏️" FontSize="18"
+                                                Margin="0,0,6,0" VerticalAlignment="Center"
+                                                Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).EditCustomerCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                        <Button Grid.Column="3" Height="44" Width="44" CornerRadius="8"
+                                                Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
+                                                VerticalAlignment="Center"
+                                                Command="{Binding ((vm:MastersViewModel)$parent[UserControl].DataContext).DeleteCustomerAsyncCommand}"
+                                                CommandParameter="{Binding .}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+        </Grid>
+
+        <!-- ══ MODAL: PRODUCT FORM ═════════════════════════════════════════ -->
+        <Border Grid.RowSpan="2" Background="#CC000000"
+                IsVisible="{Binding IsProductFormVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="600" MaxHeight="720" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+                    CornerRadius="16" Padding="28"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <ScrollViewer>
+                    <StackPanel Spacing="16">
+                        <TextBlock Text="{Binding ProductFormTitle}"
+                                   Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+
+                        <Grid ColumnDefinitions="*, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" >
+                            <!-- SKU -->
+                            <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                                <TextBlock Text="SKU *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductSku, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- Barcode -->
+                            <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
+                                <TextBlock Text="Código de Barras" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductBarcode, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- Name -->
+                            <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,12">
+                                <TextBlock Text="Nombre del Producto *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductName, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- Price -->
+                            <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                                <TextBlock Text="Precio de Venta *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductPriceStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- Cost -->
+                            <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
+                                <TextBlock Text="Costo" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductCostStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- Stock -->
+                            <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                                <TextBlock Text="Stock Inicial" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBox Text="{Binding ProductStockStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                            </StackPanel>
+                            <!-- IsWeighed toggle -->
+                            <Border Grid.Row="3" Grid.Column="1" Margin="8,0,0,12" VerticalAlignment="Bottom">
+                                <CheckBox IsChecked="{Binding ProductIsWeighed, Mode=TwoWay}"
+                                          Foreground="White" FontSize="15" Content="⚖️ Venta por peso (balanza)"/>
+                            </Border>
+                        </Grid>
+
+                        <!-- Action Buttons -->
+                        <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                            <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                    FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                    Content="Cancelar" Command="{Binding CancelProductFormCommand}"/>
+                            <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                    FontSize="16" FontWeight="Black" CornerRadius="8"
+                                    Content="💾 Guardar" Command="{Binding SaveProductAsyncCommand}"/>
+                        </Grid>
+                    </StackPanel>
+                </ScrollViewer>
+            </Border>
+        </Border>
+
+        <!-- ══ MODAL: CATEGORY FORM ════════════════════════════════════════ -->
+        <Border Grid.RowSpan="2" Background="#CC000000"
+                IsVisible="{Binding IsCategoryFormVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="440" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+                    CornerRadius="16" Padding="28"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="🏷️ Categoría" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBox Text="{Binding CategoryName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Color HEX (ej. #3B82F6)" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBox Text="{Binding CategoryColorHex, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                Content="Cancelar" Command="{Binding CancelCategoryFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="💾 Guardar" Command="{Binding SaveCategoryAsyncCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ══ MODAL: CUSTOMER FORM ════════════════════════════════════════ -->
+        <Border Grid.RowSpan="2" Background="#CC000000"
+                IsVisible="{Binding IsCustomerFormVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="520" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+                    CornerRadius="16" Padding="28"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="16">
+                    <TextBlock Text="👥 Cliente" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <Grid ColumnDefinitions="*, *" RowDefinitions="Auto,Auto,Auto">
+                        <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                            <TextBlock Text="Documento / NIT *" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding CustomerDocumentId, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
+                            <TextBlock Text="Nombre Completo *" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding CustomerFullName, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
+                            <TextBlock Text="Correo Electrónico" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding CustomerEmail, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
+                            <TextBlock Text="Teléfono" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding CustomerPhone, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                        </StackPanel>
+                        <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,12">
+                            <TextBlock Text="Dirección" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding CustomerAddress, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*">
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                Content="Cancelar" Command="{Binding CancelCustomerFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="💾 Guardar" Command="{Binding SaveCustomerAsyncCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+
+    </Grid>
+</UserControl>

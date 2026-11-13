@@ -9,7 +9,6 @@ using Core.Application.Hardware;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
-using Infrastructure.Hardware.Printers;
 using Microsoft.EntityFrameworkCore;
 
 namespace Presentation.Desktop.ViewModels;
@@ -189,10 +188,10 @@ public partial class KdsViewModel : ObservableObject
     public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
     private readonly ObservableCollection<KitchenOrderCardViewModel> _allOrders = new();
 
-    public KdsViewModel()
+    public KdsViewModel(PosDbContext dbContext, IPrinterService printerService)
     {
-        _dbContext = new PosDbContext();
-        _printerService = new MockPrinterService();
+        _dbContext = dbContext;
+        _printerService = printerService;
 
         _ = LoadOrdersAsync();
 

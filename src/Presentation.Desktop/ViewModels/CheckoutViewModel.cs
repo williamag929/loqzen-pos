@@ -6,13 +6,10 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Hardware;
+using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
-using Infrastructure.Data.Seed;
-using Infrastructure.Hardware.Printers;
-using Infrastructure.Hardware.Scales;
-using Infrastructure.Hardware.Scanners;
 using Microsoft.EntityFrameworkCore;
 
 namespace Presentation.Desktop.ViewModels;
@@ -20,9 +17,15 @@ namespace Presentation.Desktop.ViewModels;
 public partial class CheckoutViewModel : ObservableObject
 {
     private readonly PosDbContext _dbContext;
+    private readonly ISalesService _salesService;
+    private readonly ICashShiftService _cashShiftService;
     private readonly IPrinterService _printerService;
     private readonly IScaleService _scaleService;
     private readonly IBarcodeScannerService _scannerService;
+
+    // Current order being built
+    private Guid? _currentOrderId;
+    private Guid? _currentCashShiftId;
 
     public CustomerDisplayViewModel? CustomerDisplay { get; set; }
 
@@ -48,7 +51,20 @@ public partial class CheckoutViewModel : ObservableObject
     private decimal _changeAmount = 0m;
 
     [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsCashPayment))]
+    [NotifyPropertyChangedFor(nameof(IsCardPayment))]
+    [NotifyPropertyChangedFor(nameof(IsTransferPayment))]
     private PaymentMethod _selectedPaymentMethod = PaymentMethod.Cash;
+
+    [ObservableProperty]
+    private bool _isShiftOpen = false;
+
+    [ObservableProperty]
+    private string _shiftWarning = string.Empty;
+
+    public bool IsCashPayment => SelectedPaymentMethod == PaymentMethod.Cash;
+    public bool IsCardPayment => SelectedPaymentMethod == PaymentMethod.Card;
+    public bool IsTransferPayment => SelectedPaymentMethod == PaymentMethod.Transfer;
 
     public ObservableCollection<Category> Categories { get; } = new();
     public ObservableCollection<Product> FilteredProducts { get; } = new();
@@ -61,12 +77,20 @@ public partial class CheckoutViewModel : ObservableObject
     public decimal Total => CartItems.Sum(x => x.Total);
     public int TotalItems => CartItems.Count;
 
-    public CheckoutViewModel()
+    public CheckoutViewModel(
+        PosDbContext dbContext,
+        ISalesService salesService,
+        ICashShiftService cashShiftService,
+        IPrinterService printerService,
+        IScaleService scaleService,
+        IBarcodeScannerService scannerService)
     {
-        _dbContext = new PosDbContext();
-        _printerService = new MockPrinterService();
-        _scaleService = new MockScaleService();
-        _scannerService = new MockBarcodeScannerService();
+        _dbContext = dbContext;
+        _salesService = salesService;
+        _cashShiftService = cashShiftService;
+        _printerService = printerService;
+        _scaleService = scaleService;
+        _scannerService = scannerService;
 
         _scaleService.WeightChanged += (s, e) =>
         {
@@ -121,8 +145,36 @@ public partial class CheckoutViewModel : ObservableObject
 
     public async Task InitializeAsync()
     {
-        await DbInitializer.InitializeAsync(_dbContext);
         await LoadDataAsync();
+        await CheckCashShiftStatusAsync();
+    }
+
+    /// <summary>
+    /// Checks if there's an open cash shift and updates status accordingly.
+    /// </summary>
+    public async Task CheckCashShiftStatusAsync()
+    {
+        try
+        {
+            var currentShift = await _cashShiftService.GetCurrentShiftAsync();
+            IsShiftOpen = currentShift != null;
+            _currentCashShiftId = currentShift?.Id;
+            
+            if (IsShiftOpen && currentShift != null)
+            {
+                ShiftWarning = string.Empty;
+                StatusMessage = $"✅ Turno #{currentShift.ShiftNumber} abierto – {currentShift.CashierName}";
+            }
+            else
+            {
+                ShiftWarning = "⚠️ Debe abrir un turno antes de registrar ventas";
+                StatusMessage = "🔴 Sin turno abierto";
+            }
+        }
+        catch (Exception ex)
+        {
+            ShiftWarning = $"Error verificando turno: {ex.Message}";
+        }
     }
 
     private async Task LoadDataAsync()
@@ -135,7 +187,7 @@ public partial class CheckoutViewModel : ObservableObject
         }
 
         _allProducts.Clear();
-        _allProducts.AddRange(await _dbContext.Products.Include(p => p.Category).Where(p => p.IsActive).ToListAsync());
+        _allProducts.AddRange(await _dbContext.Products.Include(p => p.Category).Include(p => p.Tax).Where(p => p.IsActive).ToListAsync());
         
         FilterProducts();
     }
@@ -174,6 +226,12 @@ public partial class CheckoutViewModel : ObservableObject
     [RelayCommand]
     public void AddProduct(Product product)
     {
+        // Warn if no shift is open but still allow adding
+        if (!IsShiftOpen)
+        {
+            ShiftWarning = "⚠️ Sin turno abierto – abra un turno antes de cobrar";
+        }
+
         var existing = CartItems.FirstOrDefault(x => x.ProductId == product.Id);
         if (existing != null)
         {
@@ -188,6 +246,8 @@ public partial class CheckoutViewModel : ObservableObject
         }
         else
         {
+            // Use actual tax rate from product
+            var taxRate = product.Tax?.Rate ?? 0.19m;
             CartItems.Add(new CartItemDto
             {
                 ProductId = product.Id,
@@ -197,7 +257,7 @@ public partial class CheckoutViewModel : ObservableObject
                 Quantity = 1,
                 IsWeighed = product.IsWeighed,
                 WeightKg = product.IsWeighed ? (ScaleWeightKg > 0 ? ScaleWeightKg : 1.0m) : null,
-                TaxRate = 0.19m
+                TaxRate = taxRate
             });
         }
 
@@ -262,11 +322,20 @@ public partial class CheckoutViewModel : ObservableObject
     }
 
     [RelayCommand]
-    public void StartPayment()
+    public async Task StartPaymentAsync()
     {
         if (!CartItems.Any())
         {
             StatusMessage = "Agregue productos antes de cobrar";
+            return;
+        }
+
+        // Check for open cash shift
+        await CheckCashShiftStatusAsync();
+        if (!IsShiftOpen || _currentCashShiftId == null)
+        {
+            StatusMessage = "❌ Debe abrir un turno de caja antes de procesar ventas";
+            ShiftWarning = "⚠️ Vaya a 'Caja' y abra un turno primero";
             return;
         }
 
@@ -281,6 +350,21 @@ public partial class CheckoutViewModel : ObservableObject
     {
         IsPaymentModalOpen = false;
         NotifyCartTotalsChanged();
+    }
+
+    [RelayCommand]
+    public void SelectPaymentMethod(string method)
+    {
+        if (Enum.TryParse<PaymentMethod>(method, out var pm))
+        {
+            SelectedPaymentMethod = pm;
+            // For non-cash, set tendered to exact total (no change)
+            if (pm != PaymentMethod.Cash)
+            {
+                TenderedAmount = Total;
+                ChangeAmount = 0;
+            }
+        }
     }
 
     [RelayCommand]
@@ -316,114 +400,112 @@ public partial class CheckoutViewModel : ObservableObject
             return;
         }
 
-        var order = new Order
+        // Ensure we have an open cash shift
+        if (_currentCashShiftId == null)
         {
-            OrderNumber = $"T-{DateTime.UtcNow:yyyyMMdd}-{DateTime.UtcNow.Ticks % 10000:0000}",
-            Status = OrderStatus.Completed,
-            Subtotal = Subtotal,
-            TaxTotal = TaxTotal,
-            Total = Total,
-            Notes = "Venta POS Standalone"
-        };
-
-        foreach (var item in CartItems)
-        {
-            order.Items.Add(new OrderItem
-            {
-                ProductId = item.ProductId,
-                ProductName = item.Name,
-                UnitPrice = item.UnitPrice,
-                Quantity = item.Quantity,
-                WeightKg = item.WeightKg,
-                TaxRate = item.TaxRate,
-                TaxAmount = item.TaxAmount,
-                Subtotal = item.Subtotal,
-                Total = item.Total
-            });
+            StatusMessage = "❌ Error: No hay turno de caja abierto";
+            return;
         }
 
-        order.Payments.Add(new Payment
+        try
         {
-            Method = SelectedPaymentMethod,
-            Amount = Total,
-            TenderedAmount = TenderedAmount,
-            ChangeAmount = ChangeAmount
-        });
+            // 1. Create order via ISalesService
+            var orderDto = await _salesService.CreateOrderAsync(null, _currentCashShiftId.Value);
+            _currentOrderId = orderDto.Id;
 
-        // Add Outbox Message for Offline-First sync
-        var outboxMsg = new OutboxMessage
-        {
-            EventType = "OrderCompleted",
-            AggregateType = "Order",
-            AggregateId = order.Id,
-            PayloadJson = $"{{\"orderId\":\"{order.Id}\", \"orderNumber\":\"{order.OrderNumber}\", \"total\":{order.Total}}}",
-            Status = SyncStatus.Pending
-        };
-
-        // Automatic dispatch to KDS (Kitchen Display System)
-        var kitchenOrder = new KitchenOrder
-        {
-            OrderNumber = order.OrderNumber,
-            OrderId = order.Id,
-            TableNumber = "Mostrador Principal",
-            WaiterName = "Cajero",
-            Station = "Cocina Caliente",
-            Status = KitchenOrderStatus.Pending,
-            CreatedAt = DateTime.UtcNow
-        };
-
-        foreach (var item in CartItems)
-        {
-            kitchenOrder.Items.Add(new KitchenOrderItem
+            // 2. Add all items to the order
+            foreach (var item in CartItems)
             {
-                ProductId = item.ProductId,
-                ProductName = item.Name,
-                Quantity = item.Quantity,
-                Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
-            });
-        }
+                await _salesService.AddItemAsync(
+                    orderDto.Id,
+                    item.ProductId,
+                    item.Quantity,
+                    item.WeightKg);
+            }
 
-        _dbContext.Orders.Add(order);
-        _dbContext.OutboxMessages.Add(outboxMsg);
-        _dbContext.KitchenOrders.Add(kitchenOrder);
-        await _dbContext.SaveChangesAsync();
+            // 3. Process payment (this also creates OutboxMessage in same transaction)
+            var paymentResult = await _salesService.ProcessPaymentAsync(
+                orderDto.Id,
+                SelectedPaymentMethod,
+                Total,
+                TenderedAmount);
 
-        // Print receipt
-        var receipt = new ReceiptDto
-        {
-            OrderNumber = order.OrderNumber,
-            CashierName = "Cajero Principal",
-            Subtotal = order.Subtotal,
-            TaxTotal = order.TaxTotal,
-            Total = order.Total,
-            PaymentMethodName = SelectedPaymentMethod.ToString(),
-            TenderedAmount = TenderedAmount,
-            ChangeAmount = ChangeAmount,
-            Items = CartItems.Select(i => new ReceiptItemDto
+            if (!paymentResult.Success)
             {
-                Name = i.Name,
-                Quantity = i.IsWeighed ? (i.WeightKg ?? 1) : i.Quantity,
-                UnitPrice = i.UnitPrice,
-                Total = i.Total
-            }).ToList()
-        };
+                StatusMessage = $"❌ Error en pago: {paymentResult.ErrorMessage}";
+                return;
+            }
 
-        await _printerService.PrintReceiptAsync(receipt);
-        if (SelectedPaymentMethod == PaymentMethod.Cash)
-        {
-            await _printerService.OpenCashDrawerAsync();
+            // 4. Create KitchenOrder for KDS
+            var kitchenOrder = new KitchenOrder
+            {
+                OrderNumber = paymentResult.OrderNumber,
+                OrderId = paymentResult.OrderId,
+                TableNumber = "Mostrador Principal",
+                WaiterName = "Cajero",
+                Station = "Cocina Caliente",
+                Status = KitchenOrderStatus.Pending,
+                CreatedAt = DateTime.UtcNow
+            };
+
+            foreach (var item in CartItems)
+            {
+                kitchenOrder.Items.Add(new KitchenOrderItem
+                {
+                    ProductId = item.ProductId,
+                    ProductName = item.Name,
+                    Quantity = item.Quantity,
+                    Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
+                });
+            }
+
+            _dbContext.KitchenOrders.Add(kitchenOrder);
+            await _dbContext.SaveChangesAsync();
+
+            // 5. Print receipt
+            var receipt = new ReceiptDto
+            {
+                OrderNumber = paymentResult.OrderNumber,
+                CashierName = "Cajero Principal",
+                Subtotal = Subtotal,
+                TaxTotal = TaxTotal,
+                Total = Total,
+                PaymentMethodName = SelectedPaymentMethod.ToString(),
+                TenderedAmount = TenderedAmount,
+                ChangeAmount = paymentResult.ChangeAmount,
+                Items = CartItems.Select(i => new ReceiptItemDto
+                {
+                    Name = i.Name,
+                    Quantity = i.IsWeighed ? (i.WeightKg ?? 1) : i.Quantity,
+                    UnitPrice = i.UnitPrice,
+                    Total = i.Total
+                }).ToList()
+            };
+
+            await _printerService.PrintReceiptAsync(receipt);
+            
+            // 6. Open cash drawer for cash payments
+            if (SelectedPaymentMethod == PaymentMethod.Cash)
+            {
+                await _printerService.OpenCashDrawerAsync();
+            }
+
+            var completedOrderNumber = paymentResult.OrderNumber;
+            var completedTotal = Total;
+            var completedChange = paymentResult.ChangeAmount;
+
+            IsPaymentModalOpen = false;
+            CartItems.Clear();
+            _currentOrderId = null;
+            NotifyCartTotalsChanged();
+            
+            CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
+            StatusMessage = $"✅ ¡Venta {completedOrderNumber} completada y enviada a Cocina (KDS)!";
         }
-
-        var completedOrderNumber = order.OrderNumber;
-        var completedTotal = order.Total;
-        var completedChange = ChangeAmount;
-
-        IsPaymentModalOpen = false;
-        CartItems.Clear();
-        NotifyCartTotalsChanged();
-        
-        CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
-        StatusMessage = $"¡Venta {completedOrderNumber} completada y enviada a Cocina (KDS)!";
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ Error procesando venta: {ex.Message}";
+        }
     }
 
     private void NotifyCartTotalsChanged()
