@@ -107,7 +107,7 @@
                                         <Button Grid.Column="4" Height="44" Width="44" CornerRadius="8"
                                                 Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
                                                 VerticalAlignment="Center"
-                                                Command="{Binding #MastersRoot.DataContext.DeleteProductAsyncCommand}"
+                                                Command="{Binding #MastersRoot.DataContext.DeleteProductCommand}"
                                                 CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>
@@ -145,7 +145,7 @@
                                                     CommandParameter="{Binding .}"/>
                                             <Button Height="38" Padding="12,0" CornerRadius="6"
                                                     Background="#7F1D1D80" Foreground="White" Content="🗑️"
-                                                    Command="{Binding #MastersRoot.DataContext.DeleteCategoryAsyncCommand}"
+                                                    Command="{Binding #MastersRoot.DataContext.DeleteCategoryCommand}"
                                                     CommandParameter="{Binding .}"/>
                                         </StackPanel>
                                     </Grid>
@@ -216,7 +216,7 @@
                                         <Button Grid.Column="3" Height="44" Width="44" CornerRadius="8"
                                                 Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
                                                 VerticalAlignment="Center"
-                                                Command="{Binding #MastersRoot.DataContext.DeleteCustomerAsyncCommand}"
+                                                Command="{Binding #MastersRoot.DataContext.DeleteCustomerCommand}"
                                                 CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>
@@ -285,7 +285,7 @@
                                     Content="Cancelar" Command="{Binding CancelProductFormCommand}"/>
                             <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
                                     FontSize="16" FontWeight="Black" CornerRadius="8"
-                                    Content="💾 Guardar" Command="{Binding SaveProductAsyncCommand}"/>
+                                    Content="💾 Guardar" Command="{Binding SaveProductCommand}"/>
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
@@ -315,7 +315,7 @@
                                 Content="Cancelar" Command="{Binding CancelCategoryFormCommand}"/>
                         <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="💾 Guardar" Command="{Binding SaveCategoryAsyncCommand}"/>
+                                Content="💾 Guardar" Command="{Binding SaveCategoryCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -358,7 +358,7 @@
                                 Content="Cancelar" Command="{Binding CancelCustomerFormCommand}"/>
                         <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="💾 Guardar" Command="{Binding SaveCustomerAsyncCommand}"/>
+                                Content="💾 Guardar" Command="{Binding SaveCustomerCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

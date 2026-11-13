@@ -44,17 +44,17 @@
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="👨‍🍳 KDS Cocina"
                             Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowKdsAsyncCommand}"/>
+                            Foreground="White" Command="{Binding ShowKdsCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="💼 Turno de Caja"
                             Background="{Binding IsCashShiftActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowCashShiftAsyncCommand}"/>
+                            Foreground="White" Command="{Binding ShowCashShiftCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="🗂️ Maestros"
                             Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowMastersAsyncCommand}"/>
+                            Foreground="White" Command="{Binding ShowMastersCommand}"/>
                 </StackPanel>
 
                 <!-- Peripheral Tools -->
