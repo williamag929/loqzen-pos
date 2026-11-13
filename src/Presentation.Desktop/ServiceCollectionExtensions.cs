@@ -73,6 +73,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<CashShiftViewModel>();
         services.AddTransient<MastersViewModel>();
         services.AddSingleton<CustomerDisplayViewModel>();
+        services.AddSingleton<ComandaViewModel>();
         services.AddTransient<MainViewModel>();
 
         return services;

@@ -12,18 +12,28 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private CustomerDisplayViewModel _customerDisplay;
     [ObservableProperty] private CashShiftViewModel _cashShift;
     [ObservableProperty] private MastersViewModel _masters;
+    [ObservableProperty] private ComandaViewModel _comanda;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCheckoutActive))]
     [NotifyPropertyChangedFor(nameof(IsKdsActive))]
     [NotifyPropertyChangedFor(nameof(IsCashShiftActive))]
     [NotifyPropertyChangedFor(nameof(IsMastersActive))]
+    [NotifyPropertyChangedFor(nameof(IsComandaActive))]
     private int _activeViewIndex = 0;
 
     public bool IsCheckoutActive  => ActiveViewIndex == 0;
     public bool IsKdsActive       => ActiveViewIndex == 1;
     public bool IsCashShiftActive => ActiveViewIndex == 2;
     public bool IsMastersActive   => ActiveViewIndex == 3;
+    public bool IsComandaActive   => ActiveViewIndex == 4;
+
+    [RelayCommand]
+    public async Task ShowComandasAsync()
+    {
+        ActiveViewIndex = 4;
+        await Comanda.ActivateAsync();
+    }
 
     public string AppTitle => "Loqzen POS Standalone - Volcora Edition";
     public Action? RequestOpenCustomerDisplayWindow { get; set; }
@@ -33,13 +43,15 @@ public partial class MainViewModel : ObservableObject
         KdsViewModel kds,
         CashShiftViewModel cashShift,
         MastersViewModel masters,
-        CustomerDisplayViewModel customerDisplay)
+        CustomerDisplayViewModel customerDisplay,
+        ComandaViewModel comanda)
     {
         _checkout = checkout;
         _kds = kds;
         _cashShift = cashShift;
         _masters = masters;
         _customerDisplay = customerDisplay;
+        _comanda = comanda;
 
         Checkout.CustomerDisplay = CustomerDisplay;
     }

@@ -1,4 +1,5 @@
 using System;
+using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
@@ -123,17 +124,47 @@ public partial class CashShiftViewModel : ObservableObject
     [RelayCommand]
     public void CancelOpenDialog() => IsOpenDialogVisible = false;
 
+    // ── Cuadre de caja (arqueo por denominaciones) ───────────────────────────
+    // Colombian peso denominations currently in circulation.
+    private static readonly decimal[] Bills = { 100000m, 50000m, 20000m, 10000m, 5000m, 2000m };
+    private static readonly decimal[] Coins = { 1000m, 500m, 200m, 100m, 50m };
+
+    public System.Collections.ObjectModel.ObservableCollection<CashCountRowViewModel> CountRows { get; } = new();
+
+    [ObservableProperty] private Core.Application.DTOs.CashCloseSummaryDto? _closeSummary;
+
+    /// <summary>Counted cash = sum of denomination rows (no free typing of the total → fewer errors).</summary>
+    public decimal CountedTotal => CountRows.Sum(r => r.Subtotal);
+
+    private void OnCountChanged()
+    {
+        ClosingAmountStr = CountedTotal.ToString("0");
+        OnPropertyChanged(nameof(CountedTotal));
+        RecalcDifference();
+    }
+
     // ── Close Shift Flow ─────────────────────────────────────────────────────
     [RelayCommand]
     public async Task ShowCloseDialogAsync()
     {
         if (CurrentShift == null) return;
+        try
+        {
+            CloseSummary = await _service.GetCloseSummaryAsync();
+        }
+        catch (Exception ex)
+        {
+            Notification = $"❌ {ex.Message}";
+            return;
+        }
 
-        var cashTotal = await _service.GetCashTotalForShiftAsync(CurrentShift.Id);
-        ExpectedAmount = CurrentShift.OpeningAmount + cashTotal;
-        ClosingAmountStr = ExpectedAmount.ToString("0");
+        ExpectedAmount = CloseSummary.ExpectedCash;
+        CountRows.Clear();
+        foreach (var d in Bills) CountRows.Add(new CashCountRowViewModel(d, isCoin: false, OnCountChanged));
+        foreach (var d in Coins) CountRows.Add(new CashCountRowViewModel(d, isCoin: true, OnCountChanged));
+        // Start at 0 counted (not pre-filled with the expected amount, which hid real differences).
+        OnCountChanged();
         CloseNotes = string.Empty;
-        RecalcDifference();
         IsCloseDialogVisible = true;
     }
 
@@ -167,14 +198,13 @@ public partial class CashShiftViewModel : ObservableObject
     [RelayCommand]
     public async Task ConfirmCloseShiftAsync()
     {
-        if (!decimal.TryParse(ClosingAmountStr, out var closingAmount))
-        {
-            Notification = "⚠️ Monto de cierre inválido.";
-            return;
-        }
         try
         {
-            var closed = await _service.CloseShiftAsync(closingAmount, CloseNotes);
+            var lines = CountRows
+                .Where(r => r.Quantity > 0)
+                .Select(r => new Core.Application.DTOs.CashCountLineDto { Denomination = r.Denomination, Quantity = r.Quantity })
+                .ToList();
+            var closed = await _service.CloseShiftWithCountAsync(lines, CloseNotes);
             LastClosedShift = closed;
             CurrentShift = null;
             IsShiftOpen = false;

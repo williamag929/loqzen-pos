@@ -1,0 +1,40 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.Numpad"
+             x:Name="Root">
+    <!-- Reusable touch numpad (64px keys). Bind DigitCommand (string param), ClearCommand, ExactCommand. -->
+    <UserControl.Styles>
+        <Style Selector="Button.key">
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="CornerRadius" Value="10"/>
+            <Setter Property="Background" Value="#1E293B"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="24"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="VerticalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+            <Setter Property="Command" Value="{Binding #Root.DigitCommand}"/>
+        </Style>
+    </UserControl.Styles>
+    <Grid RowDefinitions="64,64,64,64" ColumnDefinitions="*,*,*,*">
+        <Button Classes="key" Grid.Row="0" Grid.Column="0" Content="7" CommandParameter="7"/>
+        <Button Classes="key" Grid.Row="0" Grid.Column="1" Content="8" CommandParameter="8"/>
+        <Button Classes="key" Grid.Row="0" Grid.Column="2" Content="9" CommandParameter="9"/>
+        <Button Classes="key" Grid.Row="1" Grid.Column="0" Content="4" CommandParameter="4"/>
+        <Button Classes="key" Grid.Row="1" Grid.Column="1" Content="5" CommandParameter="5"/>
+        <Button Classes="key" Grid.Row="1" Grid.Column="2" Content="6" CommandParameter="6"/>
+        <Button Classes="key" Grid.Row="2" Grid.Column="0" Content="1" CommandParameter="1"/>
+        <Button Classes="key" Grid.Row="2" Grid.Column="1" Content="2" CommandParameter="2"/>
+        <Button Classes="key" Grid.Row="2" Grid.Column="2" Content="3" CommandParameter="3"/>
+        <Button Classes="key" Grid.Row="3" Grid.Column="0" Content="0" CommandParameter="0"/>
+        <Button Classes="key" Grid.Row="3" Grid.Column="1" Content="00" CommandParameter="00"/>
+        <Button Classes="key" Grid.Row="3" Grid.Column="2" Content="000" CommandParameter="000"/>
+        <Button Classes="key" Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Content="C" Background="#7F1D1D"
+                Command="{Binding #Root.ClearCommand}"/>
+        <Button Classes="key" Grid.Row="2" Grid.Column="3" Grid.RowSpan="2" Content="Exacto" FontSize="16" Background="#1D4ED8"
+                Command="{Binding #Root.ExactCommand}"/>
+    </Grid>
+</UserControl>

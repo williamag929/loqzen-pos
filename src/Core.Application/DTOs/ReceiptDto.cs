@@ -13,6 +13,8 @@ public class ReceiptDto
     public string CashierName { get; set; } = string.Empty;
     public string? CustomerName { get; set; }
     public string? CustomerDocument { get; set; }
+    /// <summary>Table / service point for comanda invoices (printed as "Mesa:").</summary>
+    public string? TableName { get; set; }
 
     public List<ReceiptItemDto> Items { get; set; } = new();
     

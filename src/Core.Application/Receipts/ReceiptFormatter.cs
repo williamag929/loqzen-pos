@@ -45,6 +45,8 @@ public static partial class ReceiptFormatter
         lines.Add(new ReceiptLine(Fit($"Ticket: {r.OrderNumber}", width)));
         lines.Add(new ReceiptLine(Fit($"Fecha:  {r.Date:yyyy-MM-dd HH:mm:ss}", width)));
         lines.Add(new ReceiptLine(Fit($"Cajero: {r.CashierName}", width)));
+        if (!string.IsNullOrWhiteSpace(r.TableName))
+            lines.Add(new ReceiptLine(Fit($"Mesa:   {r.TableName}", width)));
         if (!string.IsNullOrEmpty(r.CustomerName))
         {
             lines.Add(new ReceiptLine(Fit($"Cliente: {r.CustomerName}", width)));

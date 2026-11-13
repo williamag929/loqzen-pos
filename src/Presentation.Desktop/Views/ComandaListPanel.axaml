@@ -1,0 +1,71 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             x:Class="Presentation.Desktop.Views.ComandaListPanel"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True">
+
+    <!-- PANEL IZQ: comandas abiertas + mapa de mesas -->
+    <Grid ColumnDefinitions="*, *" Margin="16">
+
+        <!-- Open comandas -->
+        <Grid Grid.Column="0" RowDefinitions="Auto, *" Margin="0,0,8,0">
+            <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
+                <TextBlock Text="Comandas abiertas" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="8" Background="#334155" Foreground="White"
+                        FontWeight="Bold" Content="⟳ Actualizar" Command="{Binding RefreshCommand}"/>
+            </Grid>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Comandas}">
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:ComandaCardViewModel">
+                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" MinHeight="92" Margin="0,0,0,10"
+                                    Padding="16,12" CornerRadius="12" Background="#1E293B"
+                                    BorderBrush="{Binding Border}" BorderThickness="2"
+                                    Command="{Binding SelectCommand}">
+                                <Grid ColumnDefinitions="8, *, Auto">
+                                    <Border Grid.Column="0" CornerRadius="4" Background="{Binding StatusBrush}"/>
+                                    <StackPanel Grid.Column="1" Margin="14,0" Spacing="4">
+                                        <TextBlock Text="{Binding Title}" Foreground="White" FontSize="19" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="#94A3B8" FontSize="13"/>
+                                        <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="14" FontWeight="SemiBold"/>
+                                    </StackPanel>
+                                    <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="#34D399" FontSize="22" FontWeight="Black" VerticalAlignment="Center"/>
+                                </Grid>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+
+        <!-- Tables -->
+        <Grid Grid.Column="1" RowDefinitions="Auto, Auto, *" Margin="8,0,0,0">
+            <TextBlock Text="Mesas  (toque una libre para abrir comanda)" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+            <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,0,0,10">
+                <TextBlock Text="Mesero:" Foreground="#94A3B8" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBox Grid.Column="1" Height="52" FontSize="16" VerticalContentAlignment="Center" CornerRadius="8"
+                         Text="{Binding WaiterName, Mode=TwoWay}"/>
+            </Grid>
+            <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                <ItemsControl ItemsSource="{Binding Tables}">
+                    <ItemsControl.ItemsPanel>
+                        <ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate>
+                    </ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:TableTileViewModel">
+                            <Button Width="140" Height="110" Margin="6" CornerRadius="12" Background="{Binding Background}"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    Command="{Binding TapCommand}">
+                                <StackPanel Spacing="6">
+                                    <TextBlock Text="{Binding Name}" Foreground="White" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StateText}" Foreground="#E2E8F0" FontSize="13" HorizontalAlignment="Center"/>
+                                </StackPanel>
+                            </Button>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+            </ScrollViewer>
+        </Grid>
+    </Grid>
+</UserControl>

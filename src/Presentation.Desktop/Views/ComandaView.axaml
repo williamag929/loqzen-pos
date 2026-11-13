@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.ComandaView"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True"
+             Background="#0F172A">
+
+    <!-- Restaurant mode: one panel at a time, ◀ ▶ buttons + horizontal swipe to navigate.
+         0 = comandas (izq) · 1 = comanda actual (centro) · 2 = cierre/pago (der) -->
+    <Grid RowDefinitions="Auto, *, Auto">
+
+        <!-- Header: ◀  title + step dots  ▶ (64px touch targets) -->
+        <Border Grid.Row="0" Background="#020617" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="12,8">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <Button Grid.Column="0" Width="96" Height="64" CornerRadius="10" Background="#1E293B" Foreground="White"
+                        FontSize="26" FontWeight="Black" Content="◀"
+                        IsEnabled="{Binding CanGoLeft}" Command="{Binding GoLeftCommand}"/>
+
+                <StackPanel Grid.Column="1" HorizontalAlignment="Center" VerticalAlignment="Center" Spacing="6">
+                    <TextBlock Text="{Binding PanelTitle}" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
+                        <Border Width="70" Height="6" CornerRadius="3" Background="{Binding IsListPanel, Converter={StaticResource BoolToColor}, ConverterParameter='#38BDF8|#334155'}"/>
+                        <Border Width="70" Height="6" CornerRadius="3" Background="{Binding IsOrderPanel, Converter={StaticResource BoolToColor}, ConverterParameter='#38BDF8|#334155'}"/>
+                        <Border Width="70" Height="6" CornerRadius="3" Background="{Binding IsPayPanel, Converter={StaticResource BoolToColor}, ConverterParameter='#38BDF8|#334155'}"/>
+                    </StackPanel>
+                </StackPanel>
+
+                <Button Grid.Column="2" Width="96" Height="64" CornerRadius="10" Background="#1E293B" Foreground="White"
+                        FontSize="26" FontWeight="Black" Content="▶"
+                        IsEnabled="{Binding CanGoRight}" Command="{Binding GoRightCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- Panels (swipe area) -->
+        <Panel Grid.Row="1" x:Name="SwipeArea" Background="Transparent">
+            <views:ComandaListPanel  IsVisible="{Binding IsListPanel}"/>
+            <views:ComandaOrderPanel IsVisible="{Binding IsOrderPanel}"/>
+            <views:ComandaPayPanel   IsVisible="{Binding IsPayPanel}"/>
+        </Panel>
+
+        <!-- Status bar -->
+        <Border Grid.Row="2" Background="#1E293B" Padding="16,10">
+            <Grid ColumnDefinitions="*, Auto">
+                <TextBlock Text="{Binding StatusMessage}" Foreground="#CBD5E1" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                <TextBlock Grid.Column="1" Text="🔴 Sin turno de caja – no se puede cobrar" Foreground="#F87171" FontSize="14" FontWeight="Bold"
+                           IsVisible="{Binding !IsShiftOpen}"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

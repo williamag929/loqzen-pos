@@ -29,8 +29,10 @@ public class XamlCommandBindingTests
         if (dll == null) return; // UI project not built in this run (e.g. test-only build) — nothing to check.
 
         var asm = Assembly.LoadFrom(dll);
+        // ViewModels (generated RelayCommands) + reusable controls that expose their own
+        // ICommand properties (e.g. Numpad.DigitCommand bound via #Root).
         var available = asm.GetTypes()
-            .Where(t => t.Namespace == "Presentation.Desktop.ViewModels")
+            .Where(t => t.Namespace is "Presentation.Desktop.ViewModels" or "Presentation.Desktop.Views")
             .SelectMany(t => t.GetProperties(BindingFlags.Public | BindingFlags.Instance))
             .Where(p => p.Name.EndsWith("Command"))
             .Select(p => p.Name)

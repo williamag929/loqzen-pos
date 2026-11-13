@@ -1,0 +1,59 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.ComandaOrderPanel"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True">
+
+    <!-- PANEL CENTRO: catálogo táctil · productos de la mesa (amarillo/verde) · tirilla en vivo -->
+    <Grid ColumnDefinitions="*, 400, 380" Margin="12">
+
+        <views:ComandaCatalogPanel Grid.Column="0" Margin="0,0,10,0"/>
+
+        <Border Grid.Column="1" Background="#020617" CornerRadius="12" Padding="12" Margin="0,0,10,0">
+            <Grid RowDefinitions="Auto, Auto, *, Auto">
+                <TextBlock Text="Productos de la mesa" Foreground="White" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Grid.Row="1" Text="{Binding DelayHint}" Foreground="#94A3B8" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
+                    <ItemsControl ItemsSource="{Binding Items}">
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ComandaItemRowViewModel">
+                                <Border Background="{Binding Background}" BorderBrush="{Binding Accent}" BorderThickness="0,0,0,4"
+                                        CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto">
+                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="White" FontSize="15" FontWeight="Bold" Margin="8,0,0,0"/>
+                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                                            <TextBlock Text="{Binding QuantityText}" Foreground="#E2E8F0" FontSize="13"/>
+                                            <TextBlock Text="{Binding StateText}" Foreground="{Binding Accent}" FontSize="13" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding StationText}" Foreground="#94A3B8" FontSize="12"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Grid.Row="1" Grid.RowSpan="2" Width="52" Height="52" CornerRadius="8"
+                                                Background="#7F1D1D" Foreground="White" FontSize="18" Content="✕"
+                                                IsVisible="{Binding IsPending}" Command="{Binding CancelCommand}"/>
+                                        <ProgressBar Grid.Row="2" Minimum="0" Maximum="1" Value="{Binding Progress}" Height="6" Margin="0,6,8,0"
+                                                     Foreground="{Binding Accent}" IsVisible="{Binding IsPending}"/>
+                                    </Grid>
+                                </Border>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                </ScrollViewer>
+                <Grid Grid.Row="3" ColumnDefinitions="*, *" Margin="0,8,0,0">
+                    <Button Height="60" Margin="0,0,5,0" CornerRadius="10" Background="#15803D" Foreground="White" FontSize="15" FontWeight="Bold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Content="🍳 Enviar ya" Command="{Binding SendToKitchenNowCommand}"/>
+                    <Button Grid.Column="1" Height="60" Margin="5,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="15" FontWeight="Black"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Content="💳 Cerrar ▶" Command="{Binding ReadyToPayCommand}"/>
+                </Grid>
+            </Grid>
+        </Border>
+
+        <Grid Grid.Column="2" RowDefinitions="Auto, *">
+            <TextBlock Text="🧾 Tirilla (así se imprimirá)" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+            <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
+        </Grid>
+    </Grid>
+</UserControl>

@@ -156,71 +156,72 @@
         </Border>
 
         <!-- ══════════════════════════════════════════════════════════════
-             MODAL: CLOSE SHIFT (ARQUEO DE CAJA)
+             MODAL: CUADRE DE CAJA (arqueo por denominaciones)
         ═══════════════════════════════════════════════════════════════ -->
         <Border Grid.RowSpan="3" Background="#CC000000"
                 IsVisible="{Binding IsCloseDialogVisible}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Width="560" Background="#0F172A" BorderBrush="#DC2626" BorderThickness="1"
-                    CornerRadius="16" Padding="32"
-                    VerticalAlignment="Center" HorizontalAlignment="Center">
-                <StackPanel Spacing="18">
-                    <TextBlock Text="🔴 Arqueo y Cierre de Turno"
-                               Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+            <Border Background="#0F172A" BorderBrush="#DC2626" BorderThickness="1" CornerRadius="16" Padding="24" Margin="24"
+                    VerticalAlignment="Center" HorizontalAlignment="Center" MaxWidth="1100">
+                <Grid RowDefinitions="Auto, *, Auto" ColumnDefinitions="*, 380">
+                    <TextBlock Grid.ColumnSpan="2" Text="🔴 Cuadre de Caja" Foreground="White" FontSize="24" FontWeight="Black" Margin="0,0,0,14"/>
 
-                    <!-- Arqueo Grid -->
-                    <Border Background="#1E293B" CornerRadius="10" Padding="20">
-                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Monto Esperado (Sistema):"
-                                       Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ExpectedAmount, StringFormat='${0:N0}'}"
-                                       Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+                    <!-- Left: count by denomination -->
+                    <ScrollViewer Grid.Row="1" Grid.Column="0" VerticalScrollBarVisibility="Auto" MaxHeight="560" Margin="0,0,16,0">
+                        <ItemsControl ItemsSource="{Binding CountRows}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:CashCountRowViewModel">
+                                    <Border Background="#1E293B" CornerRadius="8" Padding="10,6" Margin="0,0,0,6">
+                                        <Grid ColumnDefinitions="150, Auto, 70, Auto, Auto, *">
+                                            <TextBlock Text="{Binding Label}" Foreground="White" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="1" Width="56" Height="52" CornerRadius="8" Background="#334155" Foreground="White"
+                                                    FontSize="22" FontWeight="Bold" Content="−" HorizontalContentAlignment="Center" Command="{Binding MinusCommand}"/>
+                                            <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="22" FontWeight="Black"
+                                                       HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                            <Button Grid.Column="3" Width="56" Height="52" CornerRadius="8" Background="#334155" Foreground="White"
+                                                    FontSize="22" FontWeight="Bold" Content="+" HorizontalContentAlignment="Center" Command="{Binding PlusCommand}"/>
+                                            <Button Grid.Column="4" Width="64" Height="52" Margin="6,0,0,0" CornerRadius="8" Background="#1D4ED8" Foreground="White"
+                                                    FontSize="16" FontWeight="Bold" Content="+10" HorizontalContentAlignment="Center" Command="{Binding PlusTenCommand}"/>
+                                            <TextBlock Grid.Column="5" Text="{Binding SubtotalText}" Foreground="#E2E8F0" FontSize="17"
+                                                       HorizontalAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </ScrollViewer>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Monto Físico Contado:"
-                                       Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ClosingAmountStr, StringFormat='${0}'}"
-                                       Foreground="#38BDF8" FontSize="20" FontWeight="Black" Margin="0,0,0,8"/>
+                    <!-- Right: system summary vs counted -->
+                    <StackPanel Grid.Row="1" Grid.Column="1" Spacing="8">
+                        <Border Background="#1E293B" CornerRadius="10" Padding="16">
+                            <StackPanel Spacing="6">
+                                <TextBlock Text="Ventas del turno (sistema)" Foreground="#94A3B8" FontSize="14" FontWeight="Bold"/>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Efectivo" Foreground="#CBD5E1"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.CashSales, StringFormat='${0:N0}'}" Foreground="White"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Tarjeta" Foreground="#CBD5E1"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.CardSales, StringFormat='${0:N0}'}" Foreground="White"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Transferencia" Foreground="#CBD5E1"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.TransferSales, StringFormat='${0:N0}'}" Foreground="White"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Total ventas" Foreground="#CBD5E1" FontWeight="Bold"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.TotalSales, StringFormat='${0:N0}'}" Foreground="White" FontWeight="Bold"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Facturas" Foreground="#CBD5E1"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.OrderCount}" Foreground="White"/></Grid>
+                                <Separator Background="#334155" Margin="0,4"/>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Fondo inicial" Foreground="#CBD5E1"/><TextBlock Grid.Column="1" Text="{Binding CloseSummary.OpeningAmount, StringFormat='${0:N0}'}" Foreground="White"/></Grid>
+                            </StackPanel>
+                        </Border>
+                        <Border Background="#1E293B" CornerRadius="10" Padding="16">
+                            <StackPanel Spacing="8">
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Efectivo esperado" Foreground="#94A3B8" FontSize="15"/><TextBlock Grid.Column="1" Text="{Binding ExpectedAmount, StringFormat='${0:N0}'}" Foreground="White" FontSize="20" FontWeight="Bold"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Efectivo contado" Foreground="#94A3B8" FontSize="15"/><TextBlock Grid.Column="1" Text="{Binding CountedTotal, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="22" FontWeight="Black"/></Grid>
+                                <Grid ColumnDefinitions="*, Auto"><TextBlock Text="Diferencia" Foreground="#94A3B8" FontSize="15"/><TextBlock Grid.Column="1" Text="{Binding DifferenceAmount, StringFormat='${0:N0}'}" Foreground="{Binding DifferenceColor}" FontSize="26" FontWeight="Black"/></Grid>
+                            </StackPanel>
+                        </Border>
+                        <TextBox Text="{Binding CloseNotes, Mode=TwoWay}" Height="60" Watermark="Observaciones (opcional)..." FontSize="14" CornerRadius="8" Padding="10"/>
+                    </StackPanel>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Diferencia (Sobrante / Faltante):"
-                                       Foreground="#94A3B8" FontSize="15"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1"
-                                       Text="{Binding DifferenceAmount, StringFormat='${0:N0}'}"
-                                       Foreground="{Binding DifferenceColor}"
-                                       FontSize="22" FontWeight="Black"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- Closing Amount Numpad -->
-                    <Grid RowDefinitions="52,52,52,52" ColumnDefinitions="*,*,*">
-                        <Button Grid.Row="0" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="7" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="7"/>
-                        <Button Grid.Row="0" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="8" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="8"/>
-                        <Button Grid.Row="0" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="9" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="9"/>
-                        <Button Grid.Row="1" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="4" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="4"/>
-                        <Button Grid.Row="1" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="5" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="5"/>
-                        <Button Grid.Row="1" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="6" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="6"/>
-                        <Button Grid.Row="2" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="1" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="1"/>
-                        <Button Grid.Row="2" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="2" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="2"/>
-                        <Button Grid.Row="2" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="3" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="3"/>
-                        <Button Grid.Row="3" Grid.Column="0" Margin="3" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="16" FontWeight="Bold" Content="C" Command="{Binding ClearClosingNumpadCommand}"/>
-                        <Button Grid.Row="3" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="0" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="0"/>
-                        <Button Grid.Row="3" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="16" FontWeight="Bold" Content="000" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="000"/>
+                    <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*, 2*" Margin="0,16,0,0">
+                        <Button Height="60" Margin="0,0,8,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="10"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Cancelar" Command="{Binding CancelCloseDialogCommand}"/>
+                        <Button Grid.Column="1" Height="60" Background="#DC2626" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="10"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="🔴 Confirmar cuadre y cerrar turno" Command="{Binding ConfirmCloseShiftCommand}"/>
                     </Grid>
-
-                    <!-- Notes -->
-                    <TextBox Text="{Binding CloseNotes, Mode=TwoWay}" Height="60"
-                             Watermark="Observaciones del arqueo (opcional)..."
-                             FontSize="14" CornerRadius="8" Padding="10"/>
-
-                    <!-- Action Buttons -->
-                    <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
-                        <Button Grid.Column="0" Height="54" Margin="0,0,6,0" Background="#334155" Foreground="White"
-                                FontSize="16" FontWeight="Bold" CornerRadius="8"
-                                Content="Cancelar" Command="{Binding CancelCloseDialogCommand}"/>
-                        <Button Grid.Column="1" Height="54" Margin="6,0,0,0" Background="#DC2626" Foreground="White"
-                                FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="🔴 Confirmar Cierre" Command="{Binding ConfirmCloseShiftCommand}"/>
-                    </Grid>
-                </StackPanel>
+                </Grid>
             </Border>
         </Border>
 

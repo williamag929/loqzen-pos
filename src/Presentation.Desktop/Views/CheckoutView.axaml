@@ -4,6 +4,7 @@
              xmlns:models="using:Core.Domain.Entities"
              xmlns:dtos="using:Core.Application.DTOs"
              xmlns:conv="using:Presentation.Desktop.Converters"
+             xmlns:views="using:Presentation.Desktop.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
@@ -15,7 +16,7 @@
         <conv:BoolToColorConverter x:Key="BoolToColor"/>
     </UserControl.Resources>
 
-    <Grid ColumnDefinitions="*, 440">
+    <Grid ColumnDefinitions="*, Auto, 440">
         <!-- LEFT PANEL: CATALOG & SEARCH -->
         <Border Grid.Column="0" Background="#0F172A" Padding="16">
             <Grid RowDefinitions="Auto, Auto, *, Auto">
@@ -144,20 +145,32 @@
             </Grid>
         </Border>
 
+        <!-- MIDDLE: live receipt preview ("tirilla"), same formatter as the printer -->
+        <Border Grid.Column="1" Background="#0B1222" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="12"
+                Width="380" IsVisible="{Binding IsReceiptPreviewVisible}">
+            <Grid RowDefinitions="Auto, *">
+                <TextBlock Text="🧾 Tirilla (así se imprimirá)" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
+            </Grid>
+        </Border>
+
         <!-- RIGHT PANEL: CART & CHECKOUT -->
-        <Border Grid.Column="1" Background="#020617" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="16">
+        <Border Grid.Column="2" Background="#020617" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="16">
             <Grid RowDefinitions="Auto, *, Auto, Auto">
                 <!-- Cart Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
                     <TextBlock Text="🛒 Ticket de Venta" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                    <Button Grid.Column="1" 
-                            Content="Abrir Cajón" 
-                            Height="40" 
+                    <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
+                    <Button Content="🧾" Height="48" Width="52" Background="#334155" Foreground="White" CornerRadius="6" FontSize="18"
+                            ToolTip.Tip="Mostrar/ocultar tirilla" Command="{Binding ToggleReceiptPreviewCommand}"/>
+                    <Button Content="Abrir Cajón" 
+                            Height="48" 
                             Padding="12,0" 
                             Background="#334155" 
                             Foreground="White" 
                             CornerRadius="6"
                             Command="{Binding OpenCashDrawerCommand}"/>
+                    </StackPanel>
                 </Grid>
 
                 <!-- Cart Items List -->
@@ -289,7 +302,7 @@
         </Border>
 
         <!-- MODAL OVERLAY: PAYMENT DIALOG WITH NUMPAD -->
-        <Border Grid.ColumnSpan="2" 
+        <Border Grid.ColumnSpan="3" 
                 Background="#CC000000" 
                 IsVisible="{Binding IsPaymentModalOpen}"
                 HorizontalAlignment="Stretch"

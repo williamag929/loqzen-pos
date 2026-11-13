@@ -1,0 +1,78 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.ComandaPayPanel"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True">
+
+    <!-- PANEL DER: tirilla final + medio de pago + numpad → genera la factura -->
+    <Grid ColumnDefinitions="420, *" Margin="16">
+
+        <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto" Margin="0,0,16,0">
+            <TextBlock Text="🧾 Cuenta de la mesa" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+            <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
+            <Grid Grid.Row="2" ColumnDefinitions="*, *" Margin="0,10,0,0">
+                <Button Height="56" Margin="0,0,5,0" CornerRadius="10" Background="#334155" Foreground="White" FontWeight="Bold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Content="🖨️ Pre-cuenta" Command="{Binding PrintPreBillCommand}"/>
+                <Button Grid.Column="1" Height="56" Margin="5,0,0,0" CornerRadius="10" Background="#92400E" Foreground="White" FontWeight="Bold"
+                        HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                        Content="◀ Agregar más" Command="{Binding ReopenCommand}" IsVisible="{Binding IsCurrentReadyToPay}"/>
+            </Grid>
+        </Grid>
+
+        <Border Grid.Column="1" Background="#020617" CornerRadius="14" Padding="20">
+            <StackPanel Spacing="14" MaxWidth="560">
+                <!-- Not-yet-frozen comanda: must go through "Cerrar" first -->
+                <Border Background="#78350F" CornerRadius="10" Padding="14" IsVisible="{Binding IsCurrentOpen}">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="La comanda sigue abierta." Foreground="White" FontSize="16" FontWeight="Bold"/>
+                        <Button Height="60" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Black"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                Content="💳 Cerrar comanda y cobrar" Command="{Binding ReadyToPayCommand}"/>
+                    </StackPanel>
+                </Border>
+
+                <StackPanel Spacing="14" IsVisible="{Binding IsCurrentReadyToPay}">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <TextBlock Text="TOTAL" Foreground="#94A3B8" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding CurrentTotalText}" Foreground="#34D399" FontSize="40" FontWeight="Black"/>
+                    </Grid>
+
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="💵 Efectivo"
+                                Background="{Binding IsCash, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                                Command="{Binding SelectPayMethodCommand}" CommandParameter="Cash"/>
+                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="💳 Tarjeta"
+                                Background="{Binding IsCard, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                                Command="{Binding SelectPayMethodCommand}" CommandParameter="Card"/>
+                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="📲 Transf."
+                                Background="{Binding IsTransfer, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                                Command="{Binding SelectPayMethodCommand}" CommandParameter="Transfer"/>
+                    </Grid>
+
+                    <StackPanel Spacing="10" IsVisible="{Binding IsCash}">
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Recibido" Foreground="#94A3B8" FontSize="16"/>
+                            <TextBlock Grid.Column="1" Text="{Binding TenderedText}" Foreground="#38BDF8" FontSize="26" FontWeight="Black"/>
+                        </Grid>
+                        <Grid ColumnDefinitions="*, Auto">
+                            <TextBlock Text="Cambio" Foreground="#94A3B8" FontSize="16"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Foreground="#FACC15" FontSize="26" FontWeight="Black"/>
+                        </Grid>
+                        <views:Numpad DigitCommand="{Binding PayDigitCommand}" ClearCommand="{Binding PayClearCommand}"
+                                      ExactCommand="{Binding PayExactCommand}"/>
+                    </StackPanel>
+
+                    <Button Height="72" CornerRadius="12" Background="#059669" Foreground="White" FontSize="22" FontWeight="Black"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}"/>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Grid>
+</UserControl>

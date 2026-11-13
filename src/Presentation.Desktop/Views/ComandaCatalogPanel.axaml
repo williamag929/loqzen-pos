@@ -1,0 +1,55 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             x:Class="Presentation.Desktop.Views.ComandaCatalogPanel"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True">
+
+    <!-- Touch catalog, two levels: big category tiles → products of that category (◀ back). -->
+    <Grid RowDefinitions="Auto, *">
+        <Grid Margin="0,0,0,10">
+            <Button Height="56" Padding="18,0" CornerRadius="10" Background="#334155" Foreground="White"
+                    FontSize="18" FontWeight="Bold" Content="{Binding CatalogTitle}"
+                    IsVisible="{Binding IsBrowsingProducts}" Command="{Binding BackToCategoriesCommand}"/>
+            <TextBlock Text="{Binding CatalogTitle}" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+                       IsVisible="{Binding IsBrowsingCategories}"/>
+        </Grid>
+
+        <!-- Level 1: categories -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsBrowsingCategories}">
+            <ItemsControl ItemsSource="{Binding CategoryTiles}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CategoryTileViewModel">
+                        <Button Width="200" Height="130" Margin="6" CornerRadius="14" Background="{Binding Background}"
+                                BorderBrush="{Binding SelectionBorder}" BorderThickness="3"
+                                HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Command="{Binding SelectCommand}">
+                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="21" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <!-- Level 2: products -->
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" IsVisible="{Binding IsBrowsingProducts}">
+            <ItemsControl ItemsSource="{Binding ProductTiles}">
+                <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:ProductTileViewModel">
+                        <Button Width="180" Height="130" Margin="6" Padding="12" CornerRadius="12" Background="#1E293B"
+                                BorderBrush="#334155" BorderThickness="1"
+                                HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
+                                Command="{Binding AddCommand}">
+                            <Grid RowDefinitions="*, Auto">
+                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3"/>
+                                <TextBlock Grid.Row="1" Text="{Binding PriceText}" Foreground="#34D399" FontSize="18" FontWeight="Bold"/>
+                            </Grid>
+                        </Button>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Grid>
+</UserControl>

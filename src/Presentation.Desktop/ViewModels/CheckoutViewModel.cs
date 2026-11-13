@@ -162,6 +162,7 @@ public partial class CheckoutViewModel : ObservableObject
             var currentShift = await _cashShiftService.GetCurrentShiftAsync();
             IsShiftOpen = currentShift != null;
             _currentCashShiftId = currentShift?.Id;
+            _currentCashierName = currentShift?.CashierName;
             
             if (IsShiftOpen && currentShift != null)
             {
@@ -547,25 +548,11 @@ public partial class CheckoutViewModel : ObservableObject
             await _dbContext.SaveChangesAsync();
 
             // 5. Print receipt
-            var receipt = new ReceiptDto
-            {
-                OrderNumber = paymentResult.OrderNumber,
-                CashierName = "Cajero Principal",
-                Subtotal = Subtotal,
-                TaxTotal = TaxTotal,
-                Total = Total,
-                PaymentMethodName = SelectedPaymentMethod.ToString(),
-                TenderedAmount = TenderedAmount,
-                ChangeAmount = paymentResult.ChangeAmount,
-                Items = CartItems.Select(i => new ReceiptItemDto
-                {
-                    Name = i.Name,
-                    Quantity = i.IsWeighed ? (i.WeightKg ?? 1) : i.Quantity,
-                    UnitPrice = i.UnitPrice,
-                    Total = i.Total,
-                    IsReturn = i.IsReturn
-                }).ToList()
-            };
+            // Same builder as the on-screen preview, so the paper matches what the cashier saw.
+            var receipt = Core.Application.Receipts.ReceiptDtoFactory.FromCart(CartItems, DiscountTotal, paymentResult.OrderNumber, CashierLabel);
+            receipt.PaymentMethodName = Core.Application.Receipts.ReceiptDtoFactory.PaymentName(SelectedPaymentMethod);
+            receipt.TenderedAmount = SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : 0;
+            receipt.ChangeAmount = paymentResult.ChangeAmount;
 
             await _printerService.PrintReceiptAsync(receipt);
             
@@ -593,12 +580,33 @@ public partial class CheckoutViewModel : ObservableObject
         }
     }
 
+    /// <summary>Live on-screen receipt: same formatter as the printer → what you see is what prints.</summary>
+    public ObservableCollection<Core.Application.Receipts.ReceiptLine> ReceiptPreview { get; } = new();
+
+    [ObservableProperty] private bool _isReceiptPreviewVisible = true;
+
+    [RelayCommand]
+    private void ToggleReceiptPreview() => IsReceiptPreviewVisible = !IsReceiptPreviewVisible;
+
+    private void RebuildReceiptPreview()
+    {
+        ReceiptPreview.Clear();
+        if (CartItems.Count == 0) return;
+        var dto = Core.Application.Receipts.ReceiptDtoFactory.FromCart(CartItems, DiscountTotal, "(en curso)", CashierLabel);
+        foreach (var line in Core.Application.Receipts.ReceiptFormatter.Format(dto, isPreview: true))
+            ReceiptPreview.Add(line);
+    }
+
+    private string CashierLabel => _currentCashierName ?? "Cajero";
+    private string? _currentCashierName;
+
     private void NotifyCartTotalsChanged()
     {
         OnPropertyChanged(nameof(Subtotal));
         OnPropertyChanged(nameof(TaxTotal));
         OnPropertyChanged(nameof(Total));
         OnPropertyChanged(nameof(TotalItems));
+        RebuildReceiptPreview();
 
         CustomerDisplay?.UpdateFromCheckout(
             CartItems,

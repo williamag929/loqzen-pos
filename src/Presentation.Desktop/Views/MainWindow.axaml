@@ -42,6 +42,11 @@
                             Foreground="White" Command="{Binding ShowCheckoutCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="🍽️ Mesas / Comandas"
+                            Background="{Binding IsComandaActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                            Foreground="White" Command="{Binding ShowComandasCommand}"/>
+
+                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="👨‍🍳 KDS Cocina"
                             Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowKdsCommand}"/>
@@ -82,6 +87,7 @@
             <views:KdsView       DataContext="{Binding Kds}"        IsVisible="{Binding IsKdsActive}"/>
             <views:CashShiftView DataContext="{Binding CashShift}"  IsVisible="{Binding IsCashShiftActive}"/>
             <views:MastersView   DataContext="{Binding Masters}"    IsVisible="{Binding IsMastersActive}"/>
+            <views:ComandaView   DataContext="{Binding Comanda}"    IsVisible="{Binding IsComandaActive}"/>
         </Grid>
 
     </Grid>

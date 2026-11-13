@@ -1,0 +1,26 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:rc="using:Core.Application.Receipts"
+             xmlns:conv="using:Presentation.Desktop.Converters"
+             x:Class="Presentation.Desktop.Views.ReceiptPreviewControl"
+             x:CompileBindings="True">
+
+    <!-- On-screen "tirilla": renders the SAME ReceiptLine list the ESC/POS printer renders.
+         Monospace + 32 fixed columns = same layout as the thermal paper. -->
+    <Border Background="#FEFCE8" CornerRadius="4" Padding="14,16" BoxShadow="0 4 14 0 #66000000" HorizontalAlignment="Center">
+        <ScrollViewer x:Name="Scroller" VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+            <ItemsControl x:Name="LinesHost">
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="rc:ReceiptLine">
+                        <TextBlock Text="{Binding Text}"
+                                   FontFamily="DejaVu Sans Mono, Cascadia Mono, Consolas, Courier New, monospace"
+                                   FontSize="{Binding Style, Converter={x:Static conv:ReceiptLineConverters.FontSize}}"
+                                   FontWeight="{Binding Style, Converter={x:Static conv:ReceiptLineConverters.Weight}}"
+                                   HorizontalAlignment="{Binding Align, Converter={x:Static conv:ReceiptLineConverters.Align}}"
+                                   Foreground="#111827" TextWrapping="NoWrap" xml:space="preserve"/>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+    </Border>
+</UserControl>
