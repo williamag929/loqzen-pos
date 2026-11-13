@@ -61,3 +61,24 @@ services:
       interval: 10s
       timeout: 5s
       retries: 3
+
+  # 5. Emulador de Datáfono semi-integrado (JSON por líneas sobre TCP, Puerto 9102)
+  #    Protocolo y reglas de monto (…99 rechazada, …98 no responde, …97 error) en emulator/payterminal/README.md
+  payment-terminal-emulator:
+    build:
+      context: ./emulator/payterminal
+    container_name: payment-terminal-emulator
+    ports:
+      - "9102:9102"
+    environment:
+      - TERMINAL_PORT=9102
+      # Segundos entre "Acerque la tarjeta" y la respuesta (simula el tap de la tarjeta)
+      - TERMINAL_DELAY_SECONDS=${TERMINAL_DELAY_SECONDS:-3}
+      # Probabilidad 0..1 de rechazo aleatorio para montos que normalmente se aprueban
+      - TERMINAL_DECLINE_RATE=${TERMINAL_DECLINE_RATE:-0}
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "python", "-c", "import socket; s=socket.create_connection(('localhost',9102)); s.sendall(b'{\"op\":\"ping\"}'+bytes([10])); assert b'pong' in s.recv(64); s.close()"]
+      interval: 10s
+      timeout: 5s
+      retries: 3

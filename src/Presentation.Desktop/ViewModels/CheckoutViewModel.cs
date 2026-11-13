@@ -26,9 +26,14 @@ public partial class CheckoutViewModel : ObservableObject
     private readonly IBarcodeScannerService _scannerService;
     private readonly IManagerAuthPrompt _authPrompt;
     private readonly IUserSession _session;
+    private readonly ITerminalChargePrompt _terminalPrompt;
+    private readonly PaymentTerminalSettings _terminalSettings;
 
-    // Current order being built
+    // Current order being built. The signature (items + discount) says whether a Draft created for an earlier
+    // payment attempt (e.g. a declined terminal charge) still matches the cart and can be reused instead of
+    // creating a duplicate order on retry.
     private Guid? _currentOrderId;
+    private string? _currentOrderSignature;
     private Guid? _currentCashShiftId;
 
     public CustomerDisplayViewModel? CustomerDisplay { get; set; }
@@ -58,7 +63,17 @@ public partial class CheckoutViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsCashPayment))]
     [NotifyPropertyChangedFor(nameof(IsCardPayment))]
     [NotifyPropertyChangedFor(nameof(IsTransferPayment))]
+    [NotifyPropertyChangedFor(nameof(IsTerminalChargeVisible))]
     private PaymentMethod _selectedPaymentMethod = PaymentMethod.Cash;
+
+    /// <summary>"💳 Cobrar en datáfono" next to "Confirmar" (manual path) when Card is selected and terminals are enabled.</summary>
+    public bool IsTerminalChargeVisible => IsCardPayment && _terminalPrompt.IsEnabled;
+
+    /// <summary>A payment (manual or terminal) is being recorded: the modal's buttons are disabled meanwhile.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPaymentIdle))]
+    private bool _isPaying;
+    public bool IsPaymentIdle => !IsPaying;
 
     [ObservableProperty]
     private bool _isShiftOpen = false;
@@ -105,8 +120,12 @@ public partial class CheckoutViewModel : ObservableObject
         IBarcodeScannerService scannerService,
         IManagerAuthPrompt authPrompt,
         IUserSession session,
-        ICashDrawerService cashDrawer)
+        ICashDrawerService cashDrawer,
+        ITerminalChargePrompt terminalPrompt,
+        PaymentTerminalSettings terminalSettings)
     {
+        _terminalPrompt = terminalPrompt;
+        _terminalSettings = terminalSettings;
         _cashDrawer = cashDrawer;
         _categoryService = categoryService;
         _productService = productService;
@@ -557,122 +576,207 @@ public partial class CheckoutViewModel : ObservableObject
         NotifyCartTotalsChanged();
     }
 
+    /// <summary>"Confirmar pago": manual path (cash / card typed by hand / transfer).</summary>
     [RelayCommand]
     public async Task CompleteSaleAsync()
     {
-        if (TenderedAmount < Total && SelectedPaymentMethod == PaymentMethod.Cash)
-        {
-            StatusMessage = "El monto ingresado es menor al total";
-            return;
-        }
-
-        // Ensure we have an open cash shift
-        if (_currentCashShiftId == null)
-        {
-            StatusMessage = "❌ Error: No hay turno de caja abierto";
-            return;
-        }
-
+        if (!ValidatePayment()) return;
+        IsPaying = true;
         try
         {
-            // 1. Create order via ISalesService
-            var orderDto = await _salesService.CreateOrderAsync(null, _currentCashShiftId.Value);
-            _currentOrderId = orderDto.Id;
-
-            // 2. Add all items to the order
-            foreach (var item in CartItems)
-            {
-                await _salesService.AddItemAsync(
-                    orderDto.Id,
-                    item.ProductId,
-                    item.Quantity,
-                    item.WeightKg);
-            }
-
-            // 2.5. Apply discount if any
-            if (DiscountTotal > 0)
-            {
-                await _salesService.ApplyDiscountAsync(orderDto.Id, DiscountTotal);
-            }
-
-            // 3. Process payment (this also creates OutboxMessage in same transaction)
-            var paymentResult = await _salesService.ProcessPaymentAsync(
-                orderDto.Id,
-                SelectedPaymentMethod,
-                Total,
-                TenderedAmount);
-
-            if (!paymentResult.Success)
-            {
-                StatusMessage = $"❌ Error en pago: {paymentResult.ErrorMessage}";
-                return;
-            }
-
-            // 4. Create KitchenOrder for KDS (through the service: Outbox + live event for the KDS/LAN hub).
-            //    Returns never go to the kitchen; a returns-only sale creates no ticket (CreateAsync rejects empty orders).
-            var kitchenItems = CartItems.Where(i => !i.IsReturn).ToList();
-            if (kitchenItems.Count > 0)
-            {
-                var kitchenOrder = new KitchenOrder
-                {
-                    OrderNumber = paymentResult.OrderNumber,
-                    OrderId = paymentResult.OrderId,
-                    TableNumber = "Mostrador Principal",
-                    WaiterName = "Cajero",
-                    Station = "Cocina Caliente",
-                    Status = KitchenOrderStatus.Pending
-                };
-
-                foreach (var item in kitchenItems)
-                {
-                    kitchenOrder.Items.Add(new KitchenOrderItem
-                    {
-                        ProductId = item.ProductId,
-                        ProductName = item.Name,
-                        Quantity = item.Quantity,
-                        Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
-                    });
-                }
-
-                await _kitchenService.CreateAsync(kitchenOrder);
-            }
-
-            // 5. Print receipt
-            // Same builder as the on-screen preview, so the paper matches what the cashier saw.
-            var receipt = Core.Application.Receipts.ReceiptDtoFactory.FromCart(CartItems, DiscountTotal, paymentResult.OrderNumber, CashierLabel);
-            receipt.PaymentMethodName = Core.Application.Receipts.ReceiptDtoFactory.PaymentName(SelectedPaymentMethod);
-            receipt.TenderedAmount = SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : 0;
-            receipt.ChangeAmount = paymentResult.ChangeAmount;
-
-            await _printerService.PrintReceiptAsync(receipt);
-            
-            // 6. Open cash drawer for cash payments
-            if (SelectedPaymentMethod == PaymentMethod.Cash)
-            {
-                await _cashDrawer.OpenDrawerAsync();
-            }
-
-            var completedOrderNumber = paymentResult.OrderNumber;
-            var completedTotal = Total;
-            var completedChange = paymentResult.ChangeAmount;
-
-            IsPaymentModalOpen = false;
-            CartItems.Clear();
-            _currentOrderId = null;
-            NotifyCartTotalsChanged();
-            
-            CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
-            // Keep the change on screen until the cashier taps "Nueva venta": closing the modal used to
-            // hide it immediately and she had to read it off the receipt.
-            LastSale = new SaleSummaryViewModel(completedOrderNumber, completedTotal,
-                SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : completedTotal,
-                completedChange, SelectedPaymentMethod, null, DismissSale);
-            StatusMessage = $"✅ Venta {completedOrderNumber} completada · Cambio {Core.Application.Receipts.ReceiptFormatter.Cop(completedChange)}";
+            var orderId = await EnsureOrderAsync();
+            await PayAsync(orderId, null);
         }
         catch (Exception ex)
         {
             StatusMessage = $"❌ Error procesando venta: {ex.Message}";
         }
+        finally
+        {
+            IsPaying = false;
+        }
+    }
+
+    /// <summary>
+    /// "💳 Cobrar en datáfono": the order is created first (Draft), the amount is sent to the terminal and, when
+    /// approved, the payment is recorded with the terminal reference. Declined / timeout / cancelled keep the Draft
+    /// so a retry reuses it; "Cobrar manual" continues the typed-by-hand card path.
+    /// </summary>
+    [RelayCommand]
+    public async Task ChargeOnTerminalAsync()
+    {
+        if (SelectedPaymentMethod != PaymentMethod.Card) SelectedPaymentMethod = PaymentMethod.Card;
+        TenderedAmount = Total;
+        ChangeAmount = 0;
+        if (!ValidatePayment()) return;
+
+        IsPaying = true;
+        try
+        {
+            var orderId = await EnsureOrderAsync();
+            var outcome = await _terminalPrompt.RequestAsync(Total, TerminalPaymentPurpose.Sale, _currentOrderNumber ?? orderId.ToString("N")[..8],
+                orderId: orderId, cashShiftId: _currentCashShiftId, description: $"Venta mostrador · {TotalItems} ítems");
+
+            if (outcome.IsApproved)
+            {
+                await PayAsync(orderId, outcome.Charge);
+            }
+            else if (outcome.FallbackToManual)
+            {
+                StatusMessage = string.IsNullOrWhiteSpace(outcome.Message)
+                    ? "✍️ Tarjeta registrada manualmente"
+                    : $"✍️ Datáfono: {outcome.Message} · tarjeta registrada manualmente";
+                await PayAsync(orderId, null);
+            }
+            else
+            {
+                // Nothing collected: the order stays Draft and the modal stays open for a retry or another method.
+                StatusMessage = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · la venta sigue pendiente";
+            }
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"❌ Error procesando venta: {ex.Message}";
+        }
+        finally
+        {
+            IsPaying = false;
+        }
+    }
+
+    private bool ValidatePayment()
+    {
+        if (IsPaying) return false;
+        if (!CartItems.Any())
+        {
+            StatusMessage = "Agregue productos antes de cobrar";
+            return false;
+        }
+        if (TenderedAmount < Total && SelectedPaymentMethod == PaymentMethod.Cash)
+        {
+            StatusMessage = "El monto ingresado es menor al total";
+            return false;
+        }
+        if (_currentCashShiftId == null)
+        {
+            StatusMessage = "❌ Error: No hay turno de caja abierto";
+            return false;
+        }
+        return true;
+    }
+
+    private string CartSignature() =>
+        string.Join("|", CartItems.Select(i => $"{i.ProductId:N}:{i.Quantity}:{i.WeightKg}")) + $"#{DiscountTotal}";
+
+    private string? _currentOrderNumber;
+
+    /// <summary>Creates the Draft order with its items and discount, or reuses the one created by a previous attempt for the same cart.</summary>
+    private async Task<Guid> EnsureOrderAsync()
+    {
+        var signature = CartSignature();
+        if (_currentOrderId is { } existing && _currentOrderSignature == signature)
+            return existing;
+
+        var orderDto = await _salesService.CreateOrderAsync(null, _currentCashShiftId!.Value);
+        foreach (var item in CartItems)
+            await _salesService.AddItemAsync(orderDto.Id, item.ProductId, item.Quantity, item.WeightKg);
+        if (DiscountTotal > 0)
+            await _salesService.ApplyDiscountAsync(orderDto.Id, DiscountTotal);
+
+        _currentOrderId = orderDto.Id;
+        _currentOrderNumber = orderDto.OrderNumber;
+        _currentOrderSignature = signature;
+        return orderDto.Id;
+    }
+
+    /// <summary>Records the payment (Outbox in the same transaction), sends to kitchen, prints, opens the drawer, shows the change screen.</summary>
+    private async Task PayAsync(Guid orderId, TerminalPaymentDto? charge)
+    {
+        var reference = charge?.IsApproved == true ? charge.ReferenceText : null;
+        var paymentResult = await _salesService.ProcessPaymentAsync(
+            orderId, SelectedPaymentMethod, Total, TenderedAmount, reference, charge?.Id);
+
+        if (!paymentResult.Success)
+        {
+            StatusMessage = $"❌ Error en pago: {paymentResult.ErrorMessage}";
+            return;
+        }
+
+        // Create KitchenOrder for KDS (through the service: Outbox + live event for the KDS/LAN hub).
+        // Returns never go to the kitchen; a returns-only sale creates no ticket (CreateAsync rejects empty orders).
+        var kitchenItems = CartItems.Where(i => !i.IsReturn).ToList();
+        if (kitchenItems.Count > 0)
+        {
+            var kitchenOrder = new KitchenOrder
+            {
+                OrderNumber = paymentResult.OrderNumber,
+                OrderId = paymentResult.OrderId,
+                TableNumber = "Mostrador Principal",
+                WaiterName = "Cajero",
+                Station = "Cocina Caliente",
+                Status = KitchenOrderStatus.Pending
+            };
+
+            foreach (var item in kitchenItems)
+            {
+                kitchenOrder.Items.Add(new KitchenOrderItem
+                {
+                    ProductId = item.ProductId,
+                    ProductName = item.Name,
+                    Quantity = item.Quantity,
+                    Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
+                });
+            }
+
+            await _kitchenService.CreateAsync(kitchenOrder);
+        }
+
+        // Print receipt: same builder as the on-screen preview, so the paper matches what the cashier saw.
+        var receipt = Core.Application.Receipts.ReceiptDtoFactory.FromCart(CartItems, DiscountTotal, paymentResult.OrderNumber, CashierLabel);
+        receipt.PaymentMethodName = Core.Application.Receipts.ReceiptDtoFactory.PaymentName(SelectedPaymentMethod);
+        receipt.TenderedAmount = SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : 0;
+        receipt.ChangeAmount = paymentResult.ChangeAmount;
+        ApplyTerminalCharge(receipt, charge, _terminalSettings.PrintVoucher);
+
+        await _printerService.PrintReceiptAsync(receipt);
+
+        if (SelectedPaymentMethod == PaymentMethod.Cash)
+        {
+            await _cashDrawer.OpenDrawerAsync();
+        }
+
+        var completedOrderNumber = paymentResult.OrderNumber;
+        var completedTotal = Total;
+        var completedChange = paymentResult.ChangeAmount;
+
+        IsPaymentModalOpen = false;
+        CartItems.Clear();
+        _currentOrderId = null;
+        _currentOrderNumber = null;
+        _currentOrderSignature = null;
+        NotifyCartTotalsChanged();
+
+        CustomerDisplay?.NotifySaleCompleted(completedOrderNumber, completedTotal, completedChange);
+        // Keep the change on screen until the cashier taps "Nueva venta": closing the modal used to
+        // hide it immediately and she had to read it off the receipt.
+        LastSale = new SaleSummaryViewModel(completedOrderNumber, completedTotal,
+            SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : completedTotal,
+            completedChange, SelectedPaymentMethod, null, DismissSale);
+        StatusMessage = reference is null
+            ? $"✅ Venta {completedOrderNumber} completada · Cambio {Core.Application.Receipts.ReceiptFormatter.Cop(completedChange)}"
+            : $"✅ Venta {completedOrderNumber} completada · {reference}";
+    }
+
+    /// <summary>Reference line + voucher under the totals when the sale was charged on a terminal (shared by the three screens).</summary>
+    internal static void ApplyTerminalCharge(ReceiptDto receipt, TerminalPaymentDto? charge, bool printVoucher)
+    {
+        if (charge is not { IsApproved: true }) return;
+        receipt.PaymentReference = charge.ReferenceText;
+        if (printVoucher && !string.IsNullOrWhiteSpace(charge.VoucherText))
+            receipt.VoucherLines = charge.VoucherText
+                .Split('\n')
+                .Select(l => l.TrimEnd('\r'))
+                .ToList();
     }
 
     /// <summary>Live on-screen receipt: same formatter as the printer → what you see is what prints.</summary>

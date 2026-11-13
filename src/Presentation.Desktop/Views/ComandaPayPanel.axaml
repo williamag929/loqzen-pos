@@ -68,9 +68,17 @@
                                       ExactCommand="{Binding PayExactCommand}"/>
                     </StackPanel>
 
+                    <!-- Card + terminals enabled: send the total to the datáfono; the green button stays as the manual path -->
+                    <StackPanel Spacing="6" IsVisible="{Binding IsTerminalChargeVisible}">
+                        <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="20" FontWeight="Black"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding IsPayIdle}"/>
+                        <TextBlock Text="«Cobrar y facturar» registra la tarjeta sin pasar por el datáfono." Foreground="#64748B" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                    </StackPanel>
+
                     <Button Height="72" CornerRadius="12" Background="#059669" Foreground="White" FontSize="22" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}"/>
+                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}" IsEnabled="{Binding IsPayIdle}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

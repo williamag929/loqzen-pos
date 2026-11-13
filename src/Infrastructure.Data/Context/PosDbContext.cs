@@ -31,6 +31,8 @@ public class PosDbContext : DbContext
     public DbSet<PartialCashCount> PartialCashCounts => Set<PartialCashCount>();
     public DbSet<Terminal> Terminals => Set<Terminal>();
     public DbSet<SyncInboxReceipt> SyncInboxReceipts => Set<SyncInboxReceipt>();
+    public DbSet<PaymentTerminal> PaymentTerminals => Set<PaymentTerminal>();
+    public DbSet<TerminalPayment> TerminalPayments => Set<TerminalPayment>();
 
     public PosDbContext()
     {
@@ -323,6 +325,46 @@ public class PosDbContext : DbContext
             entity.HasIndex(b => b.CashShiftId);
             entity.Property(b => b.TerminalCode).HasMaxLength(20);
             entity.HasIndex(b => b.TerminalId);
+            entity.Property(b => b.PaymentReference).HasMaxLength(200);
+        });
+
+        // PaymentTerminal (datáfono registry)
+        modelBuilder.Entity<PaymentTerminal>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(60);
+            entity.HasIndex(t => t.Name);
+            entity.Property(t => t.Address).HasMaxLength(120);
+            entity.Property(t => t.SerialNumber).HasMaxLength(60);
+            entity.Property(t => t.AssignedUserName).HasMaxLength(100);
+        });
+
+        // TerminalPayment (audit of every charge sent to a datáfono)
+        modelBuilder.Entity<TerminalPayment>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.TerminalName).IsRequired().HasMaxLength(60);
+            entity.Property(p => p.Amount).HasPrecision(18, 2);
+            entity.Property(p => p.Currency).IsRequired().HasMaxLength(3);
+            entity.Property(p => p.InvoiceReference).HasMaxLength(50);
+            entity.Property(p => p.AuthorizationCode).HasMaxLength(40);
+            entity.Property(p => p.CardBrand).HasMaxLength(30);
+            entity.Property(p => p.CardLast4).HasMaxLength(4);
+            entity.Property(p => p.ProviderReference).HasMaxLength(80);
+            entity.Property(p => p.Message).HasMaxLength(300);
+            entity.Property(p => p.VoucherText).HasMaxLength(2000);
+            entity.Property(p => p.RequestedByName).IsRequired().HasMaxLength(100);
+            entity.Ignore(p => p.ReferenceText);
+            entity.HasIndex(p => new { p.PaymentTerminalId, p.RequestedAt });
+            entity.HasIndex(p => p.Status);
+            entity.HasIndex(p => p.OrderId);
+            entity.HasIndex(p => p.ComandaId);
+            entity.HasIndex(p => p.BillPaymentId);
+            entity.HasIndex(p => p.CashShiftId);
+            entity.HasOne(p => p.PaymentTerminal)
+                  .WithMany()
+                  .HasForeignKey(p => p.PaymentTerminalId)
+                  .OnDelete(DeleteBehavior.Restrict);
         });
 
         // PartialCashCount (arqueo parcial)

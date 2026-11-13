@@ -49,7 +49,8 @@ public partial class CashShiftViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CloseCashSalesText), nameof(CloseCardSalesText), nameof(CloseTransferSalesText),
         nameof(CloseOtherSalesText), nameof(CloseTotalSalesText), nameof(CloseOrderCountText), nameof(CloseCardExpectedText),
-        nameof(CloseTransferExpectedText), nameof(CloseBillPaymentsText), nameof(CloseMovementsText), nameof(HasOtherSales))]
+        nameof(CloseTransferExpectedText), nameof(CloseBillPaymentsText), nameof(CloseMovementsText), nameof(HasOtherSales),
+        nameof(CloseTerminalCardText), nameof(CloseHasTerminalCharges))]
     private ShiftReconciliationDto? _closeRecon;
 
     [ObservableProperty]
@@ -61,6 +62,9 @@ public partial class CashShiftViewModel
 
     public string CloseCashSalesText => Cop(CloseRecon?.CashSales);
     public string CloseCardSalesText => Cop(CloseRecon?.CardSales);
+    /// <summary>Approved datáfono charges in the shift: the figure to compare with the terminal's batch close.</summary>
+    public bool CloseHasTerminalCharges => (CloseRecon?.TerminalChargeCount ?? 0) > 0;
+    public string CloseTerminalCardText => CloseRecon is { } r ? $"{Cop(r.TerminalCardTotal)} ({r.TerminalChargeCount})" : string.Empty;
     public string CloseTransferSalesText => Cop(CloseRecon?.TransferSales);
     public string CloseOtherSalesText => Cop(CloseRecon?.OtherSales);
     public bool HasOtherSales => (CloseRecon?.OtherSales ?? 0) != 0;

@@ -60,6 +60,20 @@ public static class DbInitializer
             await context.SaveChangesAsync();
         }
 
+        // Payment terminals (datáfonos) are seeded independently too: one simulated terminal so the charge flow
+        // can be exercised on any install without hardware.
+        if (!await context.PaymentTerminals.AnyAsync())
+        {
+            context.PaymentTerminals.Add(new PaymentTerminal
+            {
+                Name = "Datáfono simulado",
+                Provider = PaymentTerminalProvider.Mock,
+                IsActive = true,
+                SortOrder = 0
+            });
+            await context.SaveChangesAsync();
+        }
+
         if (await context.Categories.AnyAsync())
         {
             return; // DB has already been seeded

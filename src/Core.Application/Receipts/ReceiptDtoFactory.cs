@@ -66,8 +66,14 @@ public static class ReceiptDtoFactory
         Total = c.Total
     };
 
-    /// <summary>Final invoice built from the PERSISTED order, so paper == database.</summary>
-    public static ReceiptDto FromOrder(OrderDto o, string cashierName, string? tableName, PaymentMethod method, decimal tendered, decimal change) => new()
+    /// <summary>
+    /// Final invoice built from the PERSISTED order, so paper == database. The payment reference comes from the
+    /// persisted payment (<see cref="OrderDto.PaymentReference"/>) unless the caller passes one; the voucher lines
+    /// come from the terminal charge the caller holds (<see cref="TerminalPaymentDto.VoucherText"/>), when printing
+    /// vouchers is enabled.
+    /// </summary>
+    public static ReceiptDto FromOrder(OrderDto o, string cashierName, string? tableName, PaymentMethod method, decimal tendered, decimal change,
+        string? paymentReference = null, IEnumerable<string>? voucherLines = null) => new()
     {
         OrderNumber = o.OrderNumber,
         Date = DateTime.Now,
@@ -86,6 +92,23 @@ public static class ReceiptDtoFactory
         Total = o.Total,
         PaymentMethodName = PaymentName(method),
         TenderedAmount = method == PaymentMethod.Cash ? tendered : 0,
-        ChangeAmount = change
+        ChangeAmount = change,
+        PaymentReference = method == PaymentMethod.Cash ? null
+            : string.IsNullOrWhiteSpace(paymentReference) ? NullIfBlank(o.PaymentReference) : paymentReference.Trim(),
+        VoucherLines = VoucherLinesFrom(voucherLines)
     };
+
+    /// <summary>Splits a terminal's VoucherText ('\n'-joined) into receipt lines; null when empty.</summary>
+    public static List<string>? VoucherLinesFromText(string? voucherText) =>
+        string.IsNullOrWhiteSpace(voucherText) ? null
+        : VoucherLinesFrom(voucherText.Split('\n').Select(l => l.TrimEnd('\r')));
+
+    private static List<string>? VoucherLinesFrom(IEnumerable<string>? lines)
+    {
+        if (lines == null) return null;
+        var list = lines.Where(l => l != null).ToList();
+        return list.Count == 0 ? null : list;
+    }
+
+    private static string? NullIfBlank(string? s) => string.IsNullOrWhiteSpace(s) ? null : s.Trim();
 }

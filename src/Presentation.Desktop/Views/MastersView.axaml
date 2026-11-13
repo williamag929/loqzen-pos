@@ -49,6 +49,10 @@
                             Content="🖥️ Cajas"
                             Background="{Binding IsTerminalsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowTerminalsCommand}"/>
+                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="💳 Datáfonos" IsVisible="{Binding IsPaymentTerminalsTabVisible}"
+                            Background="{Binding IsPaymentTerminalsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                            Foreground="White" Command="{Binding ShowPaymentTerminalsCommand}"/>
                 </WrapPanel>
                 <!-- Notification -->
                 <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
@@ -429,7 +433,186 @@
                 </ScrollViewer>
             </Grid>
 
+            <!-- ══ PAYMENT TERMINALS TAB (datáfonos: registro, asignación, prueba, últimos cobros) ═══ -->
+            <Grid IsVisible="{Binding IsPaymentTerminalsTab}" RowDefinitions="Auto, *">
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Grid ColumnDefinitions="*, Auto, Auto">
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="Datáfonos con los que el POS cobra tarjetas (semi-integrado: el monto viaja al equipo y la aprobación vuelve con su referencia)."
+                                       Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding PaymentTerminalsSummary}" Foreground="#CBD5E1" FontSize="13" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#1E293B" BorderBrush="#475569" BorderThickness="1"
+                                Foreground="White" FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
+                                Content="↻ Actualizar" IsEnabled="{Binding !IsLoadingPaymentTerminals}" Command="{Binding LoadPaymentTerminalsCommand}"/>
+                        <Button Grid.Column="2" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
+                                Content="➕ Nuevo datáfono" Command="{Binding NewPaymentTerminalCommand}"/>
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="No hay datáfonos registrados todavía." Foreground="#64748B" FontSize="15" IsVisible="{Binding !HasPaymentTerminals}"/>
+
+                        <!-- One card per terminal; the inline assign strip and the deactivate confirmation expand inside the card -->
+                        <ItemsControl ItemsSource="{Binding PaymentTerminals}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:PaymentTerminalRowViewModel">
+                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="10" Padding="16,12" Margin="0,0,0,8">
+                                        <StackPanel Spacing="8">
+                                            <Grid ColumnDefinitions="Auto, *, Auto">
+                                                <Ellipse Grid.Column="0" Width="14" Height="14" Fill="{Binding DotColor}" Margin="0,0,12,0" VerticalAlignment="Center"/>
+                                                <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
+                                                    <WrapPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="17" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <Border Background="#1E3A5F" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ProviderLabel}" Foreground="#BFDBFE" FontSize="11" FontWeight="Bold"/>
+                                                        </Border>
+                                                        <Border Background="#7F1D1D" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding IsInactive}">
+                                                            <TextBlock Text="INACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                        </Border>
+                                                    </WrapPanel>
+                                                    <WrapPanel Orientation="Horizontal">
+                                                        <TextBlock Text="{Binding AddressText}" Foreground="#94A3B8" FontSize="13" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding SerialText}" Foreground="#64748B" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding OrderText}" Foreground="#64748B" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding LastPingText}" Foreground="{Binding DotColor}" FontSize="12" VerticalAlignment="Center"/>
+                                                    </WrapPanel>
+                                                    <TextBlock Text="{Binding AssignmentLabel}" Foreground="#FCD34D" FontSize="13" FontWeight="Bold"/>
+                                                </StackPanel>
+                                                <!-- Actions wrap under the text on narrow windows -->
+                                                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" MaxWidth="420">
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#475569" BorderThickness="1"
+                                                            Foreground="White" FontSize="13" FontWeight="Bold" Content="📡 Probar conexión"
+                                                            Command="{Binding TestCommand}" IsEnabled="{Binding !IsTesting}"/>
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1"
+                                                            Foreground="#FCD34D" FontSize="13" FontWeight="Bold" Content="👤 Asignar a…"
+                                                            Command="{Binding AssignCommand}" IsVisible="{Binding IsActive}"/>
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E3A5F"
+                                                            Foreground="White" FontSize="13" FontWeight="Bold" Content="✏️ Editar" Command="{Binding EditCommand}"/>
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#7F1D1D" BorderThickness="1"
+                                                            Foreground="#FCA5A5" FontSize="13" FontWeight="Bold" Content="🗑️ Desactivar"
+                                                            Command="{Binding AskDeactivateCommand}" IsVisible="{Binding IsActive}"/>
+                                                </WrapPanel>
+                                            </Grid>
+
+                                            <TextBlock Text="{Binding TestResultText}" Foreground="{Binding TestResultColor}" FontSize="13" FontWeight="Bold"
+                                                       TextWrapping="Wrap" IsVisible="{Binding HasTestResult}"/>
+
+                                            <!-- Inline confirmation (no dialogs) -->
+                                            <Border Background="#450A0A" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsConfirmingDeactivate}">
+                                                <WrapPanel Orientation="Horizontal">
+                                                    <TextBlock Text="¿Desactivar este datáfono? Dejará de aparecer al cobrar." Foreground="#FECACA" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="#DC2626" Foreground="White" FontWeight="Bold"
+                                                            Content="Sí, desactivar" Command="{Binding ConfirmDeactivateCommand}"/>
+                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="#334155" Foreground="White" FontWeight="Bold"
+                                                            Content="No" Command="{Binding CancelDeactivateCommand}"/>
+                                                </WrapPanel>
+                                            </Border>
+
+                                            <!-- Inline "Asignar a…": En caja + active users (one strip open at a time; options live on the VM) -->
+                                            <Border Background="#1E293B" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsAssigning}">
+                                                <StackPanel Spacing="6">
+                                                    <TextBlock Text="¿Quién lleva este datáfono?" Foreground="#CBD5E1" FontSize="13"/>
+                                                    <ItemsControl ItemsSource="{Binding #MastersRoot.((vm:MastersViewModel)DataContext).TerminalAssignOptions}">
+                                                        <ItemsControl.ItemsPanel>
+                                                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                                                        </ItemsControl.ItemsPanel>
+                                                        <ItemsControl.ItemTemplate>
+                                                            <DataTemplate x:DataType="vm:ChipViewModel">
+                                                                <Button Height="48" Padding="16,0" Margin="0,0,8,8" CornerRadius="24" Background="#0F172A" BorderBrush="#F59E0B" BorderThickness="1"
+                                                                        Foreground="White" FontSize="14" FontWeight="Bold" Content="{Binding Text}" Command="{Binding SelectCommand}"/>
+                                                            </DataTemplate>
+                                                        </ItemsControl.ItemTemplate>
+                                                    </ItemsControl>
+                                                </StackPanel>
+                                            </Border>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Last 50 charges -->
+                        <TextBlock Text="🧾 Últimos cobros en datáfono" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
+                        <TextBlock Text="Todavía no se ha cobrado nada en datáfono." Foreground="#64748B" FontSize="14" IsVisible="{Binding !HasTerminalCharges}"/>
+                        <ItemsControl ItemsSource="{Binding TerminalCharges}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TerminalChargeRowViewModel">
+                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
+                                        <Grid ColumnDefinitions="100, 110, *, 130">
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding ReferenceText}" Foreground="#CBD5E1" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding DetailText}" Foreground="#64748B" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="3" Text="{Binding StatusLabel}" Foreground="{Binding StatusColor}" FontSize="13" FontWeight="Bold"
+                                                       TextAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+
         </Grid>
+
+        <!-- ══ MODAL: PAYMENT TERMINAL FORM ═══════════════════════════════════ -->
+        <Border Grid.RowSpan="2" Background="#CC000000" IsVisible="{Binding IsPaymentTerminalFormVisible}">
+            <Border Width="560" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="16" Padding="28"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="14">
+                    <TextBlock Text="{Binding PaymentTerminalFormTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="13"/>
+                        <TextBox Text="{Binding PaymentTerminalName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
+                                 Watermark="Ej. Datáfono barra" MaxLength="60"/>
+                    </StackPanel>
+                    <StackPanel Spacing="6">
+                        <TextBlock Text="Proveedor *" Foreground="#94A3B8" FontSize="13"/>
+                        <ComboBox ItemsSource="{Binding TerminalProviderOptions}" SelectedItem="{Binding PaymentTerminalProviderOption, Mode=TwoWay}"
+                                  Height="52" CornerRadius="8" HorizontalAlignment="Stretch" FontSize="16" PlaceholderText="Elija el proveedor">
+                            <ComboBox.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TerminalProviderOptionViewModel">
+                                    <TextBlock Text="{Binding Label}" FontSize="16"/>
+                                </DataTemplate>
+                            </ComboBox.ItemTemplate>
+                        </ComboBox>
+                        <TextBlock Text="{Binding PaymentTerminalAddressHint}" Foreground="#A7F3D0" FontSize="12" TextWrapping="Wrap"/>
+                    </StackPanel>
+                    <Grid ColumnDefinitions="3*, 2*">
+                        <StackPanel Spacing="6" Margin="0,0,8,0">
+                            <TextBlock Text="Dirección (IP:puerto)" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding PaymentTerminalAddress, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
+                                     Watermark="192.168.1.50:9100"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
+                            <TextBlock Text="Serial" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding PaymentTerminalSerial, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
+                        </StackPanel>
+                    </Grid>
+                    <Grid ColumnDefinitions="*, *">
+                        <StackPanel Spacing="6" Margin="0,0,8,0">
+                            <TextBlock Text="Orden" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBox Text="{Binding PaymentTerminalSortOrderStr, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
+                        </StackPanel>
+                        <CheckBox Grid.Column="1" IsChecked="{Binding PaymentTerminalIsActive, Mode=TwoWay}" Content="Activo" Foreground="White" FontSize="16"
+                                  VerticalAlignment="Bottom" Margin="8,0,0,12"/>
+                    </Grid>
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0" Height="56" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="Cancelar" Command="{Binding CancelPaymentTerminalFormCommand}"/>
+                        <Button Grid.Column="1" Height="56" Margin="6,0,0,0" Background="#2563EB" Foreground="White" FontSize="16" FontWeight="Black" CornerRadius="8"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="💾 Guardar" Command="{Binding SavePaymentTerminalCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
 
         <!-- ══ MODAL: PRODUCT FORM ═════════════════════════════════════════ -->
         <Border Grid.RowSpan="2" Background="#CC000000"

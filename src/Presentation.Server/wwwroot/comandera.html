@@ -92,6 +92,35 @@
   .big.send { background: #15803D; color: #fff; }
   .big.pay { background: var(--accent); color: #fff; }
 
+  /* ─── Pago en mesa (datáfonos) ───────────────────────────────────────── */
+  #terminal-pay { border-top: 1px solid var(--line); padding: 10px 12px 0; display: flex; flex-direction: column; gap: 10px; background: var(--card); }
+  #terminals { display: flex; gap: 8px; overflow-x: auto; padding-bottom: 2px; }
+  .term { flex: 0 0 auto; min-height: 56px; padding: 6px 14px; background: var(--card-2); border: 2px solid transparent; display: flex; flex-direction: column; align-items: flex-start; justify-content: center; gap: 2px; max-width: 220px; text-align: left; }
+  .term b { font-size: 15px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 100%; }
+  .term span { font-size: 12px; color: var(--muted); white-space: nowrap; }
+  .term.on { background: rgba(37,99,235,.25); border-color: #60A5FA; }
+  .term.mine span { color: #93C5FD; }
+  .ping { display: inline-block; width: 8px; height: 8px; border-radius: 50%; background: var(--grey); margin-right: 5px; vertical-align: middle; }
+  .ping.ok { background: var(--green); } .ping.bad { background: var(--red); }
+  .big.tpay { background: #7C3AED; color: #fff; width: 100%; }
+  .term-list { display: flex; flex-direction: column; gap: 8px; }
+  .term-list .term { max-width: none; width: 100%; min-height: 64px; }
+
+  .spinner { width: 56px; height: 56px; border-radius: 50%; border: 6px solid rgba(255,255,255,.18); border-top-color: #fff; animation: spin .9s linear infinite; margin: 8px auto; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  .sheet.center { text-align: center; align-items: center; }
+  .sheet.center p { color: inherit; opacity: .9; }
+  .sheet.charging { background: #312E81; color: #fff; }
+  .sheet.ok { background: #14532D; color: #fff; }
+  .sheet.bad { background: #7F1D1D; color: #fff; }
+  .sheet.warn { background: #78350F; color: #fff; }
+  .sheet .result-title { font-size: 30px; font-weight: 900; letter-spacing: .04em; margin: 0; }
+  .sheet .amount { font-size: 36px; font-weight: 800; font-variant-numeric: tabular-nums; margin: 0; }
+  .sheet .ref { font-size: 18px; font-weight: 700; margin: 0; }
+  .sheet.center .sheet-actions { width: 100%; }
+  .sheet.center .btn { background: rgba(255,255,255,.18); color: #fff; min-height: 64px; font-size: 18px; }
+  .sheet.center .btn.primary { background: #fff; color: #0F172A; }
+
   /* ─── Modal ──────────────────────────────────────────────────────────── */
   .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
   .sheet { background: var(--card); border-radius: 18px; padding: 18px; width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 32px); overflow-y: auto; }
@@ -104,6 +133,7 @@
   .chip.on { background: var(--accent); }
   .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
   .sheet-actions.three { grid-template-columns: 1fr 1fr 1fr; }
+  .sheet-actions.one { grid-template-columns: 1fr; }
   .btn { background: var(--card-2); font-weight: 700; }
   .btn.primary { background: var(--accent); color: #fff; }
   .btn.danger { background: rgba(239,68,68,.25); color: #FCA5A5; }
@@ -117,6 +147,7 @@
     #comanda-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
     #catalog { border-right: 0; border-bottom: 1px solid var(--line); }
     .waiter-btn { max-width: 30vw; }
+    #btnTerminal { max-width: 20vw; }
   }
 </style>
 </head>
@@ -125,6 +156,7 @@
   <button class="back" id="btnBack" type="button" aria-label="Volver">‹</button>
   <div class="title"><h1 id="hTitle">Mesas</h1><small id="hSub"></small></div>
   <button class="waiter-btn" id="btnWaiter" type="button">👤</button>
+  <button class="waiter-btn" id="btnTerminal" type="button" hidden title="Mi datáfono">📟</button>
   <div id="connection"><span id="dot"></span><span id="connText">conectando…</span></div>
 </header>
 
@@ -143,6 +175,10 @@
       <div id="order">
         <div id="banner" hidden>💳 Lista para pagar · cobrar en el POS</div>
         <ul id="items"></ul>
+        <div id="terminal-pay" hidden>
+          <div id="terminals"></div>
+          <button class="big tpay" id="btnPayTerminal" type="button">💳 Cobrar en mesa</button>
+        </div>
         <div id="order-foot">
           <button class="big send" id="btnSend" type="button">🍳 Enviar ya</button>
           <button class="big pay" id="btnReady" type="button">💳 Lista para pagar</button>
@@ -174,9 +210,16 @@
   var ws = null, wsBackoff = 1000, reconnectTimer = null, reloadTimer = null;
   var pendingCancel = null, pendingCancelTimer = null;
 
+  // Pay at table: null until GET /api/payment-terminals answers; [] when the feature is off (404) or no terminal.
+  var TERMINAL_KEY = 'comandera.terminal';
+  var terminals = [], terminalsEnabled = false, selectedTerminalId = '';
+  try { selectedTerminalId = localStorage.getItem(TERMINAL_KEY) || ''; } catch (e) { selectedTerminalId = ''; }
+  var paying = false, payAbort = null, modalLocked = false;
+
   var $ = function (id) { return document.getElementById(id); };
   var tablesEl = $('tables'), itemsEl = $('items'), productsEl = $('products'), categoriesEl = $('categories');
   var modal = $('modal'), sheet = $('sheet'), toastEl = $('toast');
+  var terminalsEl = $('terminals'), terminalPayEl = $('terminal-pay'), btnPayTerminal = $('btnPayTerminal'), btnTerminal = $('btnTerminal');
 
   var ITEM_STATUS = { Pending: 'Pendiente', Confirmed: 'En cocina', Cancelled: 'Anulado' };
 
@@ -205,9 +248,10 @@
     clearTimeout(toastTimer);
     toastTimer = setTimeout(function () { toastEl.className = ''; }, 3200);
   }
-  function api(method, path, body) {
+  function api(method, path, body, signal) {
     var opts = { method: method, headers: { 'Accept': 'application/json' }, cache: 'no-store' };
     if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    if (signal) opts.signal = signal;
     return fetch(path, opts).then(function (res) {
       return res.text().then(function (txt) {
         var data = null;
@@ -224,8 +268,8 @@
   function showError(err) { toast((err && err.message) || 'Error de conexión'); }
 
   // ─── Modal ───────────────────────────────────────────────────────────────
-  function openModal(html) { sheet.innerHTML = html; modal.hidden = false; }
-  function closeModal() { modal.hidden = true; sheet.innerHTML = ''; }
+  function openModal(html, cls) { sheet.className = 'sheet' + (cls ? ' ' + cls : ''); sheet.innerHTML = html; modal.hidden = false; }
+  function closeModal() { if (modalLocked) return; modal.hidden = true; sheet.innerHTML = ''; sheet.className = 'sheet'; }
   modal.addEventListener('click', function (ev) { if (ev.target === modal) closeModal(); });
 
   function askWaiter(forceAsk) {
@@ -243,6 +287,8 @@
       try { localStorage.setItem(WAITER_KEY, waiter); } catch (e) { /* private mode */ }
       renderHeader();
       closeModal();
+      pickDefaultTerminal(true);
+      renderTerminals();
     };
     input.onkeydown = function (ev) { if (ev.key === 'Enter') $('mOk').click(); };
     setTimeout(function () { input.focus(); }, 50);
@@ -324,11 +370,12 @@
     renderHeader();
     reloadCurrent();
   }
-  function goTables() { currentId = null; current = null; pendingCancel = null; show('tables'); }
-  function goComanda(id) { currentId = id; current = null; itemsEl.innerHTML = ''; show('comanda'); }
+  function goTables() { if (paying) return; currentId = null; current = null; pendingCancel = null; show('tables'); }
+  function goComanda(id) { currentId = id; current = null; itemsEl.innerHTML = ''; show('comanda'); loadTerminals(); }
 
-  $('btnBack').onclick = function () { if (screen === 'comanda') goTables(); else askWaiter(true); };
-  $('btnWaiter').onclick = function () { askWaiter(true); };
+  $('btnBack').onclick = function () { if (paying) return; if (screen === 'comanda') goTables(); else askWaiter(true); };
+  $('btnWaiter').onclick = function () { if (paying) return; askWaiter(true); };
+  btnTerminal.onclick = function () { if (paying) return; askTerminal(); };
 
   function renderHeader() {
     $('btnWaiter').textContent = '👤 ' + (waiter || '¿Mesero?');
@@ -352,6 +399,7 @@
       comandas = Array.isArray(r[1]) ? r[1] : [];
       renderTables();
       renderHeader();
+      renderTerminals();
     }).catch(showError);
   }
 
@@ -460,8 +508,10 @@
     renderHeader();
     var open = current.status === 'Open';
     $('banner').hidden = open;
-    $('btnSend').disabled = !open || !(current.pendingCount > 0);
-    $('btnReady').disabled = !open;
+    $('banner').textContent = terminalsEnabled ? '💳 Lista para pagar · cobra en mesa o en el POS' : '💳 Lista para pagar · cobrar en el POS';
+    $('btnSend').disabled = paying || !open || !(current.pendingCount > 0);
+    $('btnReady').disabled = paying || !open;
+    renderTerminals();
     var items = (current.items || []).slice();
     itemsEl.innerHTML = items.map(lineHtml).join('') || '<div class="empty-note">Toca un producto para agregarlo</div>';
     tick();
@@ -546,6 +596,212 @@
       .catch(function (err) { showError(err); scheduleReload(); });
   };
 
+  // ─── Pago en mesa (datáfonos) ────────────────────────────────────────────
+  // GET /api/payment-terminals → 200 [terminal…] when the feature is on; 404 when PaymentTerminalSettings.Enabled
+  // is false (or the desktop has no terminal service): then every control stays hidden and the page works as before.
+  function loadTerminals() {
+    return api('GET', '/api/payment-terminals').then(function (list) {
+      terminals = Array.isArray(list) ? list : [];
+      terminalsEnabled = terminals.length > 0;
+      pickDefaultTerminal(false);
+      renderTerminals();
+    }).catch(function () {
+      terminals = []; terminalsEnabled = false;
+      renderTerminals();
+    });
+  }
+
+  function findTerminal(id) { return terminals.find(function (t) { return t.id === id; }) || null; }
+  function isMine(t) { return !!waiter && !!t.assignedUserName && t.assignedUserName.trim().toLowerCase() === waiter.trim().toLowerCase(); }
+
+  // Preselect: the terminal handed to this waiter, else the one picked last time, else the first.
+  function pickDefaultTerminal(preferMine) {
+    if (!terminals.length) { selectedTerminalId = ''; return; }
+    var mine = terminals.find(isMine);
+    if (mine && (preferMine || !findTerminal(selectedTerminalId))) selectedTerminalId = mine.id;
+    if (!findTerminal(selectedTerminalId)) selectedTerminalId = terminals[0].id;
+    try { localStorage.setItem(TERMINAL_KEY, selectedTerminalId); } catch (e) { /* private mode */ }
+  }
+
+  function termHtml(t, cls) {
+    var ping = t.lastPingOk === true ? 'ok' : t.lastPingOk === false ? 'bad' : '';
+    return '<button class="term' + (t.id === selectedTerminalId ? ' on' : '') + (isMine(t) ? ' mine' : '') + (cls ? ' ' + cls : '') + '" type="button" data-id="' + esc(t.id) + '">' +
+      '<b><span class="ping ' + ping + '"></span>' + esc(t.name) + '</b>' +
+      '<span>' + esc(t.assignmentLabel || '') + (t.providerLabel ? ' · ' + esc(t.providerLabel) : '') + '</span></button>';
+  }
+
+  function renderTerminals() {
+    var sel = findTerminal(selectedTerminalId);
+    btnTerminal.hidden = !terminalsEnabled;
+    btnTerminal.textContent = '📟 ' + (sel ? sel.name : 'Datáfono');
+    var canPay = terminalsEnabled && screen === 'comanda' && !!current &&
+      (current.status === 'Open' || current.status === 'ReadyToPay') && Number(current.total) > 0;
+    terminalPayEl.hidden = !canPay;
+    if (!canPay) return;
+    var html = terminals.map(function (t) { return termHtml(t, ''); }).join('');
+    if (terminalsEl.innerHTML !== html) terminalsEl.innerHTML = html;   // keep the chip row's scroll position on the 5 s refresh
+    btnPayTerminal.disabled = paying || !sel;
+    btnPayTerminal.textContent = '💳 Cobrar en mesa · ' + money(current.total) + (sel ? ' · ' + sel.name : '');
+  }
+
+  terminalsEl.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.term');
+    if (!b || paying) return;
+    selectedTerminalId = b.getAttribute('data-id') || '';
+    try { localStorage.setItem(TERMINAL_KEY, selectedTerminalId); } catch (e) { /* private mode */ }
+    renderTerminals();
+  });
+
+  // "📟 Mi datáfono": pick a terminal and hand it to this waiter (POST assign) so it is preselected next time.
+  function askTerminal() {
+    if (!waiter) { askWaiter(true); return; }
+    var sel = findTerminal(selectedTerminalId);
+    openModal(
+      '<h2>📟 Mi datáfono</h2><p>Toca el datáfono que llevas contigo: queda asignado a <b>' + esc(waiter) + '</b> y se preselecciona al cobrar.</p>' +
+      '<div class="term-list" id="termList">' + terminals.map(function (t) { return termHtml(t, ''); }).join('') + '</div>' +
+      '<div class="sheet-actions"><button class="btn" id="mCancel" type="button">Cerrar</button>' +
+      '<button class="btn danger" id="mRelease" type="button"' + (sel && sel.assignedUserName ? '' : ' disabled') + '>↩ Devolver a caja</button></div>');
+    $('mCancel').onclick = closeModal;
+    $('mRelease').onclick = function () { if (sel) assignTerminal(sel.id, null); };
+    $('termList').onclick = function (ev) {
+      var b = ev.target.closest('.term');
+      if (!b) return;
+      assignTerminal(b.getAttribute('data-id'), waiter);
+    };
+  }
+
+  function assignTerminal(id, userName) {
+    Array.prototype.forEach.call(sheet.querySelectorAll('button'), function (b) { b.disabled = true; });
+    api('POST', '/api/payment-terminals/' + encodeURIComponent(id) + '/assign', { userName: userName })
+      .then(function (t) {
+        closeModal();
+        if (t && t.id) {
+          var i = terminals.findIndex(function (x) { return x.id === t.id; });
+          if (i >= 0) terminals[i] = t; else terminals.push(t);
+          selectedTerminalId = t.id;
+          try { localStorage.setItem(TERMINAL_KEY, selectedTerminalId); } catch (e) { /* private mode */ }
+        }
+        renderTerminals();
+        toast(userName ? '📟 ' + (t && t.name) + ' asignado a ' + userName : '📟 Datáfono devuelto a caja', true);
+      })
+      .catch(function (err) { closeModal(); showError(err); loadTerminals(); });
+  }
+
+  function setPaying(on) {
+    paying = on;
+    modalLocked = on;
+    btnPayTerminal.disabled = on || !findTerminal(selectedTerminalId);
+    $('btnSend').disabled = on || !current || current.status !== 'Open' || !(current.pendingCount > 0);
+    $('btnReady').disabled = on || !current || current.status !== 'Open';
+    $('btnBack').disabled = on;
+    $('btnWaiter').disabled = on;
+    btnTerminal.disabled = on;
+  }
+
+  function chargingModal(terminal, total) {
+    openModal(
+      '<h2>💳 ' + esc(terminal.name) + '</h2>' +
+      '<div class="spinner"></div>' +
+      '<p>Acerque o inserte la tarjeta en <b>' + esc(terminal.name) + '</b>…</p>' +
+      '<p class="amount">' + money(total) + '</p>' +
+      '<p id="payStage">Conectando con el datáfono…</p>' +
+      '<div class="sheet-actions"><button class="btn" id="mAbort" type="button">✕ Cancelar</button></div>', 'center charging');
+    $('mAbort').onclick = function () {
+      $('mAbort').disabled = true;
+      $('payStage').textContent = 'Cancelando…';
+      if (payAbort) payAbort.abort();
+    };
+  }
+
+  function resultModal(cls, title, lines, actions) {
+    openModal(
+      '<p class="result-title">' + esc(title) + '</p>' +
+      lines.map(function (l) { return '<p class="' + (l.cls || '') + '">' + esc(l.text) + '</p>'; }).join('') +
+      '<div class="sheet-actions' + (actions.length === 1 ? ' one' : '') + '">' +
+      actions.map(function (a, i) { return '<button class="btn' + (a.primary ? ' primary' : '') + '" id="mAct' + i + '" type="button">' + esc(a.label) + '</button>'; }).join('') +
+      '</div>', 'center ' + cls);
+    actions.forEach(function (a, i) { $('mAct' + i).onclick = function () { closeModal(); a.run(); }; });
+  }
+
+  // POST /api/comandas/{id}/pay-on-terminal { terminalId, waiterName }. Long request: the server waits for the card.
+  function payOnTerminal() {
+    if (!current || paying) return;
+    var terminal = findTerminal(selectedTerminalId);
+    if (!terminal) { toast('Selecciona un datáfono'); return; }
+    if (!waiter) { askWaiter(true); return; }
+    var comanda = current, total = Number(comanda.total) || 0;
+    if (!(total > 0)) { toast('La comanda no tiene productos'); return; }
+
+    setPaying(true);
+    payAbort = (typeof AbortController === 'function') ? new AbortController() : null;
+    chargingModal(terminal, total);
+    var stage = setTimeout(function () { var el = $('payStage'); if (el && el.textContent.indexOf('Conectando') === 0) el.textContent = 'Esperando la tarjeta…'; }, 2500);
+
+    api('POST', '/api/comandas/' + encodeURIComponent(comanda.id) + '/pay-on-terminal',
+        { terminalId: terminal.id, waiterName: waiter }, payAbort && payAbort.signal)
+      .then(function (r) {
+        clearTimeout(stage);
+        setPaying(false);
+        var charge = (r && r.charge) || {}, payment = r && r.payment;
+        if (r && r.comanda) applyComanda(r.comanda);
+        if (r && r.success) {
+          resultModal('ok', 'APROBADA', [
+            { text: money(charge.amount != null ? charge.amount : total), cls: 'amount' },
+            { text: charge.referenceText || ('AUTH ' + (charge.authorizationCode || '')), cls: 'ref' },
+            { text: (payment && payment.orderNumber ? 'Factura ' + payment.orderNumber + ' · ' : '') + comanda.tableName + ' · Comanda #' + comanda.number }
+          ], [{ label: '✓ Listo', primary: true, run: function () { afterApproved(comanda); } }]);
+          setTimeout(function () { if (!modal.hidden && sheet.classList.contains('ok')) { closeModal(); afterApproved(comanda); } }, 6000);
+          return;
+        }
+        if (charge.isApproved || charge.status === 'Approved') {
+          // Money was taken by the terminal but the comanda could not be closed: the cashier must sort it out.
+          resultModal('warn', 'APROBADA · SIN CERRAR', [
+            { text: money(charge.amount != null ? charge.amount : total), cls: 'amount' },
+            { text: charge.referenceText || '', cls: 'ref' },
+            { text: 'El datáfono aprobó el cobro pero la comanda no se pudo cerrar: ' + ((payment && payment.errorMessage) || 'error en caja') + '. Avise a caja con este comprobante.' }
+          ], [{ label: 'Cerrar', primary: true, run: function () { scheduleReload(); } }]);
+          return;
+        }
+        var label = charge.status === 'Declined' ? 'RECHAZADA' : charge.status === 'Timeout' ? 'SIN RESPUESTA' : charge.status === 'Cancelled' ? 'CANCELADA' : 'ERROR';
+        resultModal('bad', label, [
+          { text: money(total), cls: 'amount' },
+          { text: charge.message || charge.statusLabel || 'El datáfono no aprobó el cobro.' }
+        ], [
+          { label: 'Cerrar', run: function () { scheduleReload(); } },
+          { label: '↻ Reintentar', primary: true, run: function () { scheduleReload(); setTimeout(payOnTerminal, 350); } }
+        ]);
+      })
+      .catch(function (err) {
+        clearTimeout(stage);
+        setPaying(false);
+        if (err && err.name === 'AbortError') { closeModal(); toast('Cobro cancelado'); scheduleReload(); return; }
+        if (err && err.status) {
+          // 404/409/5xx with a business message: "Abra turno en la caja", "El datáfono está ocupado", …
+          resultModal('bad', err.status === 409 ? 'NO SE PUDO COBRAR' : 'ERROR', [
+            { text: money(total), cls: 'amount' },
+            { text: err.message || ('Error ' + err.status) }
+          ], [
+            { label: 'Cerrar', run: function () { scheduleReload(); } },
+            { label: '↻ Reintentar', primary: true, run: function () { scheduleReload(); setTimeout(payOnTerminal, 350); } }
+          ]);
+          return;
+        }
+        // Network error: the charge may or may not have gone through — never retry blindly.
+        resultModal('warn', 'SIN CONEXIÓN', [
+          { text: money(total), cls: 'amount' },
+          { text: 'Se perdió la conexión con el POS mientras se cobraba. Verifique en caja (o en el datáfono) si el cobro se realizó antes de reintentar.' }
+        ], [{ label: 'Cerrar', primary: true, run: function () { scheduleReload(); } }]);
+      })
+      .then(function () { payAbort = null; });
+  }
+
+  function afterApproved(comanda) {
+    toast('✓ ' + comanda.tableName + ' cobrada en mesa', true);
+    goTables();
+  }
+
+  btnPayTerminal.onclick = payOnTerminal;
+
   // ─── Refresh (5 s + WebSocket) ───────────────────────────────────────────
   function reloadCurrent() { return screen === 'comanda' ? loadComanda() : loadTables(); }
   function scheduleReload() { clearTimeout(reloadTimer); reloadTimer = setTimeout(reloadCurrent, 300); }
@@ -602,11 +858,11 @@
   // ─── Boot ────────────────────────────────────────────────────────────────
   setOnline(false);
   renderHeader();
-  syncClock().then(loadSettings).then(loadCatalog).then(loadTables).then(function () { askWaiter(false); });
+  syncClock().then(loadSettings).then(loadCatalog).then(loadTables).then(loadTerminals).then(function () { askWaiter(false); });
   connect(true);
   setInterval(tick, 1000);
   setInterval(function () { reloadCurrent(); }, 5000);
-  setInterval(function () { syncClock(); loadCatalog(); }, 300000);
+  setInterval(function () { syncClock(); loadCatalog(); loadTerminals(); }, 300000);
   setInterval(ping, 25000);
   document.addEventListener('visibilitychange', function () {
     if (document.visibilityState === 'visible') { reloadCurrent(); if (!ws || ws.readyState > 1) connect(true); }

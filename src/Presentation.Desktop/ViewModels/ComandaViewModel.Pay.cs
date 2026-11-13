@@ -14,12 +14,21 @@ namespace Presentation.Desktop.ViewModels;
 public partial class ComandaViewModel
 {
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCash), nameof(IsCard), nameof(IsTransfer))]
+    [NotifyPropertyChangedFor(nameof(IsCash), nameof(IsCard), nameof(IsTransfer), nameof(IsTerminalChargeVisible))]
     private PaymentMethod _payMethod = PaymentMethod.Cash;
 
     public bool IsCash => PayMethod == PaymentMethod.Cash;
     public bool IsCard => PayMethod == PaymentMethod.Card;
     public bool IsTransfer => PayMethod == PaymentMethod.Transfer;
+
+    /// <summary>"💳 Cobrar en datáfono" above "COBRAR Y FACTURAR" (manual path) when Card is selected and terminals are enabled.</summary>
+    public bool IsTerminalChargeVisible => IsCard && _terminalPrompt.IsEnabled;
+
+    /// <summary>A payment is being recorded (terminal dialog open or invoice being written): pay buttons disabled meanwhile.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsPayIdle))]
+    private bool _isPaying;
+    public bool IsPayIdle => !IsPaying;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TenderedText), nameof(ChangeText))]
@@ -107,9 +116,64 @@ public partial class ComandaViewModel
     [RelayCommand]
     private void DismissSale() => LastSale = null;
 
-    /// <summary>Generates the invoice, prints it from the PERSISTED order, opens drawer if cash.</summary>
+    /// <summary>Manual path: generates the invoice, prints it from the PERSISTED order, opens drawer if cash.</summary>
     [RelayCommand]
     private async Task CloseAndPayAsync()
+    {
+        if (IsPaying) return;
+        IsPaying = true;
+        try { await CloseAndPayCoreAsync(null); }
+        finally { IsPaying = false; }
+    }
+
+    /// <summary>
+    /// "💳 Cobrar en datáfono": sends the table's total to the terminal; approved → the comanda is closed with the
+    /// terminal reference. Declined / timeout / cancelled leave it ReadyToPay; "Cobrar manual" continues the manual path.
+    /// </summary>
+    [RelayCommand]
+    private async Task ChargeOnTerminalAsync()
+    {
+        if (IsPaying || Current == null) return;
+        if (!IsCurrentReadyToPay)
+        {
+            StatusMessage = "⚠️ Cierre la comanda antes de cobrar en el datáfono.";
+            return;
+        }
+        if (_shiftId is not { } shiftId)
+        {
+            StatusMessage = "❌ No hay turno de caja abierto. Ábralo en 'Turno de Caja'.";
+            return;
+        }
+        if (PayMethod != PaymentMethod.Card) PayMethod = PaymentMethod.Card;
+
+        IsPaying = true;
+        try
+        {
+            var comanda = Current;
+            var outcome = await _terminalPrompt.RequestAsync(comanda.Total, TerminalPaymentPurpose.Comanda, $"Comanda #{comanda.Number}",
+                comandaId: comanda.Id, cashShiftId: shiftId, description: comanda.TableName);
+
+            if (outcome.IsApproved)
+            {
+                await CloseAndPayCoreAsync(outcome.Charge);
+            }
+            else if (outcome.FallbackToManual)
+            {
+                StatusMessage = string.IsNullOrWhiteSpace(outcome.Message) ? "✍️ Tarjeta registrada manualmente" : $"✍️ Datáfono: {outcome.Message}";
+                await CloseAndPayCoreAsync(null);
+            }
+            else
+            {
+                StatusMessage = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · {comanda.TableName} sigue pendiente de pago";
+            }
+        }
+        finally
+        {
+            IsPaying = false;
+        }
+    }
+
+    private async Task CloseAndPayCoreAsync(TerminalPaymentDto? charge)
     {
         if (Current == null) return;
         if (_shiftId is not { } shiftId)
@@ -121,12 +185,13 @@ public partial class ComandaViewModel
         var comanda = Current;
         var method = PayMethod;
         var tendered = Tendered;
+        var reference = charge is { IsApproved: true } ? charge.ReferenceText : null;
         PaymentResultDto? result = null;
         OrderDto? order = null;
 
         await RunAsync(async svc =>
         {
-            result = await svc.CloseAndPayAsync(comanda.Id, shiftId, method, tendered);
+            result = await svc.CloseAndPayAsync(comanda.Id, shiftId, method, tendered, reference, charge?.Id);
             if (!result.Success) return;
             using var scope = _scopes.CreateScope();
             order = await scope.ServiceProvider.GetRequiredService<ISalesService>().GetByIdAsync(result.OrderId);
@@ -135,14 +200,18 @@ public partial class ComandaViewModel
         if (result == null) return; // RunAsync already reported the exception
         if (!result.Success)
         {
-            StatusMessage = $"❌ {result.ErrorMessage}";
+            StatusMessage = reference is null
+                ? $"❌ {result.ErrorMessage}"
+                : $"❌ {result.ErrorMessage} · el datáfono SÍ aprobó {reference}: registre la venta manualmente";
             return;
         }
 
         ClearCurrent();
         _display.NotifySaleCompleted(result.OrderNumber, comanda.Total, result.ChangeAmount); // after ClearCurrent: "Completed" wins
         await RefreshListOnlyAsync();
-        StatusMessage = $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · Cambio {ReceiptFormatter.Cop(result.ChangeAmount)}";
+        StatusMessage = reference is null
+            ? $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · Cambio {ReceiptFormatter.Cop(result.ChangeAmount)}"
+            : $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · {reference}";
         LastSale = new SaleSummaryViewModel(result.OrderNumber, comanda.Total,
             method == PaymentMethod.Cash ? tendered : comanda.Total, result.ChangeAmount, method, comanda.TableName, DismissSale);
 
@@ -150,6 +219,7 @@ public partial class ComandaViewModel
         if (order != null)
         {
             var receipt = ReceiptDtoFactory.FromOrder(order, CashierName, comanda.TableName, method, tendered, result.ChangeAmount);
+            CheckoutViewModel.ApplyTerminalCharge(receipt, charge, _terminalSettings.PrintVoucher);
             if (!await _printer.PrintReceiptAsync(receipt))
                 StatusMessage += " · ⚠️ impresora no disponible (TXT de respaldo)";
         }

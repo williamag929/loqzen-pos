@@ -95,6 +95,7 @@
                                 <TextBlock Classes="cardLabel" Text="🛒 Ventas"/>
                                 <TextBlock Text="{Binding SalesText}" Foreground="White" FontSize="30" FontWeight="Black"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding SalesDetailText}"/>
+                                <TextBlock Classes="cardDetail" Text="{Binding TerminalCardDetailText}" IsVisible="{Binding HasTerminalCharges}"/>
                             </StackPanel>
                         </Border>
                         <Border Classes="card">

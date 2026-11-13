@@ -303,6 +303,7 @@ public class SyncInboxService : ISyncInboxService
                 TenderedAmount = x.TenderedAmount,
                 ChangeAmount = x.ChangeAmount,
                 Reference = x.Reference,
+                TerminalPaymentId = x.TerminalPaymentId,
                 ProcessedAt = Utc(x.ProcessedAt) ?? completedAt,
                 CreatedAt = Utc(x.ProcessedAt) ?? completedAt
             });
@@ -448,6 +449,8 @@ public class SyncInboxService : ISyncInboxService
         b.Method = p.Method ?? PaymentMethod.Cash;
         b.TenderedAmount = p.TenderedAmount;
         b.ChangeAmount = p.ChangeAmount;
+        b.PaymentReference = string.IsNullOrWhiteSpace(p.PaymentReference) ? null : Truncate(p.PaymentReference, 200);
+        b.TerminalPaymentId = p.TerminalPaymentId;
         b.Status = p.Status ?? (envelope.EventType == SyncEventTypes.BillPaymentVoided ? BillPaymentStatus.Voided : BillPaymentStatus.Completed);
         b.UserId = p.UserId;
         b.UserName = Truncate(p.UserName ?? string.Empty, 100);
@@ -571,6 +574,7 @@ public class SyncInboxService : ISyncInboxService
         public decimal TenderedAmount { get; set; }
         public decimal ChangeAmount { get; set; }
         public string? Reference { get; set; }
+        public Guid? TerminalPaymentId { get; set; }
         public DateTime? ProcessedAt { get; set; }
     }
 
@@ -634,6 +638,8 @@ public class SyncInboxService : ISyncInboxService
         public PaymentMethod? Method { get; set; }
         public decimal TenderedAmount { get; set; }
         public decimal ChangeAmount { get; set; }
+        public string? PaymentReference { get; set; }
+        public Guid? TerminalPaymentId { get; set; }
         public string? ReceiptNumber { get; set; }
         public BillPaymentStatus? Status { get; set; }
         public Guid? UserId { get; set; }

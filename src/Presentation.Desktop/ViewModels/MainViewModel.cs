@@ -33,6 +33,8 @@ public partial class MainViewModel : ObservableObject
     public UserSession Session { get; }
     public LoginViewModel Login { get; }
     public ManagerAuthPromptViewModel AuthPrompt { get; }
+    /// <summary>"Cobrar en datáfono" modal shared by Checkout / Comandas / Recaudos (hosted above every view).</summary>
+    public TerminalChargePromptViewModel TerminalCharge { get; }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsCheckoutActive))]
@@ -119,6 +121,7 @@ public partial class MainViewModel : ObservableObject
         UserSession session,
         LoginViewModel login,
         ManagerAuthPromptViewModel authPrompt,
+        TerminalChargePromptViewModel terminalCharge,
         AuthorizationSettings authSettings,
         ServerSettings serverSettings,
         LoqzenServer server,
@@ -140,6 +143,7 @@ public partial class MainViewModel : ObservableObject
         Session = session;
         Login = login;
         AuthPrompt = authPrompt;
+        TerminalCharge = terminalCharge;
         _authSettings = authSettings;
         _serverSettings = serverSettings;
         _server = server;

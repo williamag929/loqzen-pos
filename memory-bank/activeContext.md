@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 620 tests pass (`dotnet test`) — 2026-11-13 (madrugada, segunda caja).
+- ✅ 814 tests pass (`dotnet test`) — 2026-11-13 (mañana, datáfono).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -225,6 +225,15 @@
 - Tests: `Services/{TerminalService,CashShiftTerminalScoping,DayConsolidation}Tests`, `Sync/{CatalogSyncService,CatalogSyncSqlite,SyncInboxService}Tests`, `Outbox/HttpOutboxSinkTerminalTests`, `Server/{Terminal,CatalogSnapshot,SyncInbox,DayReport}EndpointTests`, `Server/MasterSatelliteRoundTripTests`; fixtures `SqliteDb`, `TestClock(TimeZoneInfo)`.
 - Known gaps: comandas/KDS not shared across registers; customers/ManagerOverrides not replicated; no mDNS; `CatalogApplyResult.Updated` counts unchanged rows; SalesService still uses DateTime.UtcNow.
 
+### Payment terminal (datáfono) + pay at table (2026-11-13 mañana; verified: 814 tests, app run with seeded Mock terminal, API checked)
+- Domain `PaymentTerminals.cs` (PaymentTerminal, TerminalPayment), enums PaymentTerminalProvider/TerminalPaymentStatus/TerminalPaymentPurpose; `Payment.TerminalPaymentId`, `BillPayment.PaymentReference/TerminalPaymentId`; migration `PaymentTerminals`; seed "Datáfono simulado".
+- Application: `Hardware/PaymentTerminalDriver.cs` (IPaymentTerminalDriver, IPaymentTerminalDriverFactory, TerminalChargeRequest/Result/Progress), `DTOs/PaymentTerminalDto.cs` (PaymentTerminalSettings section `PaymentTerminals`, ChargeOnTerminalRequest, TerminalPaymentDto.ReferenceText), `Services/IPaymentTerminalService.cs`; overloads `ISalesService.ProcessPaymentAsync(..., reference, terminalPaymentId)`, `IComandaService.CloseAndPayAsync(..., reference, terminalPaymentId)`, `BillPaymentRequest.PaymentReference`; `ReceiptDto.PaymentReference/VoucherLines` printed by ReceiptFormatter; Z "por datafono".
+- Hardware: `PaymentTerminals/{Mock,JsonTcp}PaymentTerminalDriver.cs`, `PaymentTerminalDriverFactory`; `docker/emulator/payterminal` (TCP 9102, JSON lines: charge/progress/result/cancel/ping).
+- Data: `Services/PaymentTerminalService.cs` (Pending row before driver call, linked timeout CTS, Cancelled→Timeout mapping when the timeout fired, busy/stale rules, PayComandaOnTerminalAsync), reconciliation TerminalCardTotal.
+- Server: `Endpoints/PaymentTerminalEndpoints.cs` (+ synthetic KitchenEvent so the desktop comanda list refreshes), comandera.html pay-at-table UI.
+- Desktop: `Services/ITerminalChargePrompt.cs`, `TerminalChargePromptViewModel` + `Views/TerminalChargeDialog.axaml` (singleton modal, TCS pattern), `CheckoutViewModel` split into EnsureOrder/Pay (reuses Draft on retry), Comanda/BillPayments ChargeOnTerminalCommand, `MastersViewModel.PaymentTerminals.cs` (💳 Datáfonos tab), Caja "Tarjeta por datáfono".
+- Known gaps: no real provider drivers; orphan Draft orders after a declined charge + cart change; comanda-level event missing in IKitchenEventBus (synthetic Created used); satellites cannot register terminals (Maestros hidden).
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
@@ -234,6 +243,7 @@
 6. ~~Customer display for comandas~~ ✅ 2026-11-13.
 7. ~~Cash close of reference + bill payments~~ ✅ 2026-11-13.
 8. ~~Second cash register (master/satellite)~~ ✅ 2026-11-13.
-9. Payment terminal / pay-at-table (`IPaymentTerminalService`), or second register part 2 (shared comandas/KDS, mDNS).
+9. ~~Payment terminal / pay-at-table~~ ✅ 2026-11-13.
+10. Real provider driver (Redeban/Credibanco, Bold or Mercado Pago Point) or second register part 2 (shared comandas/KDS, mDNS).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

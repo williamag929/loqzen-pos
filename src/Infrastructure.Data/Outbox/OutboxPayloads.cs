@@ -59,7 +59,8 @@ internal static class OutboxPayloads
                 payments = order.Payments.Select(p => new
                 {
                     id = p.Id, method = p.Method, amount = p.Amount, tenderedAmount = p.TenderedAmount,
-                    changeAmount = p.ChangeAmount, reference = p.Reference, processedAt = p.ProcessedAt
+                    changeAmount = p.ChangeAmount, reference = p.Reference, terminalPaymentId = p.TerminalPaymentId,
+                    processedAt = p.ProcessedAt
                 }).ToList()
             },
             // legacy flat keys
@@ -101,12 +102,13 @@ internal static class OutboxPayloads
                 billerId = p.BillerId, billerName = p.BillerName, accountReference = p.AccountReference,
                 customerName = p.CustomerName, amount = p.Amount, commission = p.Commission, method = p.Method,
                 tenderedAmount = p.TenderedAmount, changeAmount = p.ChangeAmount, receiptNumber = p.ReceiptNumber,
+                paymentReference = p.PaymentReference, terminalPaymentId = p.TerminalPaymentId,
                 status = p.Status, userId = p.UserId, userName = p.UserName, paidAt = p.PaidAt,
                 voidedAt = p.VoidedAt, voidOverrideId = p.VoidOverrideId, voidReason = p.VoidReason
             },
             billPaymentId = p.Id, receiptNumber = p.ReceiptNumber, shiftId = p.CashShiftId, billerId = p.BillerId,
             billerName = p.BillerName, accountReference = p.AccountReference, amount = p.Amount,
-            commission = p.Commission, total = p.Total, method = p.Method.ToString(), userName = p.UserName,
+            commission = p.Commission, total = p.Total, method = p.Method.ToString(), paymentReference = p.PaymentReference, userName = p.UserName,
             paidAt = p.PaidAt, voidedAt = p.VoidedAt, reason = p.VoidReason, managerOverrideId = p.VoidOverrideId
         };
         if (extra == null) return Serialize(body);

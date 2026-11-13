@@ -56,6 +56,9 @@ public class Payment : BaseEntity
     public decimal Amount { get; set; }
     public decimal TenderedAmount { get; set; }
     public decimal ChangeAmount { get; set; }
+    /// <summary>Free text for card/transfer ("AUTH 123456 · VISA ****4242", transfer id). Printed on the receipt.</summary>
     public string? Reference { get; set; }
+    /// <summary>Set when the card was charged through a terminal (datáfono) from the POS.</summary>
+    public Guid? TerminalPaymentId { get; set; }
     public DateTime ProcessedAt { get; set; } = DateTime.UtcNow;
 }

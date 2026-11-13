@@ -145,6 +145,7 @@
     </Grid>
 
     <!-- ── OVERLAYS (after the view host so they render on top; IsVisible on the wrapper) ── -->
+    <Panel IsVisible="{Binding TerminalCharge.IsOpen}"><views:TerminalChargeDialog DataContext="{Binding TerminalCharge}"/></Panel>
     <Panel IsVisible="{Binding AuthPrompt.IsOpen}"><views:ManagerAuthDialog DataContext="{Binding AuthPrompt}"/></Panel>
     <Panel IsVisible="{Binding IsLoginVisible}"><views:LoginView DataContext="{Binding Login}"/></Panel>
     </Panel>

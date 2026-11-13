@@ -115,3 +115,37 @@ public enum SyncInboxOutcome
     /// <summary>Payload invalid or business rule violated; the sender keeps retrying unless it fixes the message.</summary>
     Rejected = 3
 }
+
+/// <summary>Which driver talks to a payment terminal (datáfono). New providers are added here + one IPaymentTerminalDriver.</summary>
+public enum PaymentTerminalProvider
+{
+    /// <summary>In-process simulator: approves after a short delay; amounts ending in 99 are declined, 98 time out.</summary>
+    Mock = 0,
+    /// <summary>Generic JSON-lines over TCP (the Docker emulator speaks it; a real integration can be adapted to it).</summary>
+    JsonTcp = 1,
+    Redeban = 10,
+    Credibanco = 11,
+    Bold = 12,
+    MercadoPagoPoint = 13
+}
+
+/// <summary>Outcome of one charge sent to a terminal.</summary>
+public enum TerminalPaymentStatus
+{
+    Pending = 0,
+    Approved = 1,
+    Declined = 2,
+    /// <summary>Cancelled from the POS (cashier pressed "Cancelar") before the terminal answered.</summary>
+    Cancelled = 3,
+    Timeout = 4,
+    /// <summary>Transport / protocol error: the terminal may or may not have charged — review on the terminal.</summary>
+    Error = 5
+}
+
+/// <summary>What a terminal charge pays for.</summary>
+public enum TerminalPaymentPurpose
+{
+    Sale = 0,
+    Comanda = 1,
+    BillPayment = 2
+}

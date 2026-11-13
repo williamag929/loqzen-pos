@@ -3,6 +3,7 @@ using System.Text.Json;
 using System.Text.Json.Nodes;
 using System.Text.Json.Serialization;
 using Core.Application.DTOs;
+using Core.Application.Hardware;
 using Core.Application.Kitchen;
 using Core.Application.Services;
 using Core.Application.Sync;
@@ -12,6 +13,7 @@ using Infrastructure.Data.Outbox;
 using Infrastructure.Data.Seed;
 using Infrastructure.Data.Services;
 using Infrastructure.Data.Sync;
+using Infrastructure.Hardware.PaymentTerminals;
 using Loqzen.Tests.Fixtures;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -43,6 +45,12 @@ public sealed class ServerFixture : IAsyncLifetime
     public ComandaSettings ComandaSettings { get; } = new() { ConfirmationDelaySeconds = 30 };
     public CashShiftSettings CashShiftSettings { get; } = new();
     public TerminalSettings TerminalSettings { get; }
+    /// <summary>Datáfonos: Enabled, a 5 s charge timeout and an instant Mock driver unless the test passes its own.</summary>
+    public PaymentTerminalSettings PaymentTerminalSettings { get; }
+    /// <summary>The real Mock driver, wrapped so tests can wait until a charge reached it / left it (see <see cref="DriverProbe"/>).</summary>
+    public DriverProbe MockDriver { get; }
+    /// <summary>The real JSON-TCP driver (Docker emulator protocol), wrapped like <see cref="MockDriver"/>.</summary>
+    public DriverProbe JsonTcpDriver { get; }
     public TerminalContext Terminal { get; } = new();
 
     public ServiceProvider ServiceProvider { get; private set; } = null!;
@@ -56,9 +64,13 @@ public sealed class ServerFixture : IAsyncLifetime
     public static readonly JsonSerializerOptions Json = CreateJson();
 
     /// <param name="apiKey">When set, the master requires <c>Authorization: Bearer &lt;apiKey&gt;</c> on the terminal routes.</param>
-    public ServerFixture(string? apiKey = null)
+    /// <param name="paymentTerminals">Datáfono settings; defaults to Enabled, ChargeTimeoutSeconds = 5, MockDelaySeconds = 0.</param>
+    public ServerFixture(string? apiKey = null, PaymentTerminalSettings? paymentTerminals = null)
     {
         TerminalSettings = new TerminalSettings { Code = MasterCode, Name = MasterName, Mode = TerminalKind.Master, ApiKey = apiKey };
+        PaymentTerminalSettings = paymentTerminals ?? new PaymentTerminalSettings { Enabled = true, ChargeTimeoutSeconds = 5, MockDelaySeconds = 0 };
+        MockDriver = new DriverProbe(new MockPaymentTerminalDriver(PaymentTerminalSettings, Clock));
+        JsonTcpDriver = new DriverProbe(new JsonTcpPaymentTerminalDriver(PaymentTerminalSettings));
     }
 
     public async Task InitializeAsync()
@@ -72,10 +84,16 @@ public sealed class ServerFixture : IAsyncLifetime
         services.AddSingleton(ComandaSettings);
         services.AddSingleton(CashShiftSettings);
         services.AddSingleton(TerminalSettings);
+        services.AddSingleton(PaymentTerminalSettings);
         services.AddSingleton(Terminal);
         services.AddSingleton<ITerminalContext>(Terminal);
         services.AddSingleton<IKitchenEventBus>(Bus);
         services.AddDbContext<PosDbContext>(o => o.UseSqlite(_connection));
+        // Datáfonos, registered like ServiceCollectionExtensions does: both drivers + factory as singletons, service scoped.
+        services.AddSingleton<IPaymentTerminalDriver>(MockDriver);
+        services.AddSingleton<IPaymentTerminalDriver>(JsonTcpDriver);
+        services.AddSingleton<IPaymentTerminalDriverFactory, PaymentTerminalDriverFactory>();
+        services.AddScoped<IPaymentTerminalService, PaymentTerminalService>();
         services.AddScoped<IKitchenService, KitchenService>();
         services.AddScoped<IComandaService, ComandaService>();
         services.AddScoped<IProductService, ProductService>();
@@ -134,6 +152,12 @@ public sealed class ServerFixture : IAsyncLifetime
         return await work(scope.ServiceProvider.GetRequiredService<TService>());
     }
 
+    public async Task WithServiceAsync<TService>(Func<TService, Task> work) where TService : notnull
+    {
+        using var scope = ServiceProvider.CreateScope();
+        await work(scope.ServiceProvider.GetRequiredService<TService>());
+    }
+
     public async Task<JsonNode> ReadJsonAsync(HttpResponseMessage response)
     {
         var text = await response.Content.ReadAsStringAsync();
@@ -179,6 +203,30 @@ public sealed class ServerFixture : IAsyncLifetime
     }
 
     /// <summary>
+    /// Polls the database until <paramref name="condition"/> holds (real-time deadline). For observing a request that is
+    /// still in flight (a charge waiting on the terminal). The fixture shares ONE SQLite connection between every
+    /// DbContext, so a poll that lands while the request is executing a statement can fail with SQLITE_BUSY
+    /// ("database is locked") when EF initialises the new context — that is treated as "not yet" and retried.
+    /// </summary>
+    public async Task<bool> WaitForDbAsync(Func<PosDbContext, Task<bool>> condition, TimeSpan timeout)
+    {
+        var deadline = DateTime.UtcNow + timeout;
+        while (true)
+        {
+            try
+            {
+                if (await WithDbAsync(condition)) return true;
+            }
+            catch (SqliteException)
+            {
+                // Collided with the in-flight request on the shared connection; retry.
+            }
+            if (DateTime.UtcNow >= deadline) return false;
+            await Task.Delay(50);
+        }
+    }
+
+    /// <summary>
     /// Builds a SATELLITE register container pointing at this master: its own SQLite ":memory:" (migrated; seeded
     /// with the demo data like the desktop does when <paramref name="seedDemoData"/> is true), the SAME TestClock,
     /// <see cref="TerminalSettings"/> in Satellite mode with MasterUrl = this BaseUrl, <see cref="SyncSettings"/> aimed at
@@ -193,6 +241,50 @@ public sealed class ServerFixture : IAsyncLifetime
         o.Converters.Add(new JsonStringEnumConverter());
         return o;
     }
+}
+
+/// <summary>
+/// Pass-through <see cref="IPaymentTerminalDriver"/> that counts charges and lets a test await the moment a charge
+/// ENTERED the device driver (by then <c>PaymentTerminalService.ChargeAsync</c> has committed the Pending audit row
+/// and will not touch the DbContext until the driver returns) and the moment it LEFT it. The wrapped driver is the real
+/// one; nothing about the outcome is altered.
+/// </summary>
+public sealed class DriverProbe : IPaymentTerminalDriver
+{
+    private readonly IPaymentTerminalDriver _inner;
+    private readonly SemaphoreSlim _started = new(0);
+    private readonly SemaphoreSlim _finished = new(0);
+    private int _chargesStarted;
+    private int _chargesFinished;
+
+    public DriverProbe(IPaymentTerminalDriver inner) => _inner = inner;
+
+    public PaymentTerminalProvider Provider => _inner.Provider;
+    public int ChargesStarted => Volatile.Read(ref _chargesStarted);
+    public int ChargesFinished => Volatile.Read(ref _chargesFinished);
+
+    public async Task<TerminalChargeResult> ChargeAsync(TerminalChargeRequest request, IProgress<TerminalChargeProgress>? progress, CancellationToken ct)
+    {
+        Interlocked.Increment(ref _chargesStarted);
+        _started.Release();
+        try
+        {
+            return await _inner.ChargeAsync(request, progress, ct).ConfigureAwait(false);
+        }
+        finally
+        {
+            Interlocked.Increment(ref _chargesFinished);
+            _finished.Release();
+        }
+    }
+
+    public Task<bool> PingAsync(string? address, CancellationToken ct = default) => _inner.PingAsync(address, ct);
+
+    /// <summary>Waits (real time) for the next charge to reach the driver. Each call consumes one start.</summary>
+    public Task<bool> WaitForChargeStartAsync(TimeSpan timeout) => _started.WaitAsync(timeout);
+
+    /// <summary>Waits (real time) for the next charge to leave the driver. Each call consumes one end.</summary>
+    public Task<bool> WaitForChargeEndAsync(TimeSpan timeout) => _finished.WaitAsync(timeout);
 }
 
 /// <summary>

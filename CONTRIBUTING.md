@@ -59,6 +59,7 @@ Luego lee, en este orden:
 | `IManagerAuthorizationService` | PIN de gerente → registra `ManagerOverride` (auditoría); `RequiresAuthorization` lee `Authorization:ManagerRequiredFor` |
 | `IProductService`, `ICategoryService`, `ITaxService`, `ICustomerService` | Maestros |
 | `ITerminalService`, `ITerminalContext` | Identidad de esta caja (`Terminal:Code`); el contexto se llena una vez al arrancar y los servicios filtran turnos por caja cuando está puesto |
+| `IPaymentTerminalService` | Datáfonos: registro, asignación a mesero, cobro con auditoría (`TerminalPayments`), pago en mesa. Drivers por proveedor en `Infrastructure.Hardware/PaymentTerminals` (`IPaymentTerminalDriver`, simulado + JSON/TCP) |
 | `ICatalogSyncService`, `ISyncInboxService`, `IMasterApiClient` | Segunda caja: snapshot del catálogo (principal → satélite), inbox idempotente de sobres del Outbox (satélite → principal), cliente HTTP de la satélite |
 
 ---
@@ -116,6 +117,7 @@ Luego lee, en este orden:
 | `DataTemplate` con 2 hijos no compila (AVLN3000) | Un template solo admite un hijo | Envuelve en `<Panel>` |
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
 | La satélite nunca aplica el catálogo ("error al guardar") | La base nueva ya traía el catálogo de ejemplo con **otros Guid** pero el mismo SKU/nombre; el snapshot de la principal chocaba con el índice único | `CatalogSyncService` empareja por id y, si no, por clave natural: borra la fila local si nadie la referencia o la desactiva y renombra. Pruébalo siempre con dos bases reales (`XDG_DATA_HOME` distintos) |
+| `kill $(cat pid)` no mata la instancia de prueba | Con `nohup ./app &` el `$!` es el envoltorio; el proceso real es otro pid | Busca por entorno: `pgrep -f Presentation.Desktop` + `/proc/<pid>/environ` con `XDG_DATA_HOME=/tmp/...` |
 | En la principal aparece "turno abierto" de otra caja | La base de la principal también guarda los turnos replicados de las satélites | Toda consulta de "turno actual" filtra por `ITerminalContext` (`TerminalId == mío`, o `null` para filas antiguas) |
 
 ---
@@ -186,4 +188,5 @@ Reglas:
 
 ¿Dudas de arquitectura? Revisa `memory-bank/systemPatterns.md` y `memory-bank/projectbrief.md` (reglas invariables).
 6. Autorización: `UserService` no valida `CanAssignRole` (solo la UI); el requester queda vacío si el llamador no lo pasa en el flujo por PIN.
-7. Segunda caja, parte 2: comandas/KDS compartidos entre cajas (hoy solo en la principal); replicar clientes y `ManagerOverrides` de la satélite; mDNS para no escribir la IP; en la satélite el `CashMovement` de un recaudo en efectivo no viaja (el esperado de la principal sale del `BillPayment`, así que cuadra igual).
+7. Datáfono: drivers de proveedores reales (hoy simulado y JSON/TCP); los borradores de venta que quedan si el datáfono rechaza y luego se cambia el carrito no se limpian (no hay `ISalesService.Cancel`); el evento "comanda cerrada" hacia el escritorio es sintético (`KitchenEvent Created` vacío) — falta un evento de comanda en `IKitchenEventBus`.
+8. Segunda caja, parte 2: comandas/KDS compartidos entre cajas (hoy solo en la principal); replicar clientes y `ManagerOverrides` de la satélite; mDNS para no escribir la IP; en la satélite el `CashMovement` de un recaudo en efectivo no viaja (el esperado de la principal sale del `BillPayment`, así que cuadra igual).

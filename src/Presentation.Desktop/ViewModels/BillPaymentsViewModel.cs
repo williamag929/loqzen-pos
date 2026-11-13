@@ -31,6 +31,7 @@ public partial class BillPaymentsViewModel : ObservableObject
     private readonly IPrinterService _printer;
     private readonly ICashDrawerService _cashDrawer;
     private readonly IBarcodeScannerService _scanner;
+    private readonly ITerminalChargePrompt _terminalPrompt;
     private bool _isActive;
 
     public ObservableCollection<BillerTileViewModel> Billers { get; } = new();
@@ -77,11 +78,14 @@ public partial class BillPaymentsViewModel : ObservableObject
     private string _tenderedStr = "0";
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsCash), nameof(IsCard), nameof(IsTransfer), nameof(CanCharge), nameof(ChargeHint), nameof(Change), nameof(ChangeText))]
+    [NotifyPropertyChangedFor(nameof(IsCash), nameof(IsCard), nameof(IsTransfer), nameof(CanCharge), nameof(ChargeHint), nameof(Change), nameof(ChangeText), nameof(IsTerminalChargeVisible))]
     private PaymentMethod _method = PaymentMethod.Cash;
     public bool IsCash => Method == PaymentMethod.Cash;
     public bool IsCard => Method == PaymentMethod.Card;
     public bool IsTransfer => Method == PaymentMethod.Transfer;
+
+    /// <summary>"💳 Cobrar en datáfono" above "Cobrar recaudo" (manual path) when Card is selected and terminals are enabled.</summary>
+    public bool IsTerminalChargeVisible => IsCard && _terminalPrompt.IsEnabled;
 
     /// <summary>Which figure the numpad edits: the bill amount or (cash) the tendered money.</summary>
     [ObservableProperty]
@@ -131,8 +135,9 @@ public partial class BillPaymentsViewModel : ObservableObject
     partial void OnVoidTargetChanged(BillPaymentRowViewModel? value) => OnPropertyChanged(nameof(VoidTitle));
 
     public BillPaymentsViewModel(IServiceScopeFactory scopes, IUserSession session, IManagerAuthPrompt authPrompt,
-        IPrinterService printer, ICashDrawerService cashDrawer, IBarcodeScannerService scanner)
+        IPrinterService printer, ICashDrawerService cashDrawer, IBarcodeScannerService scanner, ITerminalChargePrompt terminalPrompt)
     {
+        _terminalPrompt = terminalPrompt;
         _scopes = scopes;
         _session = session;
         _authPrompt = authPrompt;
@@ -276,17 +281,63 @@ public partial class BillPaymentsViewModel : ObservableObject
     }
 
     // ── Charge ───────────────────────────────────────────────────────────────
+    /// <summary>Manual path (cash / card typed by hand / transfer).</summary>
     [RelayCommand]
     public async Task ChargeAsync()
     {
         if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = $"⚠️ {ChargeHint}"; return; }
         IsBusy = true;
+        try { await ChargeCoreAsync(null); }
+        finally { IsBusy = false; }
+    }
+
+    /// <summary>
+    /// "💳 Cobrar en datáfono": the total (bill + commission) goes to the terminal; approved → the recaudo is recorded
+    /// with the terminal reference. Declined / timeout / cancelled keep the form; "Cobrar manual" continues the manual path.
+    /// </summary>
+    [RelayCommand]
+    public async Task ChargeOnTerminalAsync()
+    {
+        if (Method != PaymentMethod.Card) Method = PaymentMethod.Card;
+        if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = $"⚠️ {ChargeHint}"; return; }
+        IsBusy = true;
+        try
+        {
+            var biller = SelectedBiller;
+            var outcome = await _terminalPrompt.RequestAsync(Total, TerminalPaymentPurpose.BillPayment, Reference.Trim(),
+                description: $"Recaudo {biller.Name}");
+
+            if (outcome.IsApproved)
+            {
+                await ChargeCoreAsync(outcome.Charge);
+            }
+            else if (outcome.FallbackToManual)
+            {
+                Notification = string.IsNullOrWhiteSpace(outcome.Message) ? "✍️ Tarjeta registrada manualmente" : $"✍️ Datáfono: {outcome.Message}";
+                await ChargeCoreAsync(null);
+            }
+            else
+            {
+                Notification = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · el recaudo no se registró";
+            }
+        }
+        finally
+        {
+            IsBusy = false;
+        }
+    }
+
+    private async Task ChargeCoreAsync(TerminalPaymentDto? charge)
+    {
+        if (SelectedBiller == null) return;
         try
         {
             var user = _session.CurrentUser;
             var tendered = IsCash ? Tendered : Total;
+            var reference = charge is { IsApproved: true } ? charge.ReferenceText : null;
             var request = new BillPaymentRequest(SelectedBiller.Dto.Id, Reference.Trim(), Amount, Method, tendered,
-                user?.Id, user?.Name ?? "Cajero", string.IsNullOrWhiteSpace(CustomerName) ? null : CustomerName.Trim());
+                user?.Id, user?.Name ?? "Cajero", string.IsNullOrWhiteSpace(CustomerName) ? null : CustomerName.Trim(),
+                reference, charge?.Id);
 
             BillPaymentDto paid;
             using (var scope = _scopes.CreateScope())
@@ -301,17 +352,17 @@ public partial class BillPaymentsViewModel : ObservableObject
             LastPayment = new SaleSummaryViewModel(paid.ReceiptNumber, paid.Total, paid.TenderedAmount, paid.ChangeAmount,
                 paid.Method, null, () => LastPayment = null, title: $"✅ Recaudo {paid.ReceiptNumber} · {paid.BillerName}",
                 dismissLabel: "🧾 Nuevo recaudo");
-            Notification = $"✅ Recaudo {paid.ReceiptNumber} registrado · {ReceiptFormatter.Cop(paid.Total)}";
+            Notification = reference is null
+                ? $"✅ Recaudo {paid.ReceiptNumber} registrado · {ReceiptFormatter.Cop(paid.Total)}"
+                : $"✅ Recaudo {paid.ReceiptNumber} registrado · {reference}";
             ResetForm();
             await LoadPaymentsAsync();
         }
         catch (Exception ex)
         {
-            Notification = $"❌ {ex.Message}";
-        }
-        finally
-        {
-            IsBusy = false;
+            Notification = charge is { IsApproved: true }
+                ? $"❌ {ex.Message} · el datáfono SÍ aprobó {charge.ReferenceText}: registre el recaudo manualmente"
+                : $"❌ {ex.Message}";
         }
     }
 

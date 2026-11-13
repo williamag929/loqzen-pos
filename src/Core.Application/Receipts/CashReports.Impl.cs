@@ -25,6 +25,8 @@ public static partial class CashReports
         b.Section("VENTAS");
         b.Cols("Efectivo:", Cop(r.CashSales));
         b.Cols("Tarjeta:", Cop(r.CardSales));
+        if (r.TerminalCardTotal > 0)
+            b.Cols("  por datafono:", $"{Cop(r.TerminalCardTotal)} ({r.TerminalChargeCount.ToString(CultureInfo.InvariantCulture)})");
         b.Cols("Transferencia:", Cop(r.TransferSales));
         if (r.OtherSales != 0) b.Cols("Otros:", Cop(r.OtherSales));
         b.Thin();
@@ -120,6 +122,8 @@ public static partial class CashReports
         b.Large("TOTAL:", Cop(p.Total));
         b.Sep();
         b.Text($"Medio: {MethodName(p.Method)}");
+        if (!string.IsNullOrWhiteSpace(p.PaymentReference))
+            b.Text($"Ref: {ReceiptFormatter.Reference(p.PaymentReference)}");
         if (p.Method == PaymentMethod.Cash)
         {
             b.Cols("Recibido:", Cop(p.TenderedAmount));

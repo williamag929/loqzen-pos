@@ -42,7 +42,8 @@ public partial class CashShiftViewModel : ObservableObject
     // ── Live dashboard (from GetReconciliationAsync) ────────────────────────
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(ExpectedCashText), nameof(SalesText), nameof(SalesDetailText), nameof(BillPaymentsText),
-        nameof(BillPaymentsDetailText), nameof(MovementsText), nameof(MovementsDetailText), nameof(OpeningText))]
+        nameof(BillPaymentsDetailText), nameof(MovementsText), nameof(MovementsDetailText), nameof(OpeningText),
+        nameof(TerminalCardDetailText), nameof(HasTerminalCharges))]
     private ShiftReconciliationDto? _reconciliation;
 
     public ObservableCollection<CashMovementRowViewModel> Movements { get; } = new();
@@ -58,6 +59,11 @@ public partial class CashShiftViewModel : ObservableObject
     public string SalesText => Reconciliation is { } r ? ReceiptFormatter.Cop(r.TotalSales) : "—";
     public string SalesDetailText => Reconciliation is { } r
         ? $"{r.OrderCount} facturas · Efectivo {ReceiptFormatter.Cop(r.CashSales)} · Tarjeta {ReceiptFormatter.Cop(r.CardSales)} · Transf. {ReceiptFormatter.Cop(r.TransferSales)}"
+        : string.Empty;
+    /// <summary>"Tarjeta por datáfono: $x (n)" — approved terminal charges of the shift (subset of card sales).</summary>
+    public bool HasTerminalCharges => (Reconciliation?.TerminalChargeCount ?? 0) > 0;
+    public string TerminalCardDetailText => Reconciliation is { } r && r.TerminalChargeCount > 0
+        ? $"💳 Tarjeta por datáfono: {ReceiptFormatter.Cop(r.TerminalCardTotal)} ({r.TerminalChargeCount})"
         : string.Empty;
     public string BillPaymentsText => Reconciliation is { } r
         ? ReceiptFormatter.Cop(r.BillPaymentsCash + r.BillPaymentsCard + r.BillPaymentsTransfer) : "—";

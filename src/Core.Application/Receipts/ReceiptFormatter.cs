@@ -84,12 +84,21 @@ public static partial class ReceiptFormatter
         if (!isPreview)
         {
             lines.Add(new ReceiptLine(Fit($"Medio: {r.PaymentMethodName}", width)));
+            if (!string.IsNullOrWhiteSpace(r.PaymentReference))
+                lines.Add(new ReceiptLine(Fit($"Ref: {Reference(r.PaymentReference)}", width)));
             if (r.TenderedAmount > 0)
             {
                 lines.Add(new ReceiptLine(Columns("Recibido:", Cop(r.TenderedAmount), width)));
                 lines.Add(new ReceiptLine(Columns("Cambio:", Cop(r.ChangeAmount), width)));
             }
             lines.Add(new ReceiptLine(sep));
+
+            // Terminal voucher (datáfono): printed verbatim after the payment block, one entry per line.
+            if (r.VoucherLines is { Count: > 0 })
+            {
+                foreach (var v in r.VoucherLines)
+                    lines.Add(new ReceiptLine(Fit(v ?? string.Empty, width)));
+            }
         }
 
         lines.Add(new ReceiptLine(string.Empty));

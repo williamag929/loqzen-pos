@@ -64,6 +64,10 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("PaidAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PaymentReference")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ReceiptNumber")
                         .IsRequired()
                         .HasMaxLength(30)
@@ -81,6 +85,9 @@ namespace Infrastructure.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<Guid?>("TerminalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TerminalPaymentId")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime?>("UpdatedAt")
@@ -974,6 +981,9 @@ namespace Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("TerminalPaymentId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -982,6 +992,60 @@ namespace Infrastructure.Data.Migrations
                     b.HasIndex("OrderId");
 
                     b.ToTable("Payments");
+                });
+
+            modelBuilder.Entity("Core.Domain.Entities.PaymentTerminal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Address")
+                        .HasMaxLength(120)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("AssignedUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AssignedUserName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<bool?>("LastPingOk")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Provider")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("SerialNumber")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("PaymentTerminals");
                 });
 
             modelBuilder.Entity("Core.Domain.Entities.Product", b =>
@@ -1278,6 +1342,112 @@ namespace Infrastructure.Data.Migrations
                     b.ToTable("Terminals");
                 });
 
+            modelBuilder.Entity("Core.Domain.Entities.TerminalPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AuthorizationCode")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("BillPaymentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CardBrand")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CardLast4")
+                        .HasMaxLength(4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("CashShiftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ComandaId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("CompletedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Currency")
+                        .IsRequired()
+                        .HasMaxLength(3)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("InvoiceReference")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Message")
+                        .HasMaxLength(300)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OrderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("PaymentTerminalId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ProviderReference")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Purpose")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("RequestedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RequestedByName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RequestedByUserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("TerminalName")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VoucherText")
+                        .HasMaxLength(2000)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("BillPaymentId");
+
+                    b.HasIndex("CashShiftId");
+
+                    b.HasIndex("ComandaId");
+
+                    b.HasIndex("OrderId");
+
+                    b.HasIndex("Status");
+
+                    b.HasIndex("PaymentTerminalId", "RequestedAt");
+
+                    b.ToTable("TerminalPayments");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.User", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1427,6 +1597,17 @@ namespace Infrastructure.Data.Migrations
                     b.Navigation("Category");
 
                     b.Navigation("Tax");
+                });
+
+            modelBuilder.Entity("Core.Domain.Entities.TerminalPayment", b =>
+                {
+                    b.HasOne("Core.Domain.Entities.PaymentTerminal", "PaymentTerminal")
+                        .WithMany()
+                        .HasForeignKey("PaymentTerminalId")
+                        .OnDelete(DeleteBehavior.Restrict)
+                        .IsRequired();
+
+                    b.Navigation("PaymentTerminal");
                 });
 
             modelBuilder.Entity("Core.Domain.Entities.CashShift", b =>

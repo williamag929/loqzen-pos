@@ -22,6 +22,9 @@ namespace Presentation.Server;
 /// <list type="bullet">
 /// <item><c>GET /health</c>, <c>GET /</c>, <c>/kds</c>, <c>/comandera</c> (embedded pages), <c>GET /ws/kds</c> (WebSocket)</item>
 /// <item><c>/api/kds/*</c> settings/orders/advance/printed/undo — <c>/api/catalog/products|categories</c> — <c>/api/tables</c>, <c>/api/comandas/*</c></item>
+/// <item>Pay at table (404 when <c>PaymentTerminalSettings.Enabled</c> is false): <c>GET /api/payment-terminals</c>,
+///   <c>POST /api/payment-terminals/{id}/assign</c>, <c>POST /api/comandas/{id}/pay-on-terminal</c> (long request: waits for
+///   the card up to ChargeTimeoutSeconds; Kestrel has no per-request timeout so no limit is raised here), <c>GET /api/payment-terminals/charges</c></item>
 /// <item>Master/satellite (Bearer <c>TerminalSettings.ApiKey</c> when set): <c>POST /api/sync/inbox</c>,
 ///   <c>GET /api/catalog/snapshot</c>, <c>GET /api/terminals</c>, <c>POST /api/terminals/heartbeat</c>, <c>GET /api/reports/day?date=</c></item>
 /// </list>
@@ -181,6 +184,7 @@ public sealed class LoqzenServer : IAsyncDisposable
         app.MapKdsEndpoints(_appServices, hub);
         app.MapCatalogEndpoints(_appServices);
         app.MapComandaEndpoints(_appServices);
+        app.MapPaymentTerminalEndpoints(_appServices);
         app.MapTerminalEndpoints(_appServices);
         app.MapSyncEndpoints(_appServices);
 

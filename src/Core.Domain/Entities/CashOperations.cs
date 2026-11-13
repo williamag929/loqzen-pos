@@ -69,6 +69,10 @@ public class BillPayment : BaseEntity
     public decimal TenderedAmount { get; set; }
     public decimal ChangeAmount { get; set; }
 
+    /// <summary>Card/transfer reference ("AUTH 123456 · VISA ****4242"); null for cash.</summary>
+    public string? PaymentReference { get; set; }
+    public Guid? TerminalPaymentId { get; set; }
+
     /// <summary>Sequential, e.g. "REC-000123".</summary>
     public string ReceiptNumber { get; set; } = string.Empty;
 

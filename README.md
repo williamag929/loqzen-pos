@@ -51,7 +51,8 @@
 | **Usuarios con PIN** (4–6 dígitos), roles Cocina/Mesero/Cajero/Gerente/Admin, pestañas según rol | ✅ |
 | **Autorización de gerente** (PIN) para devoluciones, descuentos y anular productos ya en cocina, con auditoría (`ManagerOverrides`) | ✅ |
 | **Segunda caja (maestro / satélite)**: cada caja con su propia base, la satélite recibe el catálogo y envía ventas/turnos/recaudos a la principal, **cierre del día por caja** | ✅ |
-| Datáfono, ZPL, mDNS, app Android nativa | ❌ pendiente |
+| **Datáfono semi-integrado** (el POS envía el monto, el datáfono cobra y responde; driver simulado, emulador Docker y protocolo JSON/TCP listo para un proveedor real) y **pago en mesa** desde la comandera web con datáfonos inalámbricos asignados a meseros | ✅ |
+| Proveedores reales de datáfono (Redeban, Credibanco, Bold, Mercado Pago Point), ZPL, mDNS, app Android nativa | ❌ pendiente |
 
 Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
 
@@ -132,6 +133,13 @@ Cada caja corre esta misma app con **su propia base SQLite**: si se cae la red o
 - Cada caja tiene **su propio turno y su propio cuadre**; los turnos, órdenes y recaudos llevan `TerminalCode` (`CAJA-02 · Turno #5`). En la principal, **Caja → 📊 Cierre del día** consolida todas las cajas (ventas por medio de pago, recaudos, diferencias) e imprime el reporte; **Maestros → 🖥️ Cajas** muestra cada caja (en línea, última sincronización, turno abierto) y los últimos sobres recibidos.
 - Configurar la segunda máquina: copia las claves de `appsettings.Satellite.example.json` (código `CAJA-02`, `MasterUrl = http://<ip de la principal>:5055`, `Server:Enabled=false`). Opcional `Terminal:ApiKey` igual en las dos para proteger la API de sincronización.
 
+### Datáfono y pago en mesa (💳)
+- **Cobrar en datáfono** en Venta, Comandas y Recaudos: al elegir *Tarjeta* aparece "💳 Cobrar en datáfono"; la caja envía el monto, la pantalla muestra "Acerque o inserte la tarjeta…" con botón de cancelar, y al aprobar la venta se registra sola con el código de aprobación (`AUTH 123456 · VISA ****4242`) impreso en el recibo junto al voucher. Si el datáfono rechaza, no responde o falla, se puede reintentar o **cobrar manual**: nunca se bloquea la venta.
+- **Pago en mesa:** en la comandera web (`/comandera`) el mesero elige su datáfono (📟 Mi datáfono) y toca **"💳 Cobrar en mesa"**; el cliente paga en la mesa sin ir a la caja ni soltar la tarjeta, y la comanda se cierra y factura sola en la caja.
+- **Maestros → 💳 Datáfonos:** alta de datáfonos (nombre, proveedor, dirección), "Probar conexión", asignar a un mesero, y las últimas 50 transacciones con su estado. Cada cobro queda auditado (`TerminalPayments`) aunque la app se cierre a mitad.
+- **Cuadre:** el turno muestra "Tarjeta por datáfono: $x (n)" para comparar con el cierre del datáfono; el Z lo imprime.
+- **Proveedores:** `Simulado` (sin equipo; montos terminados en 99 rechazan, 98 se cuelgan, 97 dan error) y `JSON TCP` (protocolo documentado en `docker/emulator/payterminal/README.md`, emulador en el puerto 9102). Un proveedor real se agrega como un `IPaymentTerminalDriver` más.
+
 ## 🛠 Stack
 
 | Capa | Tecnología |
@@ -190,6 +198,7 @@ loqzen-pos/
 | | `IntervalSeconds` / `BatchSize` / `MaxRetries` / `TimeoutSeconds` | `15` / `50` / `10` / `10` | Reintentos con espera exponencial (1 s … 5 min); tras `MaxRetries` queda *fallido* y se reintenta desde Caja |
 | `Terminal` | `Code` / `Name` / `Mode` | `CAJA-01` / `Caja principal` / `Master` | Identidad de esta caja. `Satellite` = segunda caja que sincroniza con la principal |
 | | `MasterUrl` / `ApiKey` / `CatalogPullSeconds` / `HeartbeatSeconds` | — / — / `60` / `30` | Solo satélite: URL de la principal, clave compartida opcional, frecuencia de catálogo y latido (ver `appsettings.Satellite.example.json`) |
+| `PaymentTerminals` | `Enabled` / `ChargeTimeoutSeconds` / `MockDelaySeconds` / `PrintVoucher` | `true` / `90` / `2` / `true` | Datáfonos: botones "Cobrar en datáfono", espera máxima, retardo del simulado, imprimir el voucher bajo el recibo |
 | `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
 | | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
 | | `PollSeconds` | `3` | Cada cuánto el KDS revisa órdenes nuevas |
@@ -273,8 +282,9 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
 - [x] **Segunda caja** (maestro/satélite): `Terminal` + `TerminalId/TerminalCode` en turnos, ventas y recaudos; la satélite vende con su propia base, baja el catálogo y empuja su Outbox a `POST /api/sync/inbox` (idempotente); turno y cuadre por caja; **cierre del día consolidado** en la principal
 - [ ] Segunda caja, parte 2: comandas y KDS compartidos entre cajas (hoy viven solo en la principal), clientes y auditoría de gerente replicados, descubrimiento de la principal por mDNS
-- [ ] Datáfono semi-integrado (`IPaymentTerminalService`: el POS envía el monto, el datáfono cobra chip/NFC/Apple Pay/Google Pay y responde aprobado → pago con tarjeta se confirma solo) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
-- [ ] **Pago en la mesa**: una sola caja y varios datáfonos inalámbricos (Wi-Fi/4G) asignados a meseros. Desde la comandera web el mesero toca "Cobrar en mesa" → el POS envía el monto al datáfono del mesero → el cliente paga en la mesa (tap, chip, Apple Pay / Google Pay) sin acercarse a la caja ni entregar la tarjeta → el datáfono responde aprobado → la comanda se cierra y factura sola en la caja. Requiere el `IPaymentTerminalService` anterior con soporte multi-terminal (un datáfono por mesero/mesa) y el endpoint de cierre en `Presentation.Server`.
+- [x] **Datáfono semi-integrado**: `IPaymentTerminalDriver` (simulado + JSON/TCP + emulador Docker 9102) e `IPaymentTerminalService` (auditoría `TerminalPayments`, tiempo de espera, cancelación, ocupado); el pago con tarjeta se registra solo con la referencia de aprobación impresa
+- [ ] Drivers de proveedores reales (Redeban, Credibanco, Bold, Mercado Pago Point) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
+- [x] **Pago en la mesa**: datáfonos asignados a meseros, "💳 Cobrar en mesa" en la comandera web → `POST /api/comandas/{id}/pay-on-terminal` → la comanda se cierra y factura sola
 - [ ] ZPL, mDNS, app Android nativa
 
 ---

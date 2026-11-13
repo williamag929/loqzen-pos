@@ -92,7 +92,9 @@ public class BillerDto
 
 public sealed record BillPaymentRequest(
     Guid BillerId, string AccountReference, decimal Amount, PaymentMethod Method, decimal TenderedAmount,
-    Guid? UserId, string UserName, string? CustomerName = null);
+    Guid? UserId, string UserName, string? CustomerName = null,
+    /// <summary>Card/transfer reference (terminal approval) stored as BillPayment.PaymentReference.</summary>
+    string? PaymentReference = null, Guid? TerminalPaymentId = null);
 
 public class BillPaymentDto
 {
@@ -108,6 +110,7 @@ public class BillPaymentDto
     public PaymentMethod Method { get; set; }
     public decimal TenderedAmount { get; set; }
     public decimal ChangeAmount { get; set; }
+    public string? PaymentReference { get; set; }
     public BillPaymentStatus Status { get; set; }
     public string UserName { get; set; } = string.Empty;
     public DateTime PaidAt { get; set; }
@@ -149,6 +152,11 @@ public class ShiftReconciliationDto
     public decimal BillPaymentsTransfer { get; set; }
     public decimal BillPaymentCommissions { get; set; } // store income, all methods
     public decimal BillPaymentsToRemit { get; set; }     // amounts owed to billers, all methods
+
+    // Card charges that went through a datáfono (approved TerminalPayments of the shift). Subset of the card totals
+    // above: lets the close wizard show "tarjeta esperada vs lo que dice el datáfono".
+    public decimal TerminalCardTotal { get; set; }
+    public int TerminalChargeCount { get; set; }
 
     // Movements by type (positive amounts)
     public decimal PaidIn { get; set; }

@@ -182,8 +182,12 @@ public class SalesService : ISalesService
         return MapToDto(order);
     }
 
-    public async Task<PaymentResultDto> ProcessPaymentAsync(
+    public Task<PaymentResultDto> ProcessPaymentAsync(
         Guid orderId, PaymentMethod method, decimal amount, decimal tenderedAmount, CancellationToken ct = default)
+        => ProcessPaymentAsync(orderId, method, amount, tenderedAmount, null, null, ct);
+
+    public async Task<PaymentResultDto> ProcessPaymentAsync(
+        Guid orderId, PaymentMethod method, decimal amount, decimal tenderedAmount, string? reference, Guid? terminalPaymentId, CancellationToken ct = default)
     {
         var order = await GetOrderWithItemsAsync(orderId, ct);
         if (order == null)
@@ -205,6 +209,8 @@ public class SalesService : ISalesService
 
         var payment = new Payment
         {
+            Reference = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim(),
+            TerminalPaymentId = terminalPaymentId,
             OrderId = orderId,
             Method = method,
             Amount = order.Total,
@@ -295,7 +301,10 @@ public class SalesService : ISalesService
         Total = order.Total,
         Notes = order.Notes,
         CreatedAt = order.CreatedAt,
-        UpdatedAt = order.UpdatedAt
+        UpdatedAt = order.UpdatedAt,
+        // Last non-cash payment with a reference (one payment per order today; Payments may be unloaded on drafts).
+        PaymentReference = order.Payments.OrderByDescending(p => p.ProcessedAt).Select(p => p.Reference).FirstOrDefault(r => !string.IsNullOrWhiteSpace(r)),
+        TerminalPaymentId = order.Payments.OrderByDescending(p => p.ProcessedAt).Select(p => p.TerminalPaymentId).FirstOrDefault(t => t != null)
     };
 
     private static OrderItemDto MapItemToDto(OrderItem item) => new()

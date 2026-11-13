@@ -1,0 +1,115 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:conv="using:Presentation.Desktop.Converters"
+             x:Class="Presentation.Desktop.Views.TerminalChargeDialog"
+             x:DataType="vm:TerminalChargePromptViewModel"
+             x:CompileBindings="True">
+
+    <!-- Modal: send an amount to a card terminal (datáfono) and wait for its answer.
+         Phases: choose terminal → charging (stage + animated bar + Cancelar) → approved (auto-closes) / failed (Reintentar · Cobrar manual).
+         Hosted in MainWindow above every screen, same pattern as ManagerAuthDialog. -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="{Binding BorderColor}" BorderThickness="2" CornerRadius="16" Padding="24"
+                Width="560" MaxWidth="700" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="14">
+                <TextBlock Text="{Binding Title}" Foreground="White" FontSize="22" FontWeight="Black"/>
+
+                <!-- Amount: label in Auto, figure in * right-aligned so a large total is never clipped -->
+                <Border Background="#1E293B" CornerRadius="10" Padding="16,12">
+                    <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto">
+                        <TextBlock Text="Total a cobrar" Foreground="#94A3B8" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="#34D399" FontSize="40" FontWeight="Black" TextAlignment="Right"/>
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ReferenceText}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                    </Grid>
+                </Border>
+
+                <!-- ── Phase 1: choose the terminal ── -->
+                <StackPanel Spacing="10" IsVisible="{Binding IsSelecting}">
+                    <TextBlock Text="Datáfono" Foreground="#94A3B8" FontSize="14"/>
+                    <ItemsControl ItemsSource="{Binding Terminals}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:TerminalChoiceViewModel">
+                                <Button MinHeight="56" MinWidth="150" Padding="16,8" Margin="0,0,8,8" CornerRadius="10"
+                                        Background="{Binding IsSelected, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"
+                                        BorderBrush="{Binding IsSelected, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#60A5FA|#334155'}"
+                                        BorderThickness="2" HorizontalContentAlignment="Left" Command="{Binding SelectCommand}">
+                                    <StackPanel Spacing="2">
+                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Detail}" Foreground="#CBD5E1" FontSize="12"/>
+                                    </StackPanel>
+                                </Button>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#F87171" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
+
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="Cancelar" Command="{Binding CancelCommand}"/>
+                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Background="#1E293B" BorderBrush="#475569" BorderThickness="1" Foreground="#E2E8F0" FontSize="15" FontWeight="Bold"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="✍️ Cobrar manual" Command="{Binding UseManualCommand}"/>
+                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="💳 Cobrar" Command="{Binding ChargeCommand}" IsEnabled="{Binding CanCharge}"/>
+                    </Grid>
+                </StackPanel>
+
+                <!-- ── Phase 2: charge in flight ── -->
+                <StackPanel Spacing="14" IsVisible="{Binding IsCharging}">
+                    <Border Background="#020617" CornerRadius="12" Padding="20" BorderBrush="#334155" BorderThickness="1">
+                        <StackPanel Spacing="12" HorizontalAlignment="Center">
+                            <TextBlock Text="{Binding StageIcon}" FontSize="44" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding StageText}" Foreground="White" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <ProgressBar IsIndeterminate="True" Height="8" MinWidth="320" CornerRadius="4" Foreground="#38BDF8" Background="#1E293B"/>
+                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="#94A3B8" FontSize="13" TextAlignment="Center" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="Siga las instrucciones del datáfono. No retire la tarjeta hasta que termine." Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <Button Height="64" CornerRadius="10" Background="#7F1D1D" Foreground="White" FontSize="17" FontWeight="Bold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="⛔ Cancelar" Command="{Binding CancelChargeCommand}"/>
+                </StackPanel>
+
+                <!-- ── Phase 3a: approved (auto-closes after 1.5 s) ── -->
+                <Border IsVisible="{Binding IsApproved}" Background="#064E3B" BorderBrush="#10B981" BorderThickness="2" CornerRadius="12" Padding="20">
+                    <StackPanel Spacing="8" HorizontalAlignment="Center">
+                        <TextBlock Text="{Binding ResultTitle}" Foreground="#A7F3D0" FontSize="28" FontWeight="Black" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding ResultMessage}" Foreground="White" FontSize="18" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap"/>
+                        <TextBlock Text="Registrando la venta…" Foreground="#6EE7B7" FontSize="13" TextAlignment="Center"/>
+                    </StackPanel>
+                </Border>
+
+                <!-- ── Phase 3b: declined / timeout / cancelled / error ── -->
+                <StackPanel Spacing="14" IsVisible="{Binding IsFailed}">
+                    <Border Background="#1E293B" BorderBrush="{Binding ResultColor}" BorderThickness="2" CornerRadius="12" Padding="20">
+                        <StackPanel Spacing="8">
+                            <TextBlock Text="{Binding ResultTitle}" Foreground="{Binding ResultColor}" FontSize="24" FontWeight="Black" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding ResultMessage}" Foreground="#E2E8F0" FontSize="15" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
+                        </StackPanel>
+                    </Border>
+                    <TextBlock Text="No se cobró nada. Puede reintentar en el datáfono o registrar la tarjeta manualmente."
+                               Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <Grid ColumnDefinitions="*, *, *">
+                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="Cancelar" Command="{Binding CancelCommand}"/>
+                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Background="#1E293B" BorderBrush="#475569" BorderThickness="1" Foreground="#E2E8F0" FontSize="15" FontWeight="Bold"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="✍️ Cobrar manual" Command="{Binding UseManualCommand}"/>
+                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Black"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                Content="🔁 Reintentar" Command="{Binding RetryCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

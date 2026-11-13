@@ -37,6 +37,12 @@ public partial class CashShiftService
             .ToListAsync(ct);
         movements = movements.OrderBy(m => m.OccurredAt).ToList();
 
+        // Approved datáfono charges of the shift (audit rows keyed by CashShiftId; summed in memory like the rest).
+        var terminalCharges = await _db.TerminalPayments
+            .Where(t => t.CashShiftId == shift.Id && t.Status == TerminalPaymentStatus.Approved)
+            .Select(t => t.Amount)
+            .ToListAsync(ct);
+
         decimal Sales(PaymentMethod m) => payments.Where(p => p.Method == m).Sum(p => p.Amount);
         decimal Bills(PaymentMethod m) => bills.Where(b => b.Method == m).Sum(b => b.Amount + b.Commission);
         decimal Moves(CashMovementType t) => movements.Where(m => m.Type == t).Sum(m => m.Amount);
@@ -65,6 +71,9 @@ public partial class CashShiftService
             BillPaymentsTransfer = Bills(PaymentMethod.Transfer),
             BillPaymentCommissions = bills.Sum(b => b.Commission),
             BillPaymentsToRemit = bills.Sum(b => b.Amount),
+
+            TerminalCardTotal = terminalCharges.Sum(),
+            TerminalChargeCount = terminalCharges.Count,
 
             PaidIn = Moves(CashMovementType.PaidIn),
             PaidOut = Moves(CashMovementType.PaidOut),

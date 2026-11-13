@@ -22,6 +22,11 @@ public class OrderDto
     public string? Notes { get; set; }
     public DateTime CreatedAt { get; set; }
     public DateTime? UpdatedAt { get; set; }
+
+    /// <summary>Reference of the persisted payment ("AUTH 123456 · VISA ****4242"); null for cash / draft orders.</summary>
+    public string? PaymentReference { get; set; }
+    /// <summary>Set when the persisted payment went through a datáfono.</summary>
+    public Guid? TerminalPaymentId { get; set; }
 }
 
 /// <summary>

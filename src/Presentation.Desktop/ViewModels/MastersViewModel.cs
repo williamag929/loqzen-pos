@@ -10,7 +10,7 @@ using Microsoft.Extensions.DependencyInjection;
 
 namespace Presentation.Desktop.ViewModels;
 
-public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4, Billers = 5, Terminals = 6 }
+public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4, Billers = 5, Terminals = 6, PaymentTerminals = 7 }
 
 public partial class MastersViewModel : ObservableObject
 {
@@ -25,6 +25,8 @@ public partial class MastersViewModel : ObservableObject
     private readonly Core.Application.DTOs.TerminalSettings _terminalSettings;
     private readonly ITerminalContext _terminalContext;
     private readonly Core.Application.DTOs.ServerSettings _serverSettings;
+    private readonly Core.Application.Hardware.IPaymentTerminalDriverFactory _terminalDrivers;
+    private readonly Core.Application.DTOs.PaymentTerminalSettings _paymentTerminalSettings;
 
     // ── Tab ─────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -35,6 +37,7 @@ public partial class MastersViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsUsersTab))]
     [NotifyPropertyChangedFor(nameof(IsBillersTab))]
     [NotifyPropertyChangedFor(nameof(IsTerminalsTab))]
+    [NotifyPropertyChangedFor(nameof(IsPaymentTerminalsTab))]
     private MastersTab _activeTab = MastersTab.Products;
 
     public bool IsProductsTab   => ActiveTab == MastersTab.Products;
@@ -104,8 +107,12 @@ public partial class MastersViewModel : ObservableObject
         IServiceScopeFactory scopes,
         Core.Application.DTOs.TerminalSettings terminalSettings,
         ITerminalContext terminalContext,
-        Core.Application.DTOs.ServerSettings serverSettings)
+        Core.Application.DTOs.ServerSettings serverSettings,
+        Core.Application.Hardware.IPaymentTerminalDriverFactory terminalDrivers,
+        Core.Application.DTOs.PaymentTerminalSettings paymentTerminalSettings)
     {
+        _terminalDrivers = terminalDrivers;
+        _paymentTerminalSettings = paymentTerminalSettings;
         _billPayments = billPayments;
         _scopes = scopes;
         _terminalSettings = terminalSettings;

@@ -1,11 +1,30 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Segunda caja (maestro / satélite) con cierre del día consolidado
+**Última sesión:** Datáfono semi-integrado + pago en mesa
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-13 (mañana): Datáfono semi-integrado + pago en mesa
+
+Contrato del arquitecto → backend, hardware, red y UI en paralelo → dos agentes de QA. 814 tests, build 0/0. La app se arrancó aislada para ver la pestaña nueva y la API de datáfonos; el flujo de cobro lo cubren los tests extremo a extremo (Kestrel real + driver simulado + emulador Python).
+
+**Hecho:**
+- Dominio: `PaymentTerminal` (datáfono: proveedor, dirección, asignado a mesero, último ping) y `TerminalPayment` (auditoría de cada cobro, escrita ANTES de llamar al equipo). `Payment.Reference/TerminalPaymentId`, `BillPayment.PaymentReference/TerminalPaymentId`. Migración `PaymentTerminals`; semilla "Datáfono simulado".
+- Hardware (`Infrastructure.Hardware/PaymentTerminals`): `IPaymentTerminalDriver` simulado (99 rechaza, 98 cuelga, 97 error; voucher de 32 col) y `JsonTcp` (JSON por líneas sobre TCP, cancelación, ping). Emulador Docker `payment-terminal-emulator` (9102) con protocolo documentado en `docker/emulator/payterminal/README.md`.
+- Aplicación/Datos: `IPaymentTerminalService` (registro con nombre único, asignación, probar conexión, cobro con tiempo de espera y cancelación, "datáfono ocupado", recuperación de cobros colgados, pago en mesa que marca lista para pagar → cobra → cierra y factura). Referencia impresa en recibos (`Ref: AUTH 123456 - VISA ****4242`) y voucher bajo el recibo; Z con "por datafono: $x (n)"; `ShiftReconciliationDto.TerminalCardTotal/TerminalChargeCount`; Outbox lleva `terminalPaymentId`/`paymentReference` y la principal los replica.
+- Servidor: `GET /api/payment-terminals`, `POST /api/payment-terminals/{id}/assign`, `POST /api/comandas/{id}/pay-on-terminal` (petición larga, se cancela al cerrar la pestaña), `GET /api/payment-terminals/charges`; 404 "Datáfonos desactivados." si `PaymentTerminals:Enabled=false`. Comandera web: 📟 Mi datáfono, chips de datáfono y **💳 Cobrar en mesa** con modal de progreso y resultados aprobada / rechazada / sin conexión.
+- Escritorio: modal compartido `TerminalChargeDialog` (elige datáfono, progreso, cancelar, reintentar, **cobrar manual**) usado por Venta, Comandas y Recaudos; **Maestros → 💳 Datáfonos**; Caja y asistente de cierre muestran "Tarjeta por datáfono". El borrador de venta se reutiliza al reintentar (no duplica órdenes).
+
+**⚠️ Para el usuario:** ya existe un "Datáfono simulado" para probar: en Venta elige Tarjeta → "💳 Cobrar en datáfono". Para probar el emulador: `docker compose -f docker/docker-compose.yml up -d payment-terminal-emulator` y en Maestros → Datáfonos crea uno con proveedor *JSON TCP* y dirección `127.0.0.1:9102`. Un proveedor real (Redeban, Bold…) requiere escribir su driver.
+
+**Limitaciones conocidas:** sin drivers de proveedores reales; los borradores de venta huérfanos (rechazo + cambio de carrito) no se limpian; el refresco del escritorio al cerrar una comanda desde la mesa usa un evento sintético; progreso del datáfono en la comandera es por tiempo (no hay streaming); en una satélite no se pueden dar de alta datáfonos (Maestros oculto). No probado con clics: modal de cobro, pestaña Datáfonos, "Cobrar en mesa" en tablet.
+
+**Siguiente fase recomendada:** driver de un proveedor real (elegir: Redeban/Credibanco, Bold o Mercado Pago Point) o segunda caja parte 2 (comandas/KDS compartidos, mDNS).
 
 ---
 

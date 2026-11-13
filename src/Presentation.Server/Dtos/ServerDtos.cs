@@ -79,6 +79,32 @@ public sealed record AddComandaItemRequest(Guid ProductId, decimal? Quantity, de
 
 public sealed record SetItemNotesRequest(string? Notes);
 
+// ─── Pay at table (datáfonos) ────────────────────────────────────────────────
+
+/// <summary>What the comandera needs to pick a terminal (subset of <c>PaymentTerminalDto</c>).</summary>
+public sealed record PaymentTerminalListDto(
+    Guid Id,
+    string Name,
+    PaymentTerminalProvider Provider,
+    string ProviderLabel,
+    string? AssignedUserName,
+    string AssignmentLabel,
+    bool? LastPingOk,
+    DateTime? LastSeenAt);
+
+/// <summary>Body of POST /api/payment-terminals/{id}/assign. Null/empty = back to the register.</summary>
+public sealed record AssignTerminalRequest(string? UserName);
+
+/// <summary>Body of POST /api/comandas/{id}/pay-on-terminal.</summary>
+public sealed record PayOnTerminalRequest(Guid TerminalId, string? WaiterName);
+
+/// <summary>
+/// Outcome of pay-on-terminal. <c>Success</c> = charge approved AND comanda closed. <c>Charge</c> is the persisted
+/// audit row (status, authorizationCode, cardBrand, cardLast4, message, referenceText…); <c>Payment</c> is null unless
+/// the charge was approved; <c>Comanda</c> is reloaded after the operation (Closed on success, else ReadyToPay).
+/// </summary>
+public sealed record PayOnTerminalResponseDto(bool Success, TerminalPaymentDto Charge, PaymentResultDto? Payment, ComandaDto Comanda);
+
 // ─── Serialization + mapping helpers ─────────────────────────────────────────
 
 public static class ServerJson
@@ -118,6 +144,9 @@ public static class ServerMapping
     public static CategoryDto ToDto(this Category c) => new(c.Id, c.Name, c.ColorHex, c.Icon, c.SortOrder);
 
     public static TableDto ToDto(this DiningTableDto t) => new(t.Id, t.Name, t.OpenComandaId);
+
+    public static PaymentTerminalListDto ToDto(this PaymentTerminalDto t) => new(
+        t.Id, t.Name, t.Provider, t.ProviderLabel, t.AssignedUserName, t.AssignmentLabel, t.LastPingOk, AsUtc(t.LastSeenAt));
 
     public static KitchenSocketMessage ToSocketMessage(this KitchenEvent e) => new(
         "kitchen", e.Type, e.KitchenOrderId, e.Station, e.OrderNumber, e.TableNumber, e.Status, AsUtc(e.OccurredAt));

@@ -25,6 +25,13 @@ public static partial class ReceiptFormatter
     public static string Cop(decimal amount) =>
         (amount < 0 ? "-$" : "$") + Math.Abs(amount).ToString("N0", Money);
 
+    /// <summary>
+    /// Payment reference as printed ("AUTH 123456 - VISA ****4242"): the middle dot used on screen is not ASCII,
+    /// so it becomes a dash instead of the '?' the generic fold would produce.
+    /// </summary>
+    public static string Reference(string? reference) =>
+        Ascii((reference ?? string.Empty).Replace('·', '-').Trim());
+
     private static string Columns(string left, string right, int width)
     {
         left = Ascii(left);

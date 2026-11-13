@@ -81,6 +81,7 @@
                                         <TextBlock Text="Ventas del turno" Foreground="#94A3B8" FontSize="15" FontWeight="Bold"/>
                                         <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="💵 Efectivo"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseCashSalesText}"/></Grid>
                                         <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="💳 Tarjeta"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseCardSalesText}"/></Grid>
+                                        <Grid ColumnDefinitions="*, Auto" IsVisible="{Binding CloseHasTerminalCharges}" Margin="16,0,0,0"><TextBlock Classes="rowLabel" Text="↳ por datáfono" FontSize="13"/><TextBlock Grid.Column="1" Classes="rowValue" FontSize="14" Text="{Binding CloseTerminalCardText}"/></Grid>
                                         <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="🏦 Transferencia"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseTransferSalesText}"/></Grid>
                                         <Grid ColumnDefinitions="*, Auto" IsVisible="{Binding HasOtherSales}"><TextBlock Classes="rowLabel" Text="Otros"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseOtherSalesText}"/></Grid>
                                         <Separator Background="#334155"/>

@@ -40,7 +40,10 @@ public partial class ComandaService
         return MapToDto(comanda);
     }
 
-    public async Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, CancellationToken ct = default)
+    public Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, CancellationToken ct = default)
+        => CloseAndPayAsync(comandaId, cashShiftId, method, tenderedAmount, null, null, ct);
+
+    public async Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, string? reference, Guid? terminalPaymentId, CancellationToken ct = default)
     {
         var comanda = await RequireAsync(comandaId, ct);
         if (comanda.Status is ComandaStatus.Closed or ComandaStatus.Cancelled)
@@ -70,6 +73,8 @@ public partial class ComandaService
         var change = tendered - order.Total;
         order.Payments.Add(new Payment
         {
+            Reference = string.IsNullOrWhiteSpace(reference) ? null : reference.Trim(),
+            TerminalPaymentId = terminalPaymentId,
             Method = method,
             Amount = order.Total,
             TenderedAmount = tendered,

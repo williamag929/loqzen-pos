@@ -76,6 +76,11 @@ public static class ServiceCollectionExtensions
                              ?? new Core.Application.DTOs.ServerSettings();
         services.AddSingleton(serverSettings);
 
+        // ── Card terminals (datáfonos): Enabled=false hides every "Cobrar en datáfono" button and the Maestros tab ──
+        var paymentTerminalSettings = configuration.GetSection("PaymentTerminals").Get<Core.Application.DTOs.PaymentTerminalSettings>()
+                                      ?? new Core.Application.DTOs.PaymentTerminalSettings();
+        services.AddSingleton(paymentTerminalSettings);
+
         // ── Database ─────────────────────────────────────────────────────────────
         services.AddDbContext<PosDbContext>(options =>
         {
@@ -132,6 +137,15 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<IUserSession>(sp => sp.GetRequiredService<UserSession>());
         services.AddSingleton<ManagerAuthPromptViewModel>();        // single modal shared by every screen
         services.AddSingleton<IManagerAuthPrompt>(sp => sp.GetRequiredService<ManagerAuthPromptViewModel>());
+
+        // ── Payment terminals (datáfonos): stateless driver singletons (one per provider) behind a factory;
+        //    the application service is scoped (owns a DbContext) and resolved per operation from a scope. ──
+        services.AddSingleton<IPaymentTerminalDriver, Infrastructure.Hardware.PaymentTerminals.MockPaymentTerminalDriver>();
+        services.AddSingleton<IPaymentTerminalDriver, Infrastructure.Hardware.PaymentTerminals.JsonTcpPaymentTerminalDriver>();
+        services.AddSingleton<IPaymentTerminalDriverFactory, Infrastructure.Hardware.PaymentTerminals.PaymentTerminalDriverFactory>();
+        services.AddScoped<IPaymentTerminalService, PaymentTerminalService>();
+        services.AddSingleton<TerminalChargePromptViewModel>();     // single "Cobrar en datáfono" modal shared by every screen
+        services.AddSingleton<ITerminalChargePrompt>(sp => sp.GetRequiredService<TerminalChargePromptViewModel>());
         services.AddSingleton<LoginViewModel>();
 
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────

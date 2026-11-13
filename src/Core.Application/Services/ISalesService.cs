@@ -81,6 +81,9 @@ public interface ISalesService
     /// <returns>Payment result with success status and change amount.</returns>
     Task<PaymentResultDto> ProcessPaymentAsync(Guid orderId, PaymentMethod method, decimal amount, decimal tenderedAmount, CancellationToken ct = default);
 
+    /// <summary>Same, storing a card/transfer reference ("AUTH 123456 · VISA ****4242") and the terminal charge id on the Payment.</summary>
+    Task<PaymentResultDto> ProcessPaymentAsync(Guid orderId, PaymentMethod method, decimal amount, decimal tenderedAmount, string? reference, Guid? terminalPaymentId, CancellationToken ct = default);
+
     /// <summary>
     /// Gets the current draft order for a cash shift, or null if none exists.
     /// </summary>

@@ -66,4 +66,7 @@ public interface IComandaService
     /// in ONE SaveChanges, sets comanda Closed with OrderId. Requires an open cash shift.
     /// </summary>
     Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, CancellationToken ct = default);
+
+    /// <summary>Same, storing a card/transfer reference and the terminal charge id on the Payment.</summary>
+    Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, string? reference, Guid? terminalPaymentId, CancellationToken ct = default);
 }

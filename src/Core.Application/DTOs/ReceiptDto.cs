@@ -26,6 +26,11 @@ public class ReceiptDto
     public string PaymentMethodName { get; set; } = "Efectivo";
     public decimal TenderedAmount { get; set; }
     public decimal ChangeAmount { get; set; }
+
+    /// <summary>Card/transfer reference printed under the payment method ("AUTH 123456 · VISA ****4242").</summary>
+    public string? PaymentReference { get; set; }
+    /// <summary>Terminal voucher lines appended after the totals (already ASCII, ≤ 32 cols) when PaymentTerminalSettings.PrintVoucher.</summary>
+    public List<string>? VoucherLines { get; set; }
 }
 
 public class ReceiptItemDto
