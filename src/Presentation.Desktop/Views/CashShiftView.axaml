@@ -1,0 +1,284 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
+             xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
+             mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
+             x:Class="Presentation.Desktop.Views.CashShiftView"
+             x:DataType="vm:CashShiftViewModel">
+
+    <Grid RowDefinitions="Auto, *, Auto">
+
+        <!-- ── HEADER ──────────────────────────────────────────────────── -->
+        <Border Grid.Row="0" Background="#020617" Padding="24,16" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+            <Grid ColumnDefinitions="*, Auto, Auto">
+                <!-- Shift Status -->
+                <Border Grid.Column="0" BorderBrush="{Binding ShiftStatusColor}" BorderThickness="0,0,0,2" Padding="0,0,0,4">
+                    <TextBlock Text="{Binding ShiftStatusText}"
+                               Foreground="{Binding ShiftStatusColor}"
+                               FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
+                </Border>
+
+                <!-- Open Button -->
+                <Button Grid.Column="1"
+                        Height="52" Padding="22,0" Margin="10,0"
+                        Background="#2563EB" Foreground="White"
+                        FontSize="15" FontWeight="Bold" CornerRadius="8"
+                        Content="🟢 Abrir Turno"
+                        IsVisible="{Binding !IsShiftOpen}"
+                        Command="{Binding ShowOpenDialogCommand}"/>
+
+                <!-- Close Button -->
+                <Button Grid.Column="2"
+                        Height="52" Padding="22,0"
+                        Background="#DC2626" Foreground="White"
+                        FontSize="15" FontWeight="Bold" CornerRadius="8"
+                        Content="🔴 Cerrar Turno / Arqueo"
+                        IsVisible="{Binding IsShiftOpen}"
+                        Command="{Binding ShowCloseDialogAsyncCommand}"/>
+            </Grid>
+        </Border>
+
+        <!-- ── MAIN INFO PANEL ─────────────────────────────────────────── -->
+        <ScrollViewer Grid.Row="1" Background="#020617" Padding="24">
+            <StackPanel Spacing="20">
+                <!-- Current Shift Card -->
+                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                        CornerRadius="12" Padding="24" IsVisible="{Binding IsShiftOpen}">
+                    <Grid ColumnDefinitions="*, *, *, *">
+                        <StackPanel Grid.Column="0" Spacing="6">
+                            <TextBlock Text="N° Turno" Foreground="#64748B" FontSize="13"/>
+                            <TextBlock Text="{Binding CurrentShift.ShiftNumber, StringFormat='#{0}'}"
+                                       Foreground="White" FontSize="28" FontWeight="Black"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="1" Spacing="6">
+                            <TextBlock Text="Cajero" Foreground="#64748B" FontSize="13"/>
+                            <TextBlock Text="{Binding CurrentShift.CashierName}"
+                                       Foreground="#38BDF8" FontSize="20" FontWeight="Bold" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="2" Spacing="6">
+                            <TextBlock Text="Fondo Inicial" Foreground="#64748B" FontSize="13"/>
+                            <TextBlock Text="{Binding CurrentShift.OpeningAmount, StringFormat='${0:N0}'}"
+                                       Foreground="#10B981" FontSize="22" FontWeight="Bold"/>
+                        </StackPanel>
+                        <StackPanel Grid.Column="3" Spacing="6">
+                            <TextBlock Text="Inicio" Foreground="#64748B" FontSize="13"/>
+                            <TextBlock Text="{Binding CurrentShift.OpenedAt, StringFormat='{}{0:dd/MM HH:mm}'}"
+                                       Foreground="#F59E0B" FontSize="20" FontWeight="Bold"/>
+                        </StackPanel>
+                    </Grid>
+                </Border>
+
+                <!-- No shift placeholder -->
+                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                        CornerRadius="12" Padding="40"
+                        IsVisible="{Binding !IsShiftOpen}">
+                    <StackPanel Spacing="16" HorizontalAlignment="Center">
+                        <TextBlock Text="💼" FontSize="52" HorizontalAlignment="Center"/>
+                        <TextBlock Text="No hay turno abierto"
+                                   Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="Abra un turno de caja para comenzar a registrar ventas."
+                                   Foreground="#64748B" FontSize="15" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                        <Button Height="56" Padding="32,0" HorizontalAlignment="Center"
+                                Background="#2563EB" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="10"
+                                Content="🟢 Abrir Primer Turno del Día"
+                                Command="{Binding ShowOpenDialogCommand}"/>
+                    </StackPanel>
+                </Border>
+            </StackPanel>
+        </ScrollViewer>
+
+        <!-- ── NOTIFICATION BAR ────────────────────────────────────────── -->
+        <Border Grid.Row="2" Background="#1E293B" Padding="16,10"
+                IsVisible="{Binding Notification, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+            <TextBlock Text="{Binding Notification}" Foreground="#CBD5E1" FontSize="14"/>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             MODAL: OPEN SHIFT
+        ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.RowSpan="3" Background="#CC000000"
+                IsVisible="{Binding IsOpenDialogVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="520" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+                    CornerRadius="16" Padding="32"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="20">
+                    <TextBlock Text="🟢 Apertura de Turno de Caja"
+                               Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+
+                    <!-- Cashier Name -->
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Nombre del Cajero" Foreground="#94A3B8" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBox Text="{Binding CashierName, Mode=TwoWay}"
+                                 Height="52" FontSize="16" CornerRadius="8" Padding="12,0"
+                                 Watermark="Ej. Carlos M." VerticalContentAlignment="Center"/>
+                    </StackPanel>
+
+                    <!-- Opening Amount -->
+                    <StackPanel Spacing="8">
+                        <TextBlock Text="Fondo Inicial (Efectivo en caja)" Foreground="#94A3B8" FontSize="14" FontWeight="SemiBold"/>
+                        <Border Background="#1E293B" BorderBrush="#38BDF8" BorderThickness="1"
+                                CornerRadius="8" Padding="16,12" HorizontalAlignment="Stretch">
+                            <TextBlock Text="{Binding OpeningAmountStr, StringFormat='${0}'}"
+                                       Foreground="#38BDF8" FontSize="30" FontWeight="Black" HorizontalAlignment="Center"/>
+                        </Border>
+                    </StackPanel>
+
+                    <!-- Numpad -->
+                    <Grid RowDefinitions="55,55,55,55" ColumnDefinitions="*,*,*">
+                        <Button Grid.Row="0" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="7" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="7"/>
+                        <Button Grid.Row="0" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="8" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="8"/>
+                        <Button Grid.Row="0" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="9" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="9"/>
+                        <Button Grid.Row="1" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="4" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="4"/>
+                        <Button Grid.Row="1" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="5" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="5"/>
+                        <Button Grid.Row="1" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="6" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="6"/>
+                        <Button Grid.Row="2" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="1" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="1"/>
+                        <Button Grid.Row="2" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="2" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="2"/>
+                        <Button Grid.Row="2" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="3" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="3"/>
+                        <Button Grid.Row="3" Grid.Column="0" Margin="3" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="18" FontWeight="Bold" Content="C" Command="{Binding ClearOpeningNumpadCommand}"/>
+                        <Button Grid.Row="3" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="0" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="0"/>
+                        <Button Grid.Row="3" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="18" FontWeight="Bold" Content="000" Command="{Binding AppendOpeningNumpadCommand}" CommandParameter="000"/>
+                    </Grid>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
+                        <Button Grid.Column="0" Height="54" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                Content="Cancelar" Command="{Binding CancelOpenDialogCommand}"/>
+                        <Button Grid.Column="1" Height="54" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="✅ Abrir Turno" Command="{Binding ConfirmOpenShiftAsyncCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             MODAL: CLOSE SHIFT (ARQUEO DE CAJA)
+        ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.RowSpan="3" Background="#CC000000"
+                IsVisible="{Binding IsCloseDialogVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="560" Background="#0F172A" BorderBrush="#DC2626" BorderThickness="1"
+                    CornerRadius="16" Padding="32"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="18">
+                    <TextBlock Text="🔴 Arqueo y Cierre de Turno"
+                               Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+
+                    <!-- Arqueo Grid -->
+                    <Border Background="#1E293B" CornerRadius="10" Padding="20">
+                        <Grid RowDefinitions="Auto,Auto,Auto" ColumnDefinitions="*,Auto">
+                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Monto Esperado (Sistema):"
+                                       Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding ExpectedAmount, StringFormat='${0:N0}'}"
+                                       Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Monto Físico Contado:"
+                                       Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding ClosingAmountStr, StringFormat='${0}'}"
+                                       Foreground="#38BDF8" FontSize="20" FontWeight="Black" Margin="0,0,0,8"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Diferencia (Sobrante / Faltante):"
+                                       Foreground="#94A3B8" FontSize="15"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1"
+                                       Text="{Binding DifferenceAmount, StringFormat='${0:N0}'}"
+                                       Foreground="{Binding DifferenceColor}"
+                                       FontSize="22" FontWeight="Black"/>
+                        </Grid>
+                    </Border>
+
+                    <!-- Closing Amount Numpad -->
+                    <Grid RowDefinitions="52,52,52,52" ColumnDefinitions="*,*,*">
+                        <Button Grid.Row="0" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="7" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="7"/>
+                        <Button Grid.Row="0" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="8" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="8"/>
+                        <Button Grid.Row="0" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="9" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="9"/>
+                        <Button Grid.Row="1" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="4" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="4"/>
+                        <Button Grid.Row="1" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="5" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="5"/>
+                        <Button Grid.Row="1" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="6" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="6"/>
+                        <Button Grid.Row="2" Grid.Column="0" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="1" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="1"/>
+                        <Button Grid.Row="2" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="2" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="2"/>
+                        <Button Grid.Row="2" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="3" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="3"/>
+                        <Button Grid.Row="3" Grid.Column="0" Margin="3" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="16" FontWeight="Bold" Content="C" Command="{Binding ClearClosingNumpadCommand}"/>
+                        <Button Grid.Row="3" Grid.Column="1" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="0" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="0"/>
+                        <Button Grid.Row="3" Grid.Column="2" Margin="3" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="16" FontWeight="Bold" Content="000" Command="{Binding AppendClosingNumpadCommand}" CommandParameter="000"/>
+                    </Grid>
+
+                    <!-- Notes -->
+                    <TextBox Text="{Binding CloseNotes, Mode=TwoWay}" Height="60"
+                             Watermark="Observaciones del arqueo (opcional)..."
+                             FontSize="14" CornerRadius="8" Padding="10"/>
+
+                    <!-- Action Buttons -->
+                    <Grid ColumnDefinitions="*,*" Margin="0,4,0,0">
+                        <Button Grid.Column="0" Height="54" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" CornerRadius="8"
+                                Content="Cancelar" Command="{Binding CancelCloseDialogCommand}"/>
+                        <Button Grid.Column="1" Height="54" Margin="6,0,0,0" Background="#DC2626" Foreground="White"
+                                FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="🔴 Confirmar Cierre" Command="{Binding ConfirmCloseShiftAsyncCommand}"/>
+                    </Grid>
+                </StackPanel>
+            </Border>
+        </Border>
+
+        <!-- ══════════════════════════════════════════════════════════════
+             MODAL: Z-REPORT (POST-CLOSE SUMMARY)
+        ═══════════════════════════════════════════════════════════════ -->
+        <Border Grid.RowSpan="3" Background="#CC000000"
+                IsVisible="{Binding IsZReportVisible}"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
+            <Border Width="520" Background="#0F172A" BorderBrush="#10B981" BorderThickness="1"
+                    CornerRadius="16" Padding="32"
+                    VerticalAlignment="Center" HorizontalAlignment="Center">
+                <StackPanel Spacing="18" HorizontalAlignment="Stretch">
+                    <TextBlock Text="📊 Reporte Z – Turno Cerrado"
+                               Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <Border Background="#1E293B" CornerRadius="10" Padding="20">
+                        <StackPanel Spacing="10">
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Turno N°:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.ShiftNumber, StringFormat='#{0}'}" Foreground="White" FontSize="14" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Cajero:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.CashierName}" Foreground="#38BDF8" FontSize="14" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Apertura:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.OpenedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Foreground="White" FontSize="14"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Cierre:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.ClosedAt, StringFormat='{}{0:dd/MM HH:mm}'}" Foreground="White" FontSize="14"/>
+                            </Grid>
+                            <Separator Background="#334155" Margin="0,4"/>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Fondo Inicial:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.OpeningAmount, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Monto Esperado:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.ExpectedAmount, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Monto Físico:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.ClosingAmount, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="16" FontWeight="Bold"/>
+                            </Grid>
+                            <Grid ColumnDefinitions="*, Auto">
+                                <TextBlock Text="Diferencia:" Foreground="#94A3B8" FontSize="14"/>
+                                <TextBlock Grid.Column="1" Text="{Binding LastClosedShift.Difference, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="16" FontWeight="Black"/>
+                            </Grid>
+                        </StackPanel>
+                    </Border>
+                    <Button Height="54" Background="#10B981" Foreground="White" FontSize="16"
+                            FontWeight="Bold" CornerRadius="8" Content="✅ Aceptar / Imprimir"
+                            Command="{Binding DismissZReportCommand}"/>
+                </StackPanel>
+            </Border>
+        </Border>
+
+    </Grid>
+</UserControl>

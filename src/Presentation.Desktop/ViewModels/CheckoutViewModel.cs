@@ -10,9 +10,6 @@ using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
 using Infrastructure.Data.Seed;
-using Infrastructure.Hardware.Printers;
-using Infrastructure.Hardware.Scales;
-using Infrastructure.Hardware.Scanners;
 using Microsoft.EntityFrameworkCore;
 
 namespace Presentation.Desktop.ViewModels;
@@ -61,12 +58,16 @@ public partial class CheckoutViewModel : ObservableObject
     public decimal Total => CartItems.Sum(x => x.Total);
     public int TotalItems => CartItems.Count;
 
-    public CheckoutViewModel()
+    public CheckoutViewModel(
+        PosDbContext dbContext,
+        IPrinterService printerService,
+        IScaleService scaleService,
+        IBarcodeScannerService scannerService)
     {
-        _dbContext = new PosDbContext();
-        _printerService = new MockPrinterService();
-        _scaleService = new MockScaleService();
-        _scannerService = new MockBarcodeScannerService();
+        _dbContext = dbContext;
+        _printerService = printerService;
+        _scaleService = scaleService;
+        _scannerService = scannerService;
 
         _scaleService.WeightChanged += (s, e) =>
         {
