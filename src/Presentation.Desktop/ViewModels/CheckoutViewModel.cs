@@ -502,6 +502,15 @@ public partial class CheckoutViewModel : ObservableObject
         NotifyCartTotalsChanged();
     }
 
+    /// <summary>"Exacto" key: customer pays the exact total (no change).</summary>
+    [RelayCommand]
+    public void ExactAmount()
+    {
+        TenderedAmount = Total;
+        ChangeAmount = 0;
+        NotifyCartTotalsChanged();
+    }
+
     [RelayCommand]
     public async Task CompleteSaleAsync()
     {
@@ -617,8 +626,24 @@ public partial class CheckoutViewModel : ObservableObject
 
     [ObservableProperty] private bool _isReceiptPreviewVisible = true;
 
+    /// <summary>What the cashier chose with the 🧾 button; the view may hide the column on narrow windows.</summary>
+    public bool ReceiptPreviewWanted { get; private set; } = true;
+
     [RelayCommand]
-    private void ToggleReceiptPreview() => IsReceiptPreviewVisible = !IsReceiptPreviewVisible;
+    private void ToggleReceiptPreview()
+    {
+        ReceiptPreviewWanted = !ReceiptPreviewWanted;
+        IsReceiptPreviewVisible = ReceiptPreviewWanted;
+    }
+
+    /// <summary>Called by the view on resize: below the threshold the tirilla column is hidden so the
+    /// catalog + ticket (and the payment modal) always fit; above it, the cashier's choice is restored.</summary>
+    public void ApplyViewportWidth(double width)
+    {
+        IsReceiptPreviewVisible = width >= ReceiptPreviewMinWidth && ReceiptPreviewWanted;
+    }
+
+    public const double ReceiptPreviewMinWidth = 1150;
 
     private void RebuildReceiptPreview()
     {

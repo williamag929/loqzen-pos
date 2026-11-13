@@ -16,7 +16,15 @@
         <conv:BoolToColorConverter x:Key="BoolToColor"/>
     </UserControl.Resources>
 
-    <Grid ColumnDefinitions="*, Auto, 440">
+    <!-- Catalog | Tirilla (auto-hidden on narrow windows, see code-behind) | Ticket.
+         Flexible widths with minimums so the view never grows wider than the window
+         (a fixed 440px ticket + 380px tirilla overflowed at half-screen and cut the payment modal). -->
+    <Grid>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="3*" MinWidth="260"/>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="2*" MinWidth="340" MaxWidth="480"/>
+        </Grid.ColumnDefinitions>
         <!-- LEFT PANEL: CATALOG & SEARCH -->
         <Border Grid.Column="0" Background="#0F172A" Padding="16">
             <Grid RowDefinitions="Auto, Auto, *, Auto">
@@ -307,7 +315,7 @@
                 IsVisible="{Binding IsPaymentModalOpen}"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">
-            <Border Width="500" 
+            <Border Width="540" 
                     Background="#0F172A" 
                     BorderBrush="#38BDF8" 
                     BorderThickness="1" 
@@ -357,41 +365,28 @@
                     
                     <!-- Amount info -->
                     <Border Background="#1E293B" CornerRadius="10" Padding="16">
-                        <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, Auto">
-                            <TextBlock Grid.Row="0" Grid.Column="0" Text="Total:" Foreground="#94A3B8" FontSize="16"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="20" FontWeight="Bold"/>
+                        <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="Auto, *">
+                            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0" Text="Total:" Foreground="#94A3B8" FontSize="16"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="30" FontWeight="Black" TextAlignment="Right"/>
                             
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Recibido:" Foreground="#94A3B8" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="22" FontWeight="Bold" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Recibido:" Foreground="#94A3B8" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="34" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Cambio:" Foreground="#94A3B8" FontSize="16" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="20" FontWeight="Bold" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Cambio:" Foreground="#94A3B8" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="30" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
                         </Grid>
                     </Border>
 
-                    <!-- Touch Numpad Grid (only for Cash - 56px rows ensure 48px min touch targets) -->
-                    <Grid RowDefinitions="56, 56, 56, 56" ColumnDefinitions="*, *, *" IsVisible="{Binding IsCashPayment}">
-                        <Button Grid.Row="0" Grid.Column="0" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="7" Command="{Binding AppendNumpadCommand}" CommandParameter="7"/>
-                        <Button Grid.Row="0" Grid.Column="1" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="8" Command="{Binding AppendNumpadCommand}" CommandParameter="8"/>
-                        <Button Grid.Row="0" Grid.Column="2" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="9" Command="{Binding AppendNumpadCommand}" CommandParameter="9"/>
-
-                        <Button Grid.Row="1" Grid.Column="0" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="4" Command="{Binding AppendNumpadCommand}" CommandParameter="4"/>
-                        <Button Grid.Row="1" Grid.Column="1" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="5" Command="{Binding AppendNumpadCommand}" CommandParameter="5"/>
-                        <Button Grid.Row="1" Grid.Column="2" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="6" Command="{Binding AppendNumpadCommand}" CommandParameter="6"/>
-
-                        <Button Grid.Row="2" Grid.Column="0" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="1" Command="{Binding AppendNumpadCommand}" CommandParameter="1"/>
-                        <Button Grid.Row="2" Grid.Column="1" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="2" Command="{Binding AppendNumpadCommand}" CommandParameter="2"/>
-                        <Button Grid.Row="2" Grid.Column="2" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="3" Command="{Binding AppendNumpadCommand}" CommandParameter="3"/>
-
-                        <Button Grid.Row="3" Grid.Column="0" Margin="4" MinHeight="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="20" FontWeight="Bold" Content="C" Command="{Binding ClearNumpadCommand}"/>
-                        <Button Grid.Row="3" Grid.Column="1" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="22" FontWeight="Bold" Content="0" Command="{Binding AppendNumpadCommand}" CommandParameter="0"/>
-                        <Button Grid.Row="3" Grid.Column="2" Margin="4" MinHeight="48" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="20" FontWeight="Bold" Content="00" Command="{Binding AppendNumpadCommand}" CommandParameter="00"/>
-                    </Grid>
+                    <!-- Shared touch numpad (64px keys, same as comandas/login). Cash only. -->
+                    <views:Numpad IsVisible="{Binding IsCashPayment}" ExactLabel="Exacto"
+                                  DigitCommand="{Binding AppendNumpadCommand}"
+                                  ClearCommand="{Binding ClearNumpadCommand}"
+                                  ExactCommand="{Binding ExactAmountCommand}"/>
 
                     <!-- Modal Action Buttons -->
                     <Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="8" Content="Volver" Command="{Binding ClosePaymentModalCommand}"/>
-                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#059669" Foreground="White" FontSize="16" FontWeight="Black" CornerRadius="8" Content="Confirmar Pago" Command="{Binding CompleteSaleCommand}"/>
+                        <Button Grid.Column="0" Height="64" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="17" FontWeight="Bold" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Volver" Command="{Binding ClosePaymentModalCommand}"/>
+                        <Button Grid.Column="1" Height="64" Margin="6,0,0,0" Background="#059669" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="✅ Confirmar Pago" Command="{Binding CompleteSaleCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

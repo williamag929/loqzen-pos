@@ -101,6 +101,7 @@ Luego lee, en este orden:
 | Devolución de producto pesado **cobra** en vez de restar | Productos por peso se calculan con `WeightKg`; había que negar el peso, no solo la cantidad | Test `InCartReturnPersistenceTests` |
 | `SUM` de decimales falla en SQLite | EF Core no traduce `Sum` de `decimal` en SQLite | Trae los valores (`Select(...).ToListAsync()`) y suma en memoria |
 | Test pasa con InMemory pero falla en producción | El proveedor InMemory no valida traducción SQL | Para flujos nuevos agrega un test en `Integration/` con SQLite `:memory:` real |
+| Cifra grande recortada en un `Grid` `*, Auto` | La columna `Auto` del monto no crecía al cambiar el texto | Etiqueta en `Auto`, monto en `*` con `TextAlignment="Right"` (modal de cobro) |
 | `DataTemplate` con 2 hijos no compila (AVLN3000) | Un template solo admite un hijo | Envuelve en `<Panel>` |
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
 
