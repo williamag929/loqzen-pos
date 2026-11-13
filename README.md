@@ -238,6 +238,7 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] Usuarios/PIN y autorización de gerente (devoluciones, descuentos, anular en cocina)
 - [ ] Kestrel embebido en el escritorio + KDS/comanderas en red en tiempo real (WebSocket)
 - [ ] Visor de cliente para comandas
+- [ ] Datáfono semi-integrado (`IPaymentTerminalService`: el POS envía el monto, el datáfono cobra chip/NFC/Apple Pay/Google Pay y responde aprobado → pago con tarjeta se confirma solo) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
 - [ ] ZPL, mDNS, Android, sincronización del Outbox con ERP
 
 ---

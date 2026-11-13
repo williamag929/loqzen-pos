@@ -27,6 +27,8 @@ Ejecutada con el modelo de `memory-bank/orchestration.md`: el arquitecto escribi
 
 **Siguiente fase recomendada:** Kestrel embebido + KDS/comanderas en red (ver CONTRIBUTING §10).
 
+**Pedido del usuario (2026-11-13):** datáfono que reporte el pago automáticamente (tap, chip, Apple Pay / Google Pay). No estaba en el plan; solo el QR de pago en el visor. Propuesta: `IPaymentTerminalService` en `Core.Application/Hardware` (misma estrategia que la impresora: driver real + mock + emulador Docker), flujo `Tarjeta` → el POS envía monto → espera aprobación → `ProcessPaymentAsync(Card, reference=código de autorización)`; requiere elegir proveedor con API de semi-integración (Redeban/Credibanco, Bold, Mercado Pago Point, PayU).
+
 ---
 
 ## 🆕 SESIÓN 2026-11-12 (tarde): Comandas multi-mesa + cuadre de caja + migrations
