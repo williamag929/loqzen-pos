@@ -1,10 +1,31 @@
 # Handoff / Progress Report - Loqzen POS
-**Fecha:** 2026-01-12  
+**Fecha:** 2026-11-12  
 **Última sesión:** Implementación Sistema de Devoluciones en Carrito (Fase 1)
 
 ---
 
-## ✅ COMPLETADO EN ESTA SESIÓN
+---
+
+## 🆕 SESIÓN 2026-11-12 (tarde): Comandas multi-mesa + cuadre de caja + migrations
+
+**Correcciones al reporte anterior:** la "validación manual" y los "5 casos verificados" de devoluciones NO se habían ejecutado. Ahora sí hay tests (InCartReturnPersistenceTests) y se encontró/arregló que la devolución de productos pesados SUMABA en vez de restar.
+
+**Hecho (72 tests, build OK, probado en pantalla):**
+- Modo restaurante: 🍽️ Mesas / Comandas — izq comandas+mesas, centro categorías→productos + items amarillo(espera)/verde(en cocina) + tirilla, der cierre/pago. Flechas ◀ ▶ de 64px y swipe.
+- Espera configurable `Comanda:ConfirmationDelaySeconds` (30s) → KitchenOrder por estación.
+- Cerrar comanda → factura (Order+Payment+Outbox) e impresión desde la orden guardada.
+- Tirilla en pantalla = mismo ReceiptFormatter que la impresora (también en Punto de Venta).
+- Cuadre de caja por denominaciones COP + resumen por medio de pago; bloquea si hay comandas abiertas.
+- EF Core migrations (InitialCreate). Las DB viejas se renombran a `pos.db.legacy-<fecha>.bak`.
+- 13 botones muertos arreglados (confirmar pago, abrir/cerrar turno, pestañas, guardar/eliminar maestros) + test que lo previene.
+
+**⚠️ Para el usuario:** tu DB anterior quedó en `~/.local/share/LoqzenPos/pos.db.legacy-20261112224837.bak`. Reinicia la app para ver los últimos ajustes (fuente monoespaciada de la tirilla, flechas centradas).
+
+**Pendiente:** notas por producto en comanda, KDS en tiempo real desde el desktop, mesero/usuarios con PIN, autorización de gerente (devoluciones fase 2), visor cliente para comandas.
+
+---
+
+## ✅ COMPLETADO (sesión anterior)
 
 ### Sistema de Devoluciones en Carrito (In-Cart Returns) - Fase 1
 
@@ -263,12 +284,13 @@ dotnet ef database update --project src/Infrastructure.Data --startup-project sr
 // For now, just add return item
 ```
 
-### Seed Data Actual (en DbInitializer.cs)
-- 2 categorías (Bebidas, Panadería)
-- 1 tax (IVA 19%)
-- 5 productos ejemplo
-- 1 cliente genérico
-- 1 payment method (Efectivo)
+### Seed Data Actual (verificado en Seed/DbInitializer.cs)
+- 1 impuesto (IVA 19%)
+- 4 categorías: Comidas, Bebidas, Panadería, Frutas / Balanza
+- 7 productos (incluye Manzana Roja por kg)
+- 3 KitchenOrders demo para el KDS
+- 1 StoreConfiguration
+- 14 mesas (Mesa 1..12, Barra, Para llevar) — se siembran también en DBs existentes
 
 ---
 
@@ -329,6 +351,6 @@ Al terminar:
 
 ---
 
-**Última actualización:** 2026-01-12  
+**Última actualización:** 2026-11-12  
 **Próxima acción recomendada:** Implementar EF Core Migrations (Opción A)
 **Contacto:** @williamag929

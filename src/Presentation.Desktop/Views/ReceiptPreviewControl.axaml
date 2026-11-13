@@ -13,7 +13,7 @@
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="rc:ReceiptLine">
                         <TextBlock Text="{Binding Text}"
-                                   FontFamily="DejaVu Sans Mono, Cascadia Mono, Consolas, Courier New, monospace"
+                                   FontFamily="Consolas, Cascadia Mono, DejaVu Sans Mono, Liberation Mono, Noto Sans Mono, Adwaita Mono, JetBrainsMono Nerd Font, Courier New"
                                    FontSize="{Binding Style, Converter={x:Static conv:ReceiptLineConverters.FontSize}}"
                                    FontWeight="{Binding Style, Converter={x:Static conv:ReceiptLineConverters.Weight}}"
                                    HorizontalAlignment="{Binding Align, Converter={x:Static conv:ReceiptLineConverters.Align}}"

@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ In-cart return system fully implemented and tested.
+- ✅ 72 tests pass (`dotnet test`).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -80,7 +80,7 @@
 3. ~~Sales use-case logic in CheckoutViewModel~~ ✅ Extracted to `ISalesService`.
 4. ~~CheckoutViewModel uses PosDbContext directly~~ ✅ Refactored to use ISalesService for order/payment flow (only product queries via DbContext for performance).
 5. `KdsViewModel` still uses `PosDbContext` directly for queries (should use Application-layer services).
-6. No EF Core migrations (uses EnsureCreated).
+6. ~~No EF Core migrations~~ ✅ InitialCreate migration (2026-11-12).
 7. Kestrel not embedded in desktop host; no mDNS; WebSocket bag never prunes closed sockets; no station filtering.
 8. No KDS-offline > 30 s fallback to kitchen printer; no ZPL generation verified.
 9. No `ICashDrawerService` implementation; no Outbox dispatcher/background worker.
@@ -171,10 +171,30 @@
 - ManagerOverride entity for audit trail
 - Configurable actions requiring authorization (appsettings.json)
 
+
+### Restaurant mode + cuadre de caja (2026-11-12, verified)
+**Verified by:** 72 xUnit tests (incl. real-SQLite e2e + migrations on files) and a manual run on Linux/Wayland (screenshot: 3 panels, yellow countdown -> green, live receipt).
+- Entities: DiningTable, Comanda, ComandaItem (Pending->Confirmed/Cancelled), CashCountLine. Guid PKs.
+- IComandaService/ComandaService (partial: .cs/.Items/.Close/.Helpers). TimeProvider injected. Confirm creates ONE KitchenOrder PER STATION + Outbox. CloseAndPay = Order+Payment+Outbox in one SaveChanges; validates cash BEFORE mutating.
+- Config `Comanda:ConfirmationDelaySeconds` (30). Timer is app-wide in ComandaViewModel (singleton), not per-screen.
+- ICashShiftService: GetCloseSummaryAsync (by method), CloseShiftWithCountAsync (COP denominations; blocks if comandas open).
+- ReceiptFormatter + ReceiptDtoFactory (Core.Application/Receipts) = single layout for printer, TXT fallback and on-screen preview. EscPosRenderer converts lines to bytes.
+- EF Core migrations: InitialCreate; dotnet-ef 8.0.11 local tool. DbInitializer.MigrateAsync; legacy EnsureCreated DBs renamed to *.legacy-<ts>.bak (never deleted).
+- UI: ComandaView (List/Order/Pay panels + ComandaCatalogPanel), ReceiptPreviewControl, Numpad, swipe in code-behind. Checkout has live tirilla column.
+
+**Bugs fixed this session:** 13 dead buttons (XAML *AsyncCommand vs generated *Command) + XamlCommandBindingTests guard; weighed in-cart return was charged instead of credited; returns were sent to KDS; cash close pre-filled counted = expected.
+
+**Known limitations / next:**
+- Desktop KDS reloads only on tab open/Refresh; Presentation.Server WebSocket is a separate process, desktop does not broadcast.
+- Comanda: no notes input in UI yet; each tap adds a new line (no merge); weighed products default 1 kg (no scale in comanda).
+- Waiter is free text; no users/PIN. Manager authorization (returns phase 2) still pending.
+- CustomerDisplay is not wired to comandas.
+- Quick-sale Checkout still uses PosDbContext directly (pre-existing debt).
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
-3. Add EF Core migrations.
+3. ~~Add EF Core migrations~~ ✅ Done
 4. Implement manager authorization system (Fase 2 of returns).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.
