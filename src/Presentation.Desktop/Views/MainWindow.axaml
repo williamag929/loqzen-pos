@@ -82,12 +82,15 @@
         </Border>
 
         <!-- ── VIEW HOST ──────────────────────────────────────────── -->
+        <!-- IsVisible must live on a WRAPPER: on the same element as DataContext="{Binding X}"
+             it would resolve against the child ViewModel (no IsXActive there) → binding fails →
+             every view stays visible and the last one covers the rest. -->
         <Grid Grid.Row="1">
-            <views:CheckoutView  DataContext="{Binding Checkout}"   IsVisible="{Binding IsCheckoutActive}"/>
-            <views:KdsView       DataContext="{Binding Kds}"        IsVisible="{Binding IsKdsActive}"/>
-            <views:CashShiftView DataContext="{Binding CashShift}"  IsVisible="{Binding IsCashShiftActive}"/>
-            <views:MastersView   DataContext="{Binding Masters}"    IsVisible="{Binding IsMastersActive}"/>
-            <views:ComandaView   DataContext="{Binding Comanda}"    IsVisible="{Binding IsComandaActive}"/>
+            <Panel IsVisible="{Binding IsCheckoutActive}"><views:CheckoutView  DataContext="{Binding Checkout}"/></Panel>
+            <Panel IsVisible="{Binding IsKdsActive}"><views:KdsView            DataContext="{Binding Kds}"/></Panel>
+            <Panel IsVisible="{Binding IsCashShiftActive}"><views:CashShiftView DataContext="{Binding CashShift}"/></Panel>
+            <Panel IsVisible="{Binding IsMastersActive}"><views:MastersView    DataContext="{Binding Masters}"/></Panel>
+            <Panel IsVisible="{Binding IsComandaActive}"><views:ComandaView    DataContext="{Binding Comanda}"/></Panel>
         </Grid>
 
     </Grid>

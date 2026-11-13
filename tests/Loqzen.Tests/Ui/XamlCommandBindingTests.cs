@@ -19,6 +19,26 @@ public class XamlCommandBindingTests
         return dir?.FullName ?? throw new InvalidOperationException("Repo root not found");
     }
 
+    /// <summary>
+    /// An element with DataContext="{Binding X}" resolves its OTHER bindings against X, so
+    /// IsVisible="{Binding IsXActive}" on the same element silently fails and the view never hides
+    /// (this made the last tab cover all others).
+    /// </summary>
+    [Fact]
+    public void NoElement_CombinesDataContextBinding_WithOtherParentBindings()
+    {
+        var viewsDir = Path.Combine(RepoRoot(), "src", "Presentation.Desktop", "Views");
+        var offenders = Directory.GetFiles(viewsDir, "*.axaml")
+            .SelectMany(f => Regex.Matches(File.ReadAllText(f), @"<[\w:]+\s[^>]*>", RegexOptions.Singleline)
+                .Select(m => m.Value)
+                .Where(tag => Regex.IsMatch(tag, @"\bDataContext=""\{Binding [^}]+\}""")
+                           && Regex.IsMatch(tag, @"\bIsVisible=""\{Binding"))
+                .Select(tag => $"{Path.GetFileName(f)}: {Regex.Replace(tag, @"\s+", " ")}"))
+            .ToList();
+
+        offenders.Should().BeEmpty("put IsVisible on a wrapper Panel, not on the element that changes DataContext");
+    }
+
     [Fact]
     public void EveryCommandReferencedInXaml_ExistsOnAViewModel()
     {
