@@ -1,15 +1,26 @@
-<Project Sdk="Microsoft.NET.Sdk.Web">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <OutputType>Library</OutputType>
+    <RootNamespace>Presentation.Server</RootNamespace>
   </PropertyGroup>
+
+  <ItemGroup>
+    <!-- Kestrel + minimal API + WebSockets without being a web app project (embedded in the desktop). -->
+    <FrameworkReference Include="Microsoft.AspNetCore.App" />
+  </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Core.Domain\Core.Domain.csproj" />
     <ProjectReference Include="..\Core.Application\Core.Application.csproj" />
-    <ProjectReference Include="..\Infrastructure.Data\Infrastructure.Data.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- Browser KDS for tablets, served at /kds -->
+    <EmbeddedResource Include="wwwroot\**" />
   </ItemGroup>
 
 </Project>
