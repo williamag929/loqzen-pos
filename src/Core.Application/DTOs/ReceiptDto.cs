@@ -33,6 +33,7 @@ public class ReceiptItemDto
     public decimal UnitPrice { get; set; }
     public decimal Total { get; set; }
     public string? Notes { get; set; }
+    public bool IsReturn { get; set; }
 }
 
 public class CartItemDto
@@ -45,7 +46,9 @@ public class CartItemDto
     public bool IsWeighed { get; set; }
     public decimal? WeightKg { get; set; }
     public decimal TaxRate { get; set; } = 0.19m;
+    public bool IsReturn { get; set; }
 
+    public string DisplayName => IsReturn ? $"DEVOL: {Name}" : Name;
     public decimal Subtotal => UnitPrice * (IsWeighed ? (WeightKg ?? Quantity) : Quantity);
     public decimal TaxAmount => Subtotal * TaxRate;
     public decimal Total => Subtotal + TaxAmount;

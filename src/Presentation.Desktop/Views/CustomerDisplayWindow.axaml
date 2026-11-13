@@ -41,7 +41,9 @@
                         <ItemsControl ItemsSource="{Binding Items}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="dtos:CartItemDto">
-                                    <Border Background="#0B132B" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#3A506B" BorderThickness="1">
+                                    <Panel>
+                                        <!-- Normal item -->
+                                        <Border Background="#0B132B" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#3A506B" BorderThickness="1" IsVisible="{Binding !IsReturn}">
                                         <Grid ColumnDefinitions="*, Auto, Auto">
                                             <StackPanel Grid.Column="0" Spacing="4">
                                                 <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
@@ -55,6 +57,26 @@
                                             <TextBlock Grid.Column="2" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="18" FontWeight="Bold" VerticalAlignment="Center"/>
                                         </Grid>
                                     </Border>
+                                    
+                                    <!-- Return item (credit note) -->
+                                    <Border Background="#450A0A" CornerRadius="8" Padding="12" Margin="0,0,0,8" BorderBrush="#991B1B" BorderThickness="2" IsVisible="{Binding IsReturn}">
+                                        <Grid ColumnDefinitions="*, Auto">
+                                            <StackPanel Grid.Column="0" Spacing="4">
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="⚠️ DEVOLUCIÓN:" Foreground="#FCA5A5" FontSize="15" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding Name}" Foreground="#FCA5A5" FontSize="15" FontWeight="SemiBold"/>
+                                                </StackPanel>
+                                                <TextBlock Text="(Nota crédito en esta venta)" Foreground="#F87171" FontSize="12" FontStyle="Italic"/>
+                                                <StackPanel Orientation="Horizontal" Spacing="6">
+                                                    <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="13"/>
+                                                    <TextBlock Text="×" Foreground="#DC2626" FontSize="13"/>
+                                                    <TextBlock Text="{Binding Quantity}" Foreground="#FCA5A5" FontSize="13" FontWeight="Bold"/>
+                                                </StackPanel>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="18" FontWeight="Black" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                    </Panel>
                                 </DataTemplate>
                             </ItemsControl.ItemTemplate>
                         </ItemsControl>

@@ -165,9 +165,10 @@
                     <ItemsControl ItemsSource="{Binding CartItems}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dtos:CartItemDto">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8">
+                                <Panel>
+                                    <!-- Normal item -->
+                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding !IsReturn}">
                                     <Grid ColumnDefinitions="*, Auto, Auto">
-                                        <!-- Item info -->
                                         <StackPanel Grid.Column="0" Spacing="2">
                                             <TextBlock Text="{Binding Name}" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6">
@@ -178,23 +179,38 @@
                                             </StackPanel>
                                             <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#34D399" FontSize="14" FontWeight="Bold"/>
                                         </StackPanel>
-
-                                        <!-- Quantity Controls (48x48 min touch targets) -->
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0">
                                             <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="-" FontSize="20" FontWeight="Bold"
-                                                    Command="{Binding #CheckoutRoot.DataContext.DecrementItemCommand}"
-                                                    CommandParameter="{Binding .}"/>
+                                                    Command="{Binding #CheckoutRoot.DataContext.DecrementItemCommand}" CommandParameter="{Binding .}"/>
                                             <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="+" FontSize="20" FontWeight="Bold"
-                                                    Command="{Binding #CheckoutRoot.DataContext.IncrementItemCommand}"
-                                                    CommandParameter="{Binding .}"/>
+                                                    Command="{Binding #CheckoutRoot.DataContext.IncrementItemCommand}" CommandParameter="{Binding .}"/>
                                         </StackPanel>
-
-                                        <!-- Delete Item Button (48x48 min touch target) -->
-                                        <Button Grid.Column="2" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="✕" FontSize="18"
-                                                Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}"
-                                                CommandParameter="{Binding .}"/>
+                                        <Button Grid.Column="2" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="🔄" FontSize="18"
+                                                Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}" CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>
+
+                                <!-- Return item (credit note) -->
+                                <Border Background="#450A0A" BorderBrush="#991B1B" BorderThickness="2" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding IsReturn}">
+                                    <Grid ColumnDefinitions="*, Auto">
+                                        <StackPanel Grid.Column="0" Spacing="2">
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="🔄 DEVOLUCIÓN:" Foreground="#FCA5A5" FontSize="13" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="#FCA5A5" FontSize="13" FontWeight="SemiBold"/>
+                                            </StackPanel>
+                                            <TextBlock Text="(Nota crédito - ajuste en venta)" Foreground="#F87171" FontSize="11" FontStyle="Italic"/>
+                                            <StackPanel Orientation="Horizontal" Spacing="6">
+                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="12"/>
+                                                <TextBlock Text="x" Foreground="#DC2626" FontSize="12"/>
+                                                <TextBlock Text="{Binding Quantity}" Foreground="#FCA5A5" FontSize="12" FontWeight="Bold"/>
+                                            </StackPanel>
+                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="14" FontWeight="Black"/>
+                                        </StackPanel>
+                                        <Button Grid.Column="1" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="✕" FontSize="18"
+                                                Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}" CommandParameter="{Binding .}"/>
+                                    </Grid>
+                                </Border>
+                                </Panel>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>

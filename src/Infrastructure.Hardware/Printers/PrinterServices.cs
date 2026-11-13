@@ -66,7 +66,12 @@ public class EscPosNetworkPrinterService : IPrinterService
             writer.Write(new byte[] { 0x1B, 0x45, 0x00 });
             writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
 
-            foreach (var item in receipt.Items)
+            // Separate normal items from returns
+            var normalItems = receipt.Items.Where(i => !i.IsReturn).ToList();
+            var returnItems = receipt.Items.Where(i => i.IsReturn).ToList();
+
+            // Print normal items
+            foreach (var item in normalItems)
             {
                 var name = item.Name.Length > 18 ? item.Name[..18] : item.Name.PadRight(18);
                 var qty = $"{item.Quantity,4:0.##}";
@@ -78,6 +83,26 @@ public class EscPosNetworkPrinterService : IPrinterService
                     var notes = item.Notes.Length > 30 ? item.Notes[..30] : item.Notes;
                     writer.Write(Encoding.ASCII.GetBytes($"     ({notes})\n"));
                 }
+            }
+
+            // Print return items (credit notes) in separate section
+            if (returnItems.Any())
+            {
+                writer.Write(Encoding.ASCII.GetBytes("\n"));
+                writer.Write(new byte[] { 0x1B, 0x45, 0x01 }); // Bold ON
+                writer.Write(Encoding.ASCII.GetBytes("*** NOTA CREDITO ***\n"));
+                writer.Write(new byte[] { 0x1B, 0x45, 0x00 }); // Bold OFF
+                
+                foreach (var item in returnItems)
+                {
+                    var name = $"DEVOL: {item.Name}";
+                    name = name.Length > 18 ? name[..18] : name.PadRight(18);
+                    var qty = $"{item.Quantity,4:0.##}";
+                    var total = $"{item.Total,8:N0}";
+                    writer.Write(Encoding.ASCII.GetBytes($"{qty} {name} {total}\n"));
+                    writer.Write(Encoding.ASCII.GetBytes("     (Ajuste en venta)\n"));
+                }
+                writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
             }
 
             writer.Write(Encoding.ASCII.GetBytes("================================\n"));

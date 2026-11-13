@@ -305,8 +305,47 @@ public partial class CheckoutViewModel : ObservableObject
     [RelayCommand]
     public void RemoveItem(CartItemDto item)
     {
-        CartItems.Remove(item);
+        // If item is already a return, just remove it
+        if (item.IsReturn)
+        {
+            CartItems.Remove(item);
+            NotifyCartTotalsChanged();
+            StatusMessage = "Devolución removida";
+            return;
+        }
+
+        // Validate: can't return more than added
+        var normalQty = CartItems.Where(i => i.ProductId == item.ProductId && !i.IsReturn)
+                                 .Sum(i => i.IsWeighed ? (i.WeightKg ?? i.Quantity) : i.Quantity);
+        var returnedQty = CartItems.Where(i => i.ProductId == item.ProductId && i.IsReturn)
+                                    .Sum(i => Math.Abs(i.IsWeighed ? (i.WeightKg ?? i.Quantity) : i.Quantity));
+
+        if (returnedQty >= normalQty)
+        {
+            StatusMessage = "❌ No puede devolver más de lo agregado en esta venta";
+            return;
+        }
+
+        // TODO: Manager authorization modal (Fase 2)
+        // For now, just add return item
+
+        // Add return item with negative quantity
+        var returnItem = new CartItemDto
+        {
+            ProductId = item.ProductId,
+            Sku = item.Sku,
+            Name = item.Name,
+            UnitPrice = item.UnitPrice,
+            Quantity = item.IsWeighed ? -1m : -1m,
+            IsWeighed = item.IsWeighed,
+            WeightKg = item.IsWeighed ? (item.WeightKg ?? 1m) : null,
+            TaxRate = item.TaxRate,
+            IsReturn = true
+        };
+
+        CartItems.Add(returnItem);
         NotifyCartTotalsChanged();
+        StatusMessage = $"🔄 Devolución agregada: {item.Name}";
     }
 
     [RelayCommand]
@@ -521,7 +560,8 @@ public partial class CheckoutViewModel : ObservableObject
                     Name = i.Name,
                     Quantity = i.IsWeighed ? (i.WeightKg ?? 1) : i.Quantity,
                     UnitPrice = i.UnitPrice,
-                    Total = i.Total
+                    Total = i.Total,
+                    IsReturn = i.IsReturn
                 }).ToList()
             };
 
