@@ -28,6 +28,15 @@ public interface IComandaService
     /// <summary>Cancels an item; only Pending items can be cancelled (confirmed items are already in kitchen).</summary>
     Task<ComandaDto> CancelPendingItemAsync(Guid comandaId, Guid itemId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Sets (or clears, if empty) the notes of a Pending item and releases its hold.
+    /// Throws if the item is already in the kitchen or notes exceed ComandaSettings.MaxNotesLength.
+    /// </summary>
+    Task<ComandaDto> SetItemNotesAsync(Guid comandaId, Guid itemId, string? notes, CancellationToken ct = default);
+
+    /// <summary>Puts a Pending item on hold (editing notes) or releases it. Held items are skipped by auto-confirm.</summary>
+    Task<ComandaDto> SetItemHoldAsync(Guid comandaId, Guid itemId, bool onHold, CancellationToken ct = default);
+
     /// <summary>Confirms all Pending items of a comanda immediately (sends to KDS).</summary>
     Task<ComandaDto> ConfirmPendingNowAsync(Guid comandaId, CancellationToken ct = default);
 

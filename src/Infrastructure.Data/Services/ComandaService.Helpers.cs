@@ -46,6 +46,7 @@ public partial class ComandaService
                 Notes = i.Notes
             });
             i.Status = ComandaItemStatus.Confirmed;
+            i.IsOnHold = false;
             i.ConfirmedAt = UtcNow;
             i.KitchenOrderId = ko.Id;
             i.UpdatedAt = UtcNow;
@@ -96,6 +97,7 @@ public partial class ComandaService
             Notes = i.Notes,
             Station = i.Station,
             Status = i.Status,
+            IsOnHold = i.IsOnHold,
             AddedAt = i.AddedAt,
             ConfirmedAt = i.ConfirmedAt
         }).ToList()

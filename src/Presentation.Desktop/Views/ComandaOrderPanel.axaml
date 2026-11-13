@@ -21,19 +21,30 @@
                             <DataTemplate x:DataType="vm:ComandaItemRowViewModel">
                                 <Border Background="{Binding Background}" BorderBrush="{Binding Accent}" BorderThickness="0,0,0,4"
                                         CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
-                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto">
+                                    <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto">
                                         <TextBlock Text="{Binding Name}" Foreground="White" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="White" FontSize="15" FontWeight="Bold" Margin="8,0,0,0"/>
-                                        <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
+                                        <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
                                             <TextBlock Text="{Binding QuantityText}" Foreground="#E2E8F0" FontSize="13"/>
                                             <TextBlock Text="{Binding StateText}" Foreground="{Binding Accent}" FontSize="13" FontWeight="Bold"/>
                                             <TextBlock Text="{Binding StationText}" Foreground="#94A3B8" FontSize="12"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Grid.Row="1" Grid.RowSpan="2" Width="52" Height="52" CornerRadius="8"
-                                                Background="#7F1D1D" Foreground="White" FontSize="18" Content="✕"
-                                                IsVisible="{Binding IsPending}" Command="{Binding CancelCommand}"/>
-                                        <ProgressBar Grid.Row="2" Minimum="0" Maximum="1" Value="{Binding Progress}" Height="6" Margin="0,6,8,0"
+                                        <!-- Note: always visible (yellow and green) so the cashier sees what the kitchen got -->
+                                        <Border Grid.Row="2" Grid.ColumnSpan="2" Background="#33000000" CornerRadius="6" Padding="8,4" Margin="0,6,0,0"
+                                                IsVisible="{Binding HasNotes}">
+                                            <TextBlock Text="{Binding Notes, StringFormat='📝 {0}'}" Foreground="#FDE68A" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        </Border>
+                                        <ProgressBar Grid.Row="3" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding Progress}" Height="6" Margin="0,6,0,0"
                                                      Foreground="{Binding Accent}" IsVisible="{Binding IsPending}"/>
+                                        <!-- Pending-only actions (52px touch targets) -->
+                                        <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="*, 60" Margin="0,8,0,0" IsVisible="{Binding IsPending}">
+                                            <Button Height="52" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="15" FontWeight="Bold"
+                                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                    Content="{Binding NotesButtonText}" Command="{Binding EditNotesCommand}"/>
+                                            <Button Grid.Column="1" Width="52" Height="52" HorizontalAlignment="Right" CornerRadius="8"
+                                                    Background="#7F1D1D" Foreground="White" FontSize="18" Content="✕"
+                                                    HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
+                                        </Grid>
                                     </Grid>
                                 </Border>
                             </DataTemplate>

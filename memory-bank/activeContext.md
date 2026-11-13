@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 72 tests pass (`dotnet test`).
+- ✅ 81 tests pass (`dotnet test`).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -186,7 +186,8 @@
 
 **Known limitations / next:**
 - Desktop KDS reloads only on tab open/Refresh; Presentation.Server WebSocket is a separate process, desktop does not broadcast.
-- Comanda: no notes input in UI yet; each tap adds a new line (no merge); weighed products default 1 kg (no scale in comanda).
+- Comanda notes DONE (2026-11-12): SetItemNotesAsync/SetItemHoldAsync; IsOnHold skips auto-confirm while editing; quick-note chips from `Comanda:QuickNotes`; max 200 chars; migration ComandaItemNotesHold. A hold left by a crash shows "en pausa" and is released by opening Nota -> Guardar/Cancelar.
+- Comanda: each tap adds a new line (no merge); weighed products default 1 kg (no scale in comanda).
 - Waiter is free text; no users/PIN. Manager authorization (returns phase 2) still pending.
 - CustomerDisplay is not wired to comandas.
 - Quick-sale Checkout still uses PosDbContext directly (pre-existing debt).

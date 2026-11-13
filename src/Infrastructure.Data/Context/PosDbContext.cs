@@ -216,6 +216,7 @@ public class PosDbContext : DbContext
             entity.HasKey(i => i.Id);
             entity.Property(i => i.ProductName).IsRequired().HasMaxLength(200);
             entity.Property(i => i.Station).HasMaxLength(100);
+            entity.Property(i => i.Notes).HasMaxLength(Core.Application.DTOs.ComandaSettings.MaxNotesLength);
             entity.Property(i => i.UnitPrice).HasPrecision(18, 2);
             entity.Property(i => i.TaxRate).HasPrecision(6, 4);
             entity.Property(i => i.Quantity).HasPrecision(18, 3);

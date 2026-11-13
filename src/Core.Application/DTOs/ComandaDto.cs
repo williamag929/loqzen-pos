@@ -47,6 +47,7 @@ public class ComandaItemDto
     public string? Notes { get; set; }
     public string Station { get; set; } = string.Empty;
     public ComandaItemStatus Status { get; set; }
+    public bool IsOnHold { get; set; }
     public DateTime AddedAt { get; set; }
     public DateTime? ConfirmedAt { get; set; }
 
@@ -61,6 +62,11 @@ public class ComandaSettings
 {
     /// <summary>Seconds an added item stays Pending (yellow) before auto-confirm to KDS (green).</summary>
     public int ConfirmationDelaySeconds { get; set; } = 30;
+
+    /// <summary>One-tap note chips shown in the notes editor. Configurable in appsettings.json.</summary>
+    public List<string> QuickNotes { get; set; } = new();
+
+    public const int MaxNotesLength = 200;
 }
 
 /// <summary>Cash close summary (cuadre de caja).</summary>

@@ -52,6 +52,12 @@ public class ComandaItem : BaseEntity
     public string Station { get; set; } = "Cocina Caliente";
 
     public ComandaItemStatus Status { get; set; } = ComandaItemStatus.Pending;
+
+    /// <summary>
+    /// True while the cashier is editing this item's notes: auto-confirm skips it so the kitchen
+    /// never receives the item WITHOUT the note. Explicit actions (send now / pay) still confirm it.
+    /// </summary>
+    public bool IsOnHold { get; set; }
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
     public DateTime? ConfirmedAt { get; set; }
 

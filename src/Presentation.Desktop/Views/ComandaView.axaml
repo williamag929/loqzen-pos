@@ -40,6 +40,11 @@
             <views:ComandaPayPanel   IsVisible="{Binding IsPayPanel}"/>
         </Panel>
 
+        <!-- Notes editor overlay (covers header+panels so navigation is blocked while editing) -->
+        <Panel Grid.Row="0" Grid.RowSpan="2" IsVisible="{Binding IsNotesEditorOpen}">
+            <views:ComandaNotesEditor/>
+        </Panel>
+
         <!-- Status bar -->
         <Border Grid.Row="2" Background="#1E293B" Padding="16,10">
             <Grid ColumnDefinitions="*, Auto">

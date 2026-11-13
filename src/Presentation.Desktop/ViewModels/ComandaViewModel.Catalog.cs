@@ -114,7 +114,7 @@ public partial class ComandaViewModel
         Current = dto;
         Items.Clear();
         foreach (var i in dto.Items.Where(i => i.Status != Core.Domain.Enums.ComandaItemStatus.Cancelled))
-            Items.Add(new ComandaItemRowViewModel(i, _settings.ConfirmationDelaySeconds, UtcNow, CancelItem));
+            Items.Add(new ComandaItemRowViewModel(i, _settings.ConfirmationDelaySeconds, UtcNow, CancelItem, OpenNotes));
         RebuildPreview();
         OnPropertyChanged(nameof(PanelTitle));
     }

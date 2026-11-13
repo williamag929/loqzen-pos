@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             x:Class="Presentation.Desktop.Views.ComandaNotesEditor"
+             x:DataType="vm:ComandaViewModel"
+             x:CompileBindings="True">
+
+    <!-- Modal notes editor: quick chips (one tap) + free text. Item is on hold while this is open. -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="#CA8A04" BorderThickness="2" CornerRadius="16" Padding="24"
+                Width="760" HorizontalAlignment="Center" VerticalAlignment="Center">
+            <StackPanel Spacing="16">
+                <TextBlock Text="{Binding NotesEditorTitle}" Foreground="White" FontSize="22" FontWeight="Black" TextWrapping="Wrap"/>
+                <TextBlock Text="✋ Este producto no se envía a cocina hasta que guarde o cancele." Foreground="#FDE68A" FontSize="14"/>
+
+                <TextBlock Text="Notas rápidas (toque para agregar / quitar)" Foreground="#94A3B8" FontSize="14"/>
+                <ItemsControl ItemsSource="{Binding QuickNoteChips}">
+                    <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
+                    <ItemsControl.ItemTemplate>
+                        <DataTemplate x:DataType="vm:QuickNoteChipViewModel">
+                            <Button MinWidth="150" Height="56" Margin="4" Padding="14,0" CornerRadius="28"
+                                    Background="{Binding Background}" Foreground="White" FontSize="16" FontWeight="Bold"
+                                    HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                    Content="{Binding Label}" Command="{Binding ToggleCommand}"/>
+                        </DataTemplate>
+                    </ItemsControl.ItemTemplate>
+                </ItemsControl>
+
+                <Grid ColumnDefinitions="*, Auto">
+                    <TextBlock Text="Nota (texto libre)" Foreground="#94A3B8" FontSize="14"/>
+                    <TextBlock Grid.Column="1" Text="{Binding NotesCounter}" Foreground="#64748B" FontSize="13"/>
+                </Grid>
+                <TextBox Text="{Binding NotesText, Mode=TwoWay}" MaxLength="{Binding MaxNotesLength}"
+                         Height="90" FontSize="18" TextWrapping="Wrap" AcceptsReturn="False" CornerRadius="10" Padding="12"
+                         Watermark="Ej: sin cebolla, salsa aparte"/>
+
+                <Grid ColumnDefinitions="*, *, 2*">
+                    <Button Height="64" Margin="0,0,6,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="Cancelar" Command="{Binding CancelNotesCommand}"/>
+                    <Button Grid.Column="1" Height="64" Margin="6,0" CornerRadius="10" Background="#7F1D1D" Foreground="White" FontSize="16" FontWeight="Bold"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="🗑 Borrar" Command="{Binding ClearNotesCommand}"/>
+                    <Button Grid.Column="2" Height="64" Margin="6,0,0,0" CornerRadius="10" Background="#CA8A04" Foreground="White" FontSize="18" FontWeight="Black"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="✅ Guardar nota" Command="{Binding SaveNotesCommand}"/>
+                </Grid>
+            </StackPanel>
+        </Border>
+    </Border>
+</UserControl>

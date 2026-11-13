@@ -16,16 +16,20 @@ public sealed partial class ComandaItemRowViewModel : ObservableObject
 {
     private readonly int _delaySeconds;
 
-    public ComandaItemRowViewModel(ComandaItemDto dto, int delaySeconds, DateTime utcNow, Action<ComandaItemRowViewModel> onCancel)
+    public ComandaItemRowViewModel(ComandaItemDto dto, int delaySeconds, DateTime utcNow, Action<ComandaItemRowViewModel> onCancel, Action<ComandaItemRowViewModel> onEditNotes)
     {
         Dto = dto;
         _delaySeconds = delaySeconds;
         CancelCommand = new RelayCommand(() => onCancel(this));
+        EditNotesCommand = new RelayCommand(() => onEditNotes(this));
         Tick(utcNow);
     }
 
     public ComandaItemDto Dto { get; }
     public IRelayCommand CancelCommand { get; }
+    public IRelayCommand EditNotesCommand { get; }
+    public bool IsOnHold => Dto.IsOnHold;
+    public string NotesButtonText => HasNotes ? "📝 Editar nota" : "📝 Nota";
 
     public string Name => Dto.ProductName;
     public string QuantityText => Dto.WeightKg is { } kg ? $"{kg:0.###} kg" : $"{Dto.Quantity:0.##} x";
@@ -61,6 +65,10 @@ public sealed partial class ComandaItemRowViewModel : ObservableObject
     {
         switch (Dto.Status)
         {
+            case ComandaItemStatus.Pending when Dto.IsOnHold:
+                StateText = "✋ en pausa (editando nota)";
+                Progress = 0;
+                break;
             case ComandaItemStatus.Pending:
                 var elapsed = (utcNow - Dto.AddedAt).TotalSeconds;
                 var left = Math.Max(0, (int)Math.Ceiling(_delaySeconds - elapsed));

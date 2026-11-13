@@ -205,10 +205,14 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("IsOnHold")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid?>("KitchenOrderId")
                         .HasColumnType("TEXT");
 
                     b.Property<string>("Notes")
+                        .HasMaxLength(200)
                         .HasColumnType("TEXT");
 
                     b.Property<Guid>("ProductId")

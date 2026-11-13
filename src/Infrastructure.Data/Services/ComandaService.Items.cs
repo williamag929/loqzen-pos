@@ -60,6 +60,39 @@ public partial class ComandaService
         return MapToDto(comanda);
     }
 
+    public async Task<ComandaDto> SetItemNotesAsync(Guid comandaId, Guid itemId, string? notes, CancellationToken ct = default)
+    {
+        var clean = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim();
+        if (clean?.Length > ComandaSettings.MaxNotesLength)
+            throw new ArgumentException($"La nota no puede superar {ComandaSettings.MaxNotesLength} caracteres.", nameof(notes));
+
+        var (comanda, item) = await RequirePendingItemAsync(comandaId, itemId, ct);
+        item.Notes = clean;
+        item.IsOnHold = false; // saved → let it go to the kitchen (immediately if its delay already elapsed)
+        item.UpdatedAt = UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    public async Task<ComandaDto> SetItemHoldAsync(Guid comandaId, Guid itemId, bool onHold, CancellationToken ct = default)
+    {
+        var (comanda, item) = await RequirePendingItemAsync(comandaId, itemId, ct);
+        item.IsOnHold = onHold;
+        item.UpdatedAt = UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    private async Task<(Comanda, ComandaItem)> RequirePendingItemAsync(Guid comandaId, Guid itemId, CancellationToken ct)
+    {
+        var comanda = await RequireAsync(comandaId, ct);
+        var item = comanda.Items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException("Item no encontrado en la comanda.");
+        if (item.Status != ComandaItemStatus.Pending)
+            throw new InvalidOperationException("El item ya fue enviado a cocina; la nota ya no se puede cambiar.");
+        return (comanda, item);
+    }
+
     public async Task<ComandaDto> ConfirmPendingNowAsync(Guid comandaId, CancellationToken ct = default)
     {
         var comanda = await RequireAsync(comandaId, ct);
@@ -73,13 +106,13 @@ public partial class ComandaService
         var cutoff = UtcNow.AddSeconds(-Math.Max(0, _settings.ConfirmationDelaySeconds));
         var comandas = await _db.Comandas.Include(c => c.Items)
             .Where(c => ActiveStatuses.Contains(c.Status))
-            .Where(c => c.Items.Any(i => i.Status == ComandaItemStatus.Pending && i.AddedAt <= cutoff))
+            .Where(c => c.Items.Any(i => i.Status == ComandaItemStatus.Pending && !i.IsOnHold && i.AddedAt <= cutoff))
             .ToListAsync(ct);
 
         var count = 0;
         foreach (var c in comandas)
         {
-            var due = c.Items.Where(i => i.Status == ComandaItemStatus.Pending && i.AddedAt <= cutoff).ToList();
+            var due = c.Items.Where(i => i.Status == ComandaItemStatus.Pending && !i.IsOnHold && i.AddedAt <= cutoff).ToList();
             ConfirmItems(c, due);
             count += due.Count;
         }

@@ -3,6 +3,8 @@ using Infrastructure.Data.Context;
 using Infrastructure.Data.Seed;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Loqzen.Tests.Integration;
 
@@ -44,6 +46,27 @@ public class MigrationTests : IDisposable
         await using var check = NewContext();
         (await check.DiningTables.CountAsync()).Should().Be(14, "seed must not duplicate");
         Directory.GetFiles(_dir, "*.bak").Should().BeEmpty("migrated DBs are not backed up");
+    }
+
+    [Fact]
+    public async Task DatabaseAtInitialCreate_IsUpgraded_KeepingData_NoBackup()
+    {
+        // Simulates a user DB created by the previous release (only InitialCreate applied).
+        await using (var old = NewContext())
+        {
+            await old.GetInfrastructure().GetRequiredService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>()
+                .MigrateAsync("20261113033350_InitialCreate");
+            old.DiningTables.Add(new Core.Domain.Entities.DiningTable { Name = "Terraza" });
+            await old.SaveChangesAsync();
+        }
+
+        await using (var db = NewContext()) await DbInitializer.InitializeAsync(db);
+
+        await using var check = NewContext();
+        (await check.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+        (await check.DiningTables.AnyAsync(t => t.Name == "Terraza")).Should().BeTrue("existing data is preserved");
+        Directory.GetFiles(_dir, "*.bak").Should().BeEmpty("a migrated DB must not be backed up/recreated");
+        (await check.ComandaItems.CountAsync(i => i.IsOnHold)).Should().Be(0, "new column exists");
     }
 
     [Fact]
