@@ -62,6 +62,9 @@ public partial class CheckoutViewModel : ObservableObject
     [ObservableProperty]
     private string _shiftWarning = string.Empty;
 
+    [ObservableProperty]
+    private decimal _discountTotal = 0m;
+
     public bool IsCashPayment => SelectedPaymentMethod == PaymentMethod.Cash;
     public bool IsCardPayment => SelectedPaymentMethod == PaymentMethod.Card;
     public bool IsTransferPayment => SelectedPaymentMethod == PaymentMethod.Transfer;
@@ -74,7 +77,7 @@ public partial class CheckoutViewModel : ObservableObject
 
     public decimal Subtotal => CartItems.Sum(x => x.Subtotal);
     public decimal TaxTotal => CartItems.Sum(x => x.TaxAmount);
-    public decimal Total => CartItems.Sum(x => x.Total);
+    public decimal Total => Math.Max(0, Subtotal + TaxTotal - DiscountTotal);
     public int TotalItems => CartItems.Count;
 
     public CheckoutViewModel(
@@ -310,8 +313,42 @@ public partial class CheckoutViewModel : ObservableObject
     public void ClearCart()
     {
         CartItems.Clear();
+        DiscountTotal = 0m;
         NotifyCartTotalsChanged();
         StatusMessage = "Venta cancelada / carrito limpio";
+    }
+
+    [RelayCommand]
+    public void OpenDiscountModal()
+    {
+        // Simple implementation - applies 10% discount
+        // TODO: Implement full modal with percentage/fixed amount UI
+        if (Subtotal == 0)
+        {
+            StatusMessage = "Agregue productos antes de aplicar descuento";
+            return;
+        }
+
+        var discount = new DiscountDto
+        {
+            Type = DiscountType.Percentage,
+            Value = 10m,
+            Reason = "Descuento promocional",
+            AuthorizedBy = "Cajero"
+        };
+
+        var discountAmount = discount.CalculateDiscount(Subtotal);
+        DiscountTotal = Math.Min(discountAmount, Subtotal);
+        NotifyCartTotalsChanged();
+        StatusMessage = $"Descuento aplicado: ${DiscountTotal:N0}";
+    }
+
+    [RelayCommand]
+    public void RemoveDiscount()
+    {
+        DiscountTotal = 0m;
+        NotifyCartTotalsChanged();
+        StatusMessage = "Descuento removido";
     }
 
     [RelayCommand]
@@ -421,6 +458,12 @@ public partial class CheckoutViewModel : ObservableObject
                     item.ProductId,
                     item.Quantity,
                     item.WeightKg);
+            }
+
+            // 2.5. Apply discount if any
+            if (DiscountTotal > 0)
+            {
+                await _salesService.ApplyDiscountAsync(orderDto.Id, DiscountTotal);
             }
 
             // 3. Process payment (this also creates OutboxMessage in same transaction)
