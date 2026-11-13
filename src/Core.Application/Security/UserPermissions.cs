@@ -3,7 +3,7 @@ using Core.Domain.Enums;
 namespace Core.Application.Security;
 
 /// <summary>Screens of the desktop app, for role-based visibility.</summary>
-public enum PosView { Checkout, Comandas, Kds, CashShift, Masters }
+public enum PosView { Checkout, Comandas, Kds, CashShift, Masters, BillPayments }
 
 /// <summary>
 /// Single place for "who can do what". Roles are ordered by privilege (see <see cref="UserRole"/>).
@@ -16,6 +16,7 @@ public static class UserPermissions
         PosView.Comandas => role >= UserRole.Waiter,
         PosView.Checkout => role >= UserRole.Cashier,
         PosView.CashShift => role >= UserRole.Cashier,
+        PosView.BillPayments => role >= UserRole.Cashier,
         PosView.Masters => role >= UserRole.Manager,
         _ => false
     };
@@ -46,6 +47,9 @@ public static class UserPermissions
         AuthorizedAction.CancelKitchenItem => "Anular producto en cocina",
         AuthorizedAction.OpenCashDrawer => "Abrir cajón sin venta",
         AuthorizedAction.CloseShift => "Cerrar turno",
+        AuthorizedAction.CashMovement => "Movimiento de efectivo",
+        AuthorizedAction.CashDifference => "Cuadre con diferencia",
+        AuthorizedAction.VoidBillPayment => "Anular recaudo",
         _ => action.ToString()
     };
 }

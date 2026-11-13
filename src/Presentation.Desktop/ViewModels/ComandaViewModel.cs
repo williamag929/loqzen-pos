@@ -27,6 +27,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
 {
     private readonly IServiceScopeFactory _scopes;
     private readonly IPrinterService _printer;
+    private readonly ICashDrawerService _cashDrawer;
     private readonly ComandaSettings _settings;
     private readonly TimeProvider _clock;
     private readonly IManagerAuthPrompt _authPrompt;
@@ -38,8 +39,10 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     private bool _tickRunning;
 
     public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock,
-        IManagerAuthPrompt authPrompt, IUserSession session, IKitchenEventBus events, CustomerDisplayViewModel display)
+        IManagerAuthPrompt authPrompt, IUserSession session, IKitchenEventBus events, CustomerDisplayViewModel display,
+        ICashDrawerService cashDrawer)
     {
+        _cashDrawer = cashDrawer;
         _scopes = scopes;
         _printer = printer;
         _settings = settings;

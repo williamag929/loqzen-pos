@@ -1,0 +1,67 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.CashMovementDialog"
+             x:DataType="vm:CashShiftViewModel"
+             x:CompileBindings="True">
+
+    <!-- Cash movement: big amount (numpad) + reason chips + optional reference. Slip prints after saving. -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="{Binding MovementAccent}" BorderThickness="2" CornerRadius="16" Padding="24" Margin="24"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="980">
+            <Grid RowDefinitions="Auto, *, Auto" ColumnDefinitions="*, 400">
+                <StackPanel Grid.ColumnSpan="2" Spacing="4" Margin="0,0,0,16">
+                    <TextBlock Text="{Binding MovementTitle}" Foreground="White" FontSize="24" FontWeight="Black"/>
+                    <TextBlock Text="{Binding MovementDirectionText}" Foreground="{Binding MovementAccent}" FontSize="14" FontWeight="Bold"/>
+                </StackPanel>
+
+                <!-- Left: reason + reference -->
+                <StackPanel Grid.Row="1" Grid.Column="0" Spacing="12" Margin="0,0,20,0">
+                    <TextBlock Text="Motivo" Foreground="#94A3B8" FontSize="14" FontWeight="Bold"/>
+                    <ItemsControl ItemsSource="{Binding MovementChips}">
+                        <ItemsControl.ItemsPanel>
+                            <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                        </ItemsControl.ItemsPanel>
+                        <ItemsControl.ItemTemplate>
+                            <DataTemplate x:DataType="vm:ChipViewModel">
+                                <Button Height="52" Padding="18,0" Margin="0,0,8,8" CornerRadius="26" Background="#1E293B"
+                                        BorderBrush="#334155" BorderThickness="1" Foreground="White" FontSize="15" FontWeight="SemiBold"
+                                        VerticalContentAlignment="Center" Content="{Binding Text}" Command="{Binding SelectCommand}"/>
+                            </DataTemplate>
+                        </ItemsControl.ItemTemplate>
+                    </ItemsControl>
+                    <TextBox Text="{Binding MovementReason, Mode=TwoWay}" Height="56" FontSize="17" CornerRadius="10" Padding="12,0"
+                             VerticalContentAlignment="Center" Watermark="Escriba o toque un motivo" MaxLength="200"/>
+                    <TextBlock Text="Referencia (opcional)" Foreground="#94A3B8" FontSize="14" FontWeight="Bold" Margin="0,6,0,0"/>
+                    <TextBox Text="{Binding MovementReference, Mode=TwoWay}" Height="52" FontSize="16" CornerRadius="10" Padding="12,0"
+                             VerticalContentAlignment="Center" Watermark="N° factura, sobre, proveedor…" MaxLength="60"/>
+                    <Border Background="#422006" CornerRadius="8" Padding="12,8" IsVisible="{Binding MovementRequiresManager}">
+                        <TextBlock Text="🔐 Este movimiento requiere autorización de gerente" Foreground="#FCD34D" FontSize="14" FontWeight="Bold" TextWrapping="Wrap"/>
+                    </Border>
+                    <TextBlock Text="{Binding MovementError}" Foreground="#FCA5A5" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
+                               IsVisible="{Binding MovementError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                </StackPanel>
+
+                <!-- Right: amount + numpad -->
+                <StackPanel Grid.Row="1" Grid.Column="1" Spacing="10">
+                    <Border Background="#1E293B" BorderBrush="{Binding MovementAccent}" BorderThickness="1" CornerRadius="12" Padding="16,12">
+                        <TextBlock Text="{Binding MovementAmountText}" Foreground="{Binding MovementAccent}" FontSize="40" FontWeight="Black"
+                                   HorizontalAlignment="Center"/>
+                    </Border>
+                    <views:Numpad DigitCommand="{Binding AppendMovementDigitCommand}" ClearCommand="{Binding ClearMovementAmountCommand}"
+                                  ExactCommand="{Binding SaveMovementCommand}" ExactLabel="OK"/>
+                </StackPanel>
+
+                <Grid Grid.Row="2" Grid.ColumnSpan="2" ColumnDefinitions="*, 2*" Margin="0,18,0,0">
+                    <Button Height="64" Margin="0,0,8,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="12"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="Cancelar" Command="{Binding CancelMovementCommand}"/>
+                    <Button Grid.Column="1" Height="64" Background="{Binding MovementAccent}" Foreground="White" FontSize="19" FontWeight="Black" CornerRadius="12"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            IsEnabled="{Binding !IsBusy}" Content="💾 Guardar e imprimir" Command="{Binding SaveMovementCommand}"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</UserControl>

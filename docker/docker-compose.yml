@@ -41,7 +41,8 @@ services:
       timeout: 5s
       retries: 3
 
-  # 4. Mock API para Canales de Delivery (Rappi / Uber Eats) y Pasarelas de Pago
+  # 4. Mock API para Canales de Delivery (Rappi / Uber Eats), Pasarelas de Pago y sink del Outbox
+  #    POST /webhook (Outbox sync) | GET /webhook o /events (últimos 100 eventos)
   delivery-webhook-mock:
     build:
       context: ./emulator/webhook
@@ -50,6 +51,10 @@ services:
       - "5000:5000"
     environment:
       - PORT=5000
+      # Probabilidad 0..1 de responder 500 para probar los reintentos del Outbox
+      - WEBHOOK_FAIL_RATE=${WEBHOOK_FAIL_RATE:-0}
+      # Si se define, exige "Authorization: Bearer <clave>" en POST /webhook (401 sin ella)
+      - WEBHOOK_API_KEY=${WEBHOOK_API_KEY:-}
     restart: unless-stopped
     healthcheck:
       test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:5000/')"]

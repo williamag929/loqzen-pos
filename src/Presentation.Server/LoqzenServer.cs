@@ -142,6 +142,9 @@ public sealed class LoqzenServer : IAsyncDisposable
 
         // Tablets are long-lived WebSocket requests: don't make StopAsync wait 30 s for them.
         builder.Services.Configure<HostOptions>(o => o.ShutdownTimeout = TimeSpan.FromSeconds(3));
+        // The default ConsoleLifetime hooks SIGTERM/SIGINT and "handles" them by stopping only this web host,
+        // so the desktop app silently ignored kill / OS shutdown. The desktop owns the process lifetime.
+        builder.Services.AddSingleton<IHostLifetime, EmbeddedHostLifetime>();
 
         builder.Services.ConfigureHttpJsonOptions(o =>
         {
@@ -241,4 +244,11 @@ public sealed class LoqzenServer : IAsyncDisposable
         catch { /* fall through */ }
         return "127.0.0.1";
     }
+}
+
+/// <summary>Host lifetime that never touches process signals: the embedding desktop app decides when to stop.</summary>
+internal sealed class EmbeddedHostLifetime : IHostLifetime
+{
+    public Task WaitForStartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
+    public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
 }

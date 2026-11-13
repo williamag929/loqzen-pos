@@ -25,6 +25,10 @@ public class PosDbContext : DbContext
     public DbSet<CashCountLine> CashCountLines => Set<CashCountLine>();
     public DbSet<User> Users => Set<User>();
     public DbSet<ManagerOverride> ManagerOverrides => Set<ManagerOverride>();
+    public DbSet<CashMovement> CashMovements => Set<CashMovement>();
+    public DbSet<Biller> Billers => Set<Biller>();
+    public DbSet<BillPayment> BillPayments => Set<BillPayment>();
+    public DbSet<PartialCashCount> PartialCashCounts => Set<PartialCashCount>();
 
     public PosDbContext()
     {
@@ -138,6 +142,9 @@ public class PosDbContext : DbContext
             entity.Property(s => s.OpeningAmount).HasPrecision(18, 2);
             entity.Property(s => s.ClosingAmount).HasPrecision(18, 2);
             entity.Property(s => s.ExpectedAmount).HasPrecision(18, 2);
+            entity.Property(s => s.FloatLeftAmount).HasPrecision(18, 2);
+            entity.Property(s => s.ClosedByName).HasMaxLength(100);
+            entity.Ignore(s => s.Difference);
         });
 
         // OutboxMessage
@@ -259,6 +266,63 @@ public class PosDbContext : DbContext
             entity.Property(m => m.Amount).HasPrecision(18, 2);
             entity.HasIndex(m => m.AuthorizedAt);
             entity.HasIndex(m => m.Action);
+        });
+
+        // CashMovement (non-sale cash in/out)
+        modelBuilder.Entity<CashMovement>(entity =>
+        {
+            entity.HasKey(m => m.Id);
+            entity.Property(m => m.Amount).HasPrecision(18, 2);
+            entity.Property(m => m.Reason).IsRequired().HasMaxLength(200);
+            entity.Property(m => m.Reference).HasMaxLength(100);
+            entity.Property(m => m.UserName).HasMaxLength(100);
+            entity.HasIndex(m => m.CashShiftId);
+            entity.HasOne(m => m.CashShift)
+                  .WithMany(s => s.Movements)
+                  .HasForeignKey(m => m.CashShiftId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // Biller (convenios de recaudo)
+        modelBuilder.Entity<Biller>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+            entity.Property(b => b.Name).IsRequired().HasMaxLength(100);
+            entity.HasIndex(b => b.Name).IsUnique();
+            entity.Property(b => b.Code).HasMaxLength(30);
+            entity.Property(b => b.ColorHex).HasMaxLength(9);
+            entity.Property(b => b.CommissionFixed).HasPrecision(18, 2);
+            entity.Property(b => b.CommissionPercent).HasPrecision(6, 4);
+        });
+
+        // BillPayment (recaudo)
+        modelBuilder.Entity<BillPayment>(entity =>
+        {
+            entity.HasKey(b => b.Id);
+            entity.Property(b => b.BillerName).IsRequired().HasMaxLength(100);
+            entity.Property(b => b.AccountReference).IsRequired().HasMaxLength(60);
+            entity.Property(b => b.CustomerName).HasMaxLength(150);
+            entity.Property(b => b.ReceiptNumber).IsRequired().HasMaxLength(30);
+            entity.HasIndex(b => b.ReceiptNumber).IsUnique();
+            entity.Property(b => b.UserName).HasMaxLength(100);
+            entity.Property(b => b.VoidReason).HasMaxLength(200);
+            entity.Property(b => b.Amount).HasPrecision(18, 2);
+            entity.Property(b => b.Commission).HasPrecision(18, 2);
+            entity.Property(b => b.TenderedAmount).HasPrecision(18, 2);
+            entity.Property(b => b.ChangeAmount).HasPrecision(18, 2);
+            entity.Ignore(b => b.Total);
+            entity.HasIndex(b => b.CashShiftId);
+        });
+
+        // PartialCashCount (arqueo parcial)
+        modelBuilder.Entity<PartialCashCount>(entity =>
+        {
+            entity.HasKey(p => p.Id);
+            entity.Property(p => p.ExpectedAmount).HasPrecision(18, 2);
+            entity.Property(p => p.CountedAmount).HasPrecision(18, 2);
+            entity.Property(p => p.UserName).HasMaxLength(100);
+            entity.Ignore(p => p.Difference);
+            entity.HasIndex(p => p.CashShiftId);
         });
     }
 }

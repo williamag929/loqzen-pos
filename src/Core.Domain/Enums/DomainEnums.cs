@@ -71,5 +71,26 @@ public enum AuthorizedAction
     ApplyDiscount = 1,     // Descuento sobre la venta
     CancelKitchenItem = 2, // Anular un producto que ya está en cocina
     OpenCashDrawer = 3,    // Abrir cajón sin venta
-    CloseShift = 4         // Cerrar turno / arqueo
+    CloseShift = 4,        // Cerrar turno / arqueo
+    CashMovement = 5,      // Salidas, gastos, retiros a bóveda, propinas
+    CashDifference = 6,    // Cerrar con diferencia mayor al umbral
+    VoidBillPayment = 7    // Anular un recaudo
+}
+
+/// <summary>Non-sale cash movements. In = adds to expected cash; Out = subtracts.</summary>
+public enum CashMovementType
+{
+    PaidIn = 0,       // Entrada de efectivo (sencillo, préstamo)          In
+    PaidOut = 1,      // Salida / pago a proveedor                          Out
+    Expense = 2,      // Gasto menor (caja menor)                           Out
+    SafeDrop = 3,     // Retiro a bóveda / sobre                            Out
+    TipPayout = 4,    // Propinas entregadas al personal                    Out
+    BillPayment = 5,  // Recaudo en efectivo (lo crea IBillPaymentService)  In
+    BillPaymentVoid = 6 // Anulación de recaudo en efectivo                 Out
+}
+
+public enum BillPaymentStatus
+{
+    Completed = 0,
+    Voided = 1
 }

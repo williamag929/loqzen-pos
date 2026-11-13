@@ -1,0 +1,62 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             x:Class="Presentation.Desktop.Views.ShiftReportView"
+             x:DataType="vm:CashShiftViewModel"
+             x:CompileBindings="True">
+
+    <!-- Closed-shift history; tap a row → its Z report (with reprint). -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="#334155" BorderThickness="1" CornerRadius="16" Padding="24" Margin="24"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MaxWidth="1100">
+            <Grid RowDefinitions="Auto, Auto, *">
+                <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,12">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="📜 Historial de turnos" Foreground="White" FontSize="24" FontWeight="Black"/>
+                        <TextBlock Text="Toque un turno para ver y reimprimir su reporte Z." Foreground="#94A3B8" FontSize="14"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Height="56" Padding="22,0" CornerRadius="12" Background="#334155" Foreground="White"
+                            FontSize="16" FontWeight="Bold" Content="✖ Cerrar" Command="{Binding CloseHistoryCommand}"/>
+                </Grid>
+
+                <Grid Grid.Row="1" ColumnDefinitions="80, *, 130, 130, 130, 110" Margin="16,0,16,6">
+                    <TextBlock Grid.Column="0" Text="Turno" Foreground="#64748B" FontSize="13" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="1" Text="Cajero / fechas" Foreground="#64748B" FontSize="13" FontWeight="Bold"/>
+                    <TextBlock Grid.Column="2" Text="Esperado" Foreground="#64748B" FontSize="13" FontWeight="Bold" TextAlignment="Right"/>
+                    <TextBlock Grid.Column="3" Text="Contado" Foreground="#64748B" FontSize="13" FontWeight="Bold" TextAlignment="Right"/>
+                    <TextBlock Grid.Column="4" Text="Diferencia" Foreground="#64748B" FontSize="13" FontWeight="Bold" TextAlignment="Right"/>
+                </Grid>
+
+                <ScrollViewer Grid.Row="2">
+                    <StackPanel>
+                        <TextBlock Text="Aún no hay turnos cerrados." Foreground="#64748B" FontSize="15" Margin="16" IsVisible="{Binding !HasHistory}"/>
+                        <ItemsControl ItemsSource="{Binding History}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:ShiftHistoryRowViewModel">
+                                    <Button Command="{Binding OpenCommand}" Background="#1E293B" CornerRadius="10" Padding="16,10" Margin="0,0,0,6"
+                                            MinHeight="64" HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch">
+                                        <Grid ColumnDefinitions="80, *, 130, 130, 130, 110">
+                                            <TextBlock Grid.Column="0" Text="{Binding NumberText}" Foreground="White" FontSize="20" FontWeight="Black" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
+                                                <TextBlock Text="{Binding CashierName}" Foreground="#38BDF8" FontSize="16" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding DatesText}" Foreground="#94A3B8" FontSize="13"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="2" Text="{Binding ExpectedText}" Foreground="White" FontSize="16" TextAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="3" Text="{Binding CountedText}" Foreground="White" FontSize="16" TextAlignment="Right" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="4" Text="{Binding DifferenceText}" Foreground="{Binding DifferenceColor}" FontSize="17" FontWeight="Black"
+                                                       TextAlignment="Right" VerticalAlignment="Center"/>
+                                            <Border Grid.Column="5" Background="#064E3B" CornerRadius="6" Padding="8,4" HorizontalAlignment="Right" VerticalAlignment="Center"
+                                                    IsVisible="{Binding HadManagerApproval}">
+                                                <TextBlock Text="✔ gerente" Foreground="#A7F3D0" FontSize="12" FontWeight="Bold"/>
+                                            </Border>
+                                        </Grid>
+                                    </Button>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
+                </ScrollViewer>
+            </Grid>
+        </Border>
+    </Border>
+</UserControl>

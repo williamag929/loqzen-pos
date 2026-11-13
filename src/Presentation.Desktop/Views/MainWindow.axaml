@@ -64,6 +64,11 @@
                             Foreground="White" Command="{Binding ShowCashShiftCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding BillPaymentsTabLabel}" IsVisible="{Binding Session.CanAccessBillPayments}"
+                            Background="{Binding IsBillPaymentsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                            Foreground="White" Command="{Binding ShowBillPaymentsCommand}"/>
+
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="{Binding MastersTabLabel}" IsVisible="{Binding Session.CanAccessMasters}"
                             Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowMastersCommand}"/>
@@ -124,6 +129,7 @@
             <Panel IsVisible="{Binding IsCashShiftActive}"><views:CashShiftView DataContext="{Binding CashShift}"/></Panel>
             <Panel IsVisible="{Binding IsMastersActive}"><views:MastersView    DataContext="{Binding Masters}"/></Panel>
             <Panel IsVisible="{Binding IsComandaActive}"><views:ComandaView    DataContext="{Binding Comanda}"/></Panel>
+            <Panel IsVisible="{Binding IsBillPaymentsActive}"><views:BillPaymentsView DataContext="{Binding BillPayments}"/></Panel>
         </Grid>
 
     </Grid>

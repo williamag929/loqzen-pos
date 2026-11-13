@@ -1,0 +1,216 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:conv="using:Presentation.Desktop.Converters"
+             x:Class="Presentation.Desktop.Views.CashCloseWizard"
+             x:DataType="vm:CashShiftViewModel"
+             x:CompileBindings="True">
+
+    <!-- Close wizard: 1 Revisión · 2 Conteo (a ciegas) · 3 Resultado · 4 Fondo. Big buttons, can go back. -->
+    <UserControl.Styles>
+        <Style Selector="Border.step">
+            <Setter Property="CornerRadius" Value="20"/>
+            <Setter Property="Padding" Value="14,8"/>
+            <Setter Property="Margin" Value="0,0,8,8"/>
+        </Style>
+        <Style Selector="TextBlock.stepText">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+        </Style>
+        <Style Selector="TextBlock.rowLabel">
+            <Setter Property="Foreground" Value="#CBD5E1"/>
+            <Setter Property="FontSize" Value="16"/>
+        </Style>
+        <Style Selector="TextBlock.rowValue">
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="16"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="TextAlignment" Value="Right"/>
+        </Style>
+        <Style Selector="Button.big">
+            <Setter Property="Height" Value="72"/>
+            <Setter Property="CornerRadius" Value="14"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontSize" Value="19"/>
+            <Setter Property="FontWeight" Value="Black"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="VerticalContentAlignment" Value="Center"/>
+        </Style>
+    </UserControl.Styles>
+
+    <Border Background="#D9000000">
+        <Border Background="#0F172A" BorderBrush="#DC2626" BorderThickness="2" CornerRadius="16" Padding="24" Margin="20"
+                HorizontalAlignment="Stretch" VerticalAlignment="Stretch" MaxWidth="1120" MaxHeight="860">
+            <Grid RowDefinitions="Auto, Auto, *, Auto, Auto">
+
+                <!-- Title + step indicator -->
+                <Grid ColumnDefinitions="*, Auto">
+                    <StackPanel Spacing="2">
+                        <TextBlock Text="🔴 Cierre de turno" Foreground="White" FontSize="24" FontWeight="Black"/>
+                        <TextBlock Text="{Binding StepTitle}" Foreground="#94A3B8" FontSize="15" FontWeight="Bold"/>
+                    </StackPanel>
+                    <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="10" Background="#334155" Foreground="White"
+                            FontSize="15" FontWeight="Bold" VerticalAlignment="Top" Content="✖ Cancelar" Command="{Binding CancelCloseWizardCommand}"/>
+                </Grid>
+                <WrapPanel Grid.Row="1" Orientation="Horizontal" Margin="0,12,0,12">
+                    <Border Classes="step" Background="#2563EB"><TextBlock Classes="stepText" Text="1 · Revisión"/></Border>
+                    <Border Classes="step" Background="{Binding IsStep2Reached, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"><TextBlock Classes="stepText" Text="2 · Conteo"/></Border>
+                    <Border Classes="step" Background="{Binding IsStep3Reached, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"><TextBlock Classes="stepText" Text="3 · Resultado"/></Border>
+                    <Border Classes="step" Background="{Binding IsStep4Reached, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"><TextBlock Classes="stepText" Text="4 · Fondo"/></Border>
+                </WrapPanel>
+
+                <!-- ── STEPS ── -->
+                <Panel Grid.Row="2">
+
+                    <!-- STEP 1: review -->
+                    <ScrollViewer IsVisible="{Binding IsStep1}">
+                        <StackPanel Spacing="12">
+                            <Border Background="#450A0A" BorderBrush="#DC2626" BorderThickness="1" CornerRadius="12" Padding="16" IsVisible="{Binding HasOpenComandas}">
+                                <Grid ColumnDefinitions="*, Auto">
+                                    <TextBlock Text="{Binding OpenComandasText}" Foreground="#FECACA" FontSize="17" FontWeight="Bold" TextWrapping="Wrap" VerticalAlignment="Center"/>
+                                    <Button Grid.Column="1" Height="56" Padding="18,0" Margin="12,0,0,0" CornerRadius="10" Background="#7F1D1D" Foreground="White"
+                                            FontSize="15" FontWeight="Bold" Content="🔄 Revisar de nuevo" Command="{Binding RefreshCloseReviewCommand}"/>
+                                </Grid>
+                            </Border>
+                            <UniformGrid Columns="2">
+                                <Border Background="#1E293B" CornerRadius="12" Padding="18" Margin="0,0,8,0">
+                                    <StackPanel Spacing="8">
+                                        <TextBlock Text="Ventas del turno" Foreground="#94A3B8" FontSize="15" FontWeight="Bold"/>
+                                        <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="💵 Efectivo"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseCashSalesText}"/></Grid>
+                                        <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="💳 Tarjeta"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseCardSalesText}"/></Grid>
+                                        <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" Text="🏦 Transferencia"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseTransferSalesText}"/></Grid>
+                                        <Grid ColumnDefinitions="*, Auto" IsVisible="{Binding HasOtherSales}"><TextBlock Classes="rowLabel" Text="Otros"/><TextBlock Grid.Column="1" Classes="rowValue" Text="{Binding CloseOtherSalesText}"/></Grid>
+                                        <Separator Background="#334155"/>
+                                        <Grid ColumnDefinitions="*, Auto"><TextBlock Classes="rowLabel" FontWeight="Bold" Text="Total ventas"/><TextBlock Grid.Column="1" Classes="rowValue" FontSize="20" Text="{Binding CloseTotalSalesText}"/></Grid>
+                                        <TextBlock Text="{Binding CloseOrderCountText}" Foreground="#64748B" FontSize="13"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#1E293B" CornerRadius="12" Padding="18" Margin="8,0,0,0">
+                                    <StackPanel Spacing="10">
+                                        <TextBlock Text="Antes de contar" Foreground="#94A3B8" FontSize="15" FontWeight="Bold"/>
+                                        <Border Background="#172554" CornerRadius="10" Padding="12">
+                                            <TextBlock Text="{Binding CloseCardExpectedText}" Foreground="#BFDBFE" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        </Border>
+                                        <Border Background="#172554" CornerRadius="10" Padding="12">
+                                            <TextBlock Text="{Binding CloseTransferExpectedText}" Foreground="#BFDBFE" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                                        </Border>
+                                        <TextBlock Text="{Binding CloseBillPaymentsText}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap"/>
+                                        <TextBlock Text="{Binding CloseMovementsText}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- STEP 2: count. Blind count: no expected / difference anywhere on this step. -->
+                    <Grid IsVisible="{Binding IsStep2}" RowDefinitions="Auto, *">
+                        <Border Background="#1E293B" CornerRadius="10" Padding="14,10" Margin="0,0,0,10">
+                            <Panel>
+                                <TextBlock IsVisible="{Binding IsBlindCount}" Text="🙈 Conteo a ciegas: cuente billetes y monedas. El sistema le mostrará el resultado al confirmar."
+                                           Foreground="#CBD5E1" FontSize="15" TextWrapping="Wrap"/>
+                                <Grid IsVisible="{Binding CanSeeExpectedInCount}" ColumnDefinitions="*, Auto, Auto">
+                                    <TextBlock Text="Cuente billetes y monedas." Foreground="#CBD5E1" FontSize="15" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding CountExpectedText, StringFormat='Esperado {0}'}" Foreground="White" FontSize="16" FontWeight="Bold" Margin="12,0"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding CountLiveDifferenceText}" Foreground="{Binding CountLiveDifferenceColor}" FontSize="16" FontWeight="Black"/>
+                                </Grid>
+                            </Panel>
+                        </Border>
+                        <Panel Grid.Row="1"><views:CashCountGrid DataContext="{Binding CloseCount}"/></Panel>
+                    </Grid>
+
+                    <!-- STEP 3: result -->
+                    <ScrollViewer IsVisible="{Binding IsStep3}">
+                        <StackPanel Spacing="14">
+                            <UniformGrid Columns="3">
+                                <Border Background="#1E293B" CornerRadius="12" Padding="16" Margin="0,0,8,0">
+                                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                        <TextBlock Text="Esperado" Foreground="#94A3B8" FontSize="15" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CloseExpectedText}" Foreground="White" FontSize="30" FontWeight="Black" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#1E293B" CornerRadius="12" Padding="16" Margin="4,0">
+                                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                        <TextBlock Text="Contado" Foreground="#94A3B8" FontSize="15" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CloseCountedText}" Foreground="#38BDF8" FontSize="30" FontWeight="Black" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                                <Border Background="#1E293B" CornerRadius="12" Padding="16" Margin="8,0,0,0" BorderBrush="{Binding CloseDifferenceColor}" BorderThickness="2">
+                                    <StackPanel Spacing="4" HorizontalAlignment="Center">
+                                        <TextBlock Text="Diferencia" Foreground="#94A3B8" FontSize="15" HorizontalAlignment="Center"/>
+                                        <TextBlock Text="{Binding CloseDifferenceText}" Foreground="{Binding CloseDifferenceColor}" FontSize="34" FontWeight="Black" HorizontalAlignment="Center"/>
+                                    </StackPanel>
+                                </Border>
+                            </UniformGrid>
+                            <TextBlock Text="{Binding CloseVerdictText}" Foreground="{Binding CloseDifferenceColor}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding ThresholdText}" Foreground="#64748B" FontSize="13" HorizontalAlignment="Center"/>
+
+                            <Border Background="#1F1307" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="12" Padding="16" IsVisible="{Binding NeedsDifferenceApproval}">
+                                <StackPanel Spacing="10">
+                                    <TextBlock Text="🔐 Se requiere gerente" Foreground="#FCD34D" FontSize="18" FontWeight="Black"/>
+                                    <TextBlock Text="La diferencia supera el máximo permitido. Un gerente debe autorizar y debe dejar una nota explicando la diferencia."
+                                               Foreground="#FDE68A" FontSize="14" TextWrapping="Wrap"/>
+                                    <WrapPanel Orientation="Horizontal">
+                                        <Button Height="60" Padding="22,0" Margin="0,0,12,8" CornerRadius="12" Background="#B45309" Foreground="White" FontSize="16" FontWeight="Bold"
+                                                IsVisible="{Binding !HasDifferenceApproval}" Content="🔐 Autorizar (gerente)" Command="{Binding RequestDifferenceApprovalCommand}"/>
+                                        <TextBlock Text="{Binding DifferenceApprovalText}" Foreground="#34D399" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"
+                                                   IsVisible="{Binding HasDifferenceApproval}" Margin="0,0,12,8"/>
+                                    </WrapPanel>
+                                </StackPanel>
+                            </Border>
+                            <TextBox Text="{Binding CloseNotes, Mode=TwoWay}" Height="80" FontSize="15" CornerRadius="10" Padding="12" TextWrapping="Wrap" AcceptsReturn="False"
+                                     Watermark="Nota del cierre (obligatoria si la diferencia supera el máximo)" MaxLength="500"/>
+                            <Button Height="64" Padding="24,0" CornerRadius="12" Background="#1E3A5F" Foreground="White" FontSize="17" FontWeight="Bold"
+                                    HorizontalAlignment="Left" Content="🔢 Volver a contar" Command="{Binding RecountCommand}"/>
+                        </StackPanel>
+                    </ScrollViewer>
+
+                    <!-- STEP 4: float for the next shift -->
+                    <Grid IsVisible="{Binding IsStep4}" ColumnDefinitions="*, 400">
+                        <StackPanel Spacing="14" Margin="0,0,20,0">
+                            <TextBlock Text="¿Cuánto efectivo deja en el cajón para el siguiente turno?" Foreground="White" FontSize="19" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <Border Background="#1E293B" CornerRadius="12" Padding="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Fondo para el siguiente turno" Foreground="#94A3B8" FontSize="15"/>
+                                    <TextBlock Text="{Binding FloatAmountText}" Foreground="#38BDF8" FontSize="40" FontWeight="Black"/>
+                                </StackPanel>
+                            </Border>
+                            <Border Background="#052E16" BorderBrush="#10B981" BorderThickness="1" CornerRadius="12" Padding="16">
+                                <StackPanel Spacing="4">
+                                    <TextBlock Text="Retirar del cajón (llevar a bóveda / consignar)" Foreground="#A7F3D0" FontSize="15"/>
+                                    <TextBlock Text="{Binding WithdrawText}" Foreground="#34D399" FontSize="40" FontWeight="Black"/>
+                                </StackPanel>
+                            </Border>
+                            <TextBlock Text="{Binding FloatError}" Foreground="#FCA5A5" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
+                                       IsVisible="{Binding FloatError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+                        </StackPanel>
+                        <views:Numpad Grid.Column="1" VerticalAlignment="Top" DigitCommand="{Binding AppendFloatDigitCommand}"
+                                      ClearCommand="{Binding ClearFloatCommand}" ExactCommand="{Binding UseDefaultFloatCommand}" ExactLabel="Sugerido"/>
+                    </Grid>
+                </Panel>
+
+                <!-- Error line -->
+                <TextBlock Grid.Row="3" Text="{Binding CloseError}" Foreground="#FCA5A5" FontSize="16" FontWeight="Bold" TextWrapping="Wrap" Margin="0,10,0,0"
+                           IsVisible="{Binding CloseError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
+
+                <!-- Navigation -->
+                <Grid Grid.Row="4" ColumnDefinitions="*, 2*" Margin="0,14,0,0">
+                    <Button Grid.Column="0" Classes="big" Margin="0,0,10,0" Background="#334155" IsEnabled="{Binding CanGoBack}"
+                            Content="⬅ Atrás" Command="{Binding CloseWizardBackCommand}"/>
+                    <Panel Grid.Column="1">
+                        <Button Classes="big" Background="#2563EB" IsVisible="{Binding IsStep1}" IsEnabled="{Binding CanStartCount}"
+                                Content="Empezar conteo ➜" Command="{Binding CloseWizardNextCommand}"/>
+                        <Button Classes="big" Background="#2563EB" IsVisible="{Binding IsStep2}"
+                                Content="✅ Confirmar conteo ➜" Command="{Binding CloseWizardNextCommand}"/>
+                        <Button Classes="big" Background="#2563EB" IsVisible="{Binding IsStep3}" IsEnabled="{Binding CanLeaveResult}"
+                                Content="Continuar ➜" Command="{Binding CloseWizardNextCommand}"/>
+                        <Button Classes="big" Background="#DC2626" FontSize="21" IsVisible="{Binding IsStep4}" IsEnabled="{Binding !IsBusy}"
+                                Content="🔒 Cerrar turno" Command="{Binding ConfirmCloseShiftCommand}"/>
+                    </Panel>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</UserControl>

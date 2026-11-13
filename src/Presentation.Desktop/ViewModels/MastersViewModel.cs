@@ -9,7 +9,7 @@ using Core.Domain.Entities;
 
 namespace Presentation.Desktop.ViewModels;
 
-public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4 }
+public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4, Billers = 5 }
 
 public partial class MastersViewModel : ObservableObject
 {
@@ -19,6 +19,7 @@ public partial class MastersViewModel : ObservableObject
     private readonly ICustomerService _customers;
     private readonly IUserService     _users;
     private readonly IUserSession     _session;
+    private readonly IBillPaymentService _billPayments;
 
     // ── Tab ─────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -27,6 +28,7 @@ public partial class MastersViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsTaxesTab))]
     [NotifyPropertyChangedFor(nameof(IsCustomersTab))]
     [NotifyPropertyChangedFor(nameof(IsUsersTab))]
+    [NotifyPropertyChangedFor(nameof(IsBillersTab))]
     private MastersTab _activeTab = MastersTab.Products;
 
     public bool IsProductsTab   => ActiveTab == MastersTab.Products;
@@ -91,8 +93,10 @@ public partial class MastersViewModel : ObservableObject
         ITaxService taxes,
         ICustomerService customers,
         IUserService users,
-        IUserSession session)
+        IUserSession session,
+        IBillPaymentService billPayments)
     {
+        _billPayments = billPayments;
         _products = products;
         _categories = categories;
         _taxes = taxes;
@@ -113,7 +117,7 @@ public partial class MastersViewModel : ObservableObject
     // ── Load All ─────────────────────────────────────────────────────────────
     public async Task LoadAllAsync()
     {
-        await Task.WhenAll(LoadProductsAsync(), LoadCategoriesAsync(), LoadTaxesAsync(), LoadCustomersAsync(), LoadUsersAsync());
+        await Task.WhenAll(LoadProductsAsync(), LoadCategoriesAsync(), LoadTaxesAsync(), LoadCustomersAsync(), LoadUsersAsync(), LoadBillersAsync());
     }
 
     private async Task LoadProductsAsync()

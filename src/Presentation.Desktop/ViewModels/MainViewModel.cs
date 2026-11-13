@@ -25,6 +25,7 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty] private CashShiftViewModel _cashShift;
     [ObservableProperty] private MastersViewModel _masters;
     [ObservableProperty] private ComandaViewModel _comanda;
+    [ObservableProperty] private BillPaymentsViewModel _billPayments;
 
     /// <summary>Signed-in user (nav tabs bind to its CanAccess* flags).</summary>
     public UserSession Session { get; }
@@ -37,6 +38,7 @@ public partial class MainViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsCashShiftActive))]
     [NotifyPropertyChangedFor(nameof(IsMastersActive))]
     [NotifyPropertyChangedFor(nameof(IsComandaActive))]
+    [NotifyPropertyChangedFor(nameof(IsBillPaymentsActive))]
     private int _activeViewIndex = 0;
 
     public bool IsCheckoutActive  => ActiveViewIndex == 0;
@@ -44,6 +46,15 @@ public partial class MainViewModel : ObservableObject
     public bool IsCashShiftActive => ActiveViewIndex == 2;
     public bool IsMastersActive   => ActiveViewIndex == 3;
     public bool IsComandaActive   => ActiveViewIndex == 4;
+    public bool IsBillPaymentsActive => ActiveViewIndex == 5;
+
+    /// <summary>Tab changes: the Recaudos tab owns the barcode scanner while visible; the cash dashboard refreshes only on screen.</summary>
+    partial void OnActiveViewIndexChanged(int value)
+    {
+        CashShift.IsViewActive = value == 2;
+        Checkout.IsScannerSuspended = value == 5;
+        if (value != 5) BillPayments.Deactivate();
+    }
 
     /// <summary>Login overlay covers everything until someone signs in (unless RequireLogin is off).</summary>
     public bool IsLoginVisible => _authSettings.RequireLogin && !Session.IsLoggedIn;
@@ -72,7 +83,7 @@ public partial class MainViewModel : ObservableObject
     // Tabs get short labels and the right-hand tools become icon-only so nothing overlaps.
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CheckoutTabLabel), nameof(ComandasTabLabel), nameof(KdsTabLabel),
-        nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(ScanLabel), nameof(CustomerDisplayLabel),
+        nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(BillPaymentsTabLabel), nameof(ScanLabel), nameof(CustomerDisplayLabel),
         nameof(LogoutLabel), nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip), nameof(IsWide))]
     private bool _isCompact;
     public bool IsWide => !IsCompact;
@@ -82,6 +93,7 @@ public partial class MainViewModel : ObservableObject
     public string KdsTabLabel       => IsCompact ? "👨‍🍳 KDS"     : "👨‍🍳 KDS Cocina";
     public string CashShiftTabLabel => IsCompact ? "💼 Caja"    : "💼 Turno de Caja";
     public string MastersTabLabel   => "🗂️ Maestros";
+    public string BillPaymentsTabLabel => "🧾 Recaudos";
     public string ScanLabel            => IsCompact ? "⚡"  : "⚡ Scan";
     public string CustomerDisplayLabel => IsCompact ? "🖥️" : "🖥️ Visor Cliente";
     public string LogoutLabel          => IsCompact ? "🔄" : "🔄 Cambiar usuario";
@@ -100,6 +112,7 @@ public partial class MainViewModel : ObservableObject
         MastersViewModel masters,
         CustomerDisplayViewModel customerDisplay,
         ComandaViewModel comanda,
+        BillPaymentsViewModel billPayments,
         UserSession session,
         LoginViewModel login,
         ManagerAuthPromptViewModel authPrompt,
@@ -114,6 +127,7 @@ public partial class MainViewModel : ObservableObject
         _masters = masters;
         _customerDisplay = customerDisplay;
         _comanda = comanda;
+        _billPayments = billPayments;
         Session = session;
         Login = login;
         AuthPrompt = authPrompt;
@@ -201,6 +215,13 @@ public partial class MainViewModel : ObservableObject
     }
 
     [RelayCommand]
+    public async Task ShowBillPaymentsAsync()
+    {
+        ActiveViewIndex = 5;
+        await BillPayments.ActivateAsync();
+    }
+
+    [RelayCommand]
     public void OpenCustomerDisplay() => RequestOpenCustomerDisplayWindow?.Invoke();
 
     [RelayCommand]
@@ -217,6 +238,7 @@ public partial class MainViewModel : ObservableObject
         1 => PosView.Kds,
         2 => PosView.CashShift,
         3 => PosView.Masters,
+        5 => PosView.BillPayments,
         _ => PosView.Comandas
     };
 
@@ -233,7 +255,7 @@ public partial class MainViewModel : ObservableObject
 
     private int FirstAllowedIndex()
     {
-        foreach (var index in new[] { 0, 4, 1, 2, 3 }) // Checkout, Comandas, KDS, Caja, Maestros
+        foreach (var index in new[] { 0, 4, 1, 2, 5, 3 }) // Checkout, Comandas, KDS, Caja, Recaudos, Maestros
             if (Session.CanAccess(ViewOf(index))) return index;
         return 1; // KDS is open to every role
     }
@@ -244,6 +266,7 @@ public partial class MainViewModel : ObservableObject
         1 => ShowKdsAsync(),
         2 => ShowCashShiftAsync(),
         3 => ShowMastersAsync(),
+        5 => ShowBillPaymentsAsync(),
         _ => ShowComandasAsync()
     };
 }

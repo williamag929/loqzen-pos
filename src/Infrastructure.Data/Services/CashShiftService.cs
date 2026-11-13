@@ -12,53 +12,44 @@ using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data.Services;
 
-public class CashShiftService : ICashShiftService
+/// <summary>
+/// Cash shift lifecycle and reconciliation. Split into partial files: legacy API (this),
+/// Reconciliation (expected cash, cuadre, history), Operations (movements, partial counts, close).
+/// </summary>
+public partial class CashShiftService : ICashShiftService
 {
     private readonly PosDbContext _db;
+    private readonly TimeProvider _clock;
+    private readonly CashShiftSettings _settings;
 
-    public CashShiftService(PosDbContext db) => _db = db;
+    public CashShiftService(PosDbContext db, TimeProvider? clock = null, CashShiftSettings? settings = null)
+    {
+        _db = db;
+        _clock = clock ?? TimeProvider.System;
+        _settings = settings ?? new CashShiftSettings();
+    }
+
+    private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
     public async Task<CashShift?> GetCurrentShiftAsync(CancellationToken ct = default)
         => await _db.CashShifts
             .FirstOrDefaultAsync(s => s.Status == CashShiftStatus.Open, ct);
 
-    public async Task<CashShift> OpenShiftAsync(string cashierName, decimal openingAmount, CancellationToken ct = default)
-    {
-        var existing = await GetCurrentShiftAsync(ct);
-        if (existing != null)
-            throw new InvalidOperationException($"Ya existe un turno abierto (Turno #{existing.ShiftNumber} – {existing.CashierName}).");
-
-        var lastShift = await _db.CashShifts
-            .OrderByDescending(s => s.ShiftNumber)
-            .Select(s => s.ShiftNumber)
-            .FirstOrDefaultAsync(ct);
-
-        var shift = new CashShift
-        {
-            ShiftNumber  = lastShift + 1,
-            CashierName  = cashierName,
-            OpeningAmount = openingAmount,
-            OpenedAt     = DateTime.UtcNow,
-            Status       = CashShiftStatus.Open
-        };
-
-        _db.CashShifts.Add(shift);
-        await _db.SaveChangesAsync(ct);
-        return shift;
-    }
+    public Task<CashShift> OpenShiftAsync(string cashierName, decimal openingAmount, CancellationToken ct = default)
+        => OpenShiftAsync(cashierName, openingAmount, null, ct);
 
     public async Task<CashShift> CloseShiftAsync(decimal closingAmount, string? notes = null, CancellationToken ct = default)
     {
         var shift = await GetCurrentShiftAsync(ct)
             ?? throw new InvalidOperationException("No hay ningún turno abierto para cerrar.");
 
-        var cashSales = await GetCashTotalForShiftAsync(shift.Id, ct);
-        shift.ExpectedAmount = shift.OpeningAmount + cashSales;
+        var expected = (await ComputeAsync(shift, ct)).ExpectedCash;
+        shift.ExpectedAmount = expected;
         shift.ClosingAmount  = closingAmount;
-        shift.ClosedAt       = DateTime.UtcNow;
+        shift.ClosedAt       = UtcNow;
         shift.Status         = CashShiftStatus.Closed;
         shift.Notes          = notes;
-        shift.UpdatedAt      = DateTime.UtcNow;
+        shift.UpdatedAt      = UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return shift;
@@ -81,13 +72,8 @@ public class CashShiftService : ICashShiftService
         var shift = await GetCurrentShiftAsync(ct)
             ?? throw new InvalidOperationException("No hay ningún turno abierto.");
 
-        var payments = await _db.Payments
-            .Where(p => p.Order != null && p.Order.CashShiftId == shift.Id && p.Order.Status == OrderStatus.Completed)
-            .Select(p => new { p.Method, p.Amount, p.OrderId })
-            .ToListAsync(ct);
-
-        decimal SumOf(PaymentMethod m) => payments.Where(p => p.Method == m).Sum(p => p.Amount);
-
+        // Same breakdown as GetReconciliationAsync (completed orders only), so both screens agree.
+        var r = await ComputeAsync(shift, ct);
         return new CashCloseSummaryDto
         {
             ShiftId = shift.Id,
@@ -95,38 +81,34 @@ public class CashShiftService : ICashShiftService
             CashierName = shift.CashierName,
             OpenedAt = shift.OpenedAt,
             OpeningAmount = shift.OpeningAmount,
-            CashSales = SumOf(PaymentMethod.Cash),
-            CardSales = SumOf(PaymentMethod.Card),
-            TransferSales = SumOf(PaymentMethod.Transfer),
-            OtherSales = SumOf(PaymentMethod.Other),
-            OrderCount = payments.Select(p => p.OrderId).Distinct().Count()
+            CashSales = r.CashSales,
+            CardSales = r.CardSales,
+            TransferSales = r.TransferSales,
+            OtherSales = r.OtherSales,
+            OrderCount = r.OrderCount,
+            NonSaleCashNet = r.ExpectedCash - r.OpeningAmount - r.CashSales
         };
     }
 
     public async Task<CashShift> CloseShiftWithCountAsync(IEnumerable<CashCountLineDto> countLines, string? notes = null, CancellationToken ct = default)
     {
-        var lines = countLines.Where(l => l.Quantity != 0).ToList();
-        if (lines.Any(l => l.Quantity < 0 || l.Denomination <= 0))
-            throw new ArgumentException("Cantidades y denominaciones deben ser positivas.", nameof(countLines));
-
-        var activeComandas = await _db.Comandas
-            .CountAsync(c => c.Status == ComandaStatus.Open || c.Status == ComandaStatus.ReadyToPay, ct);
-        if (activeComandas > 0)
-            throw new InvalidOperationException($"Hay {activeComandas} comanda(s) abiertas. Ciérrelas antes del cuadre de caja.");
+        var lines = ValidateCountLines(countLines, nameof(countLines));
+        await EnsureNoActiveComandasAsync(ct);
 
         var shift = await GetCurrentShiftAsync(ct)
             ?? throw new InvalidOperationException("No hay ningún turno abierto para cerrar.");
 
+        var expected = (await ComputeAsync(shift, ct)).ExpectedCash;
+
         foreach (var l in lines)
             _db.CashCountLines.Add(new CashCountLine { CashShiftId = shift.Id, Denomination = l.Denomination, Quantity = l.Quantity });
 
-        var cashSales = await GetCashTotalForShiftAsync(shift.Id, ct);
-        shift.ExpectedAmount = shift.OpeningAmount + cashSales;
+        shift.ExpectedAmount = expected;
         shift.ClosingAmount = lines.Sum(l => l.Total);
-        shift.ClosedAt = DateTime.UtcNow;
+        shift.ClosedAt = UtcNow;
         shift.Status = CashShiftStatus.Closed;
         shift.Notes = notes;
-        shift.UpdatedAt = DateTime.UtcNow;
+        shift.UpdatedAt = UtcNow;
 
         await _db.SaveChangesAsync(ct);
         return shift;

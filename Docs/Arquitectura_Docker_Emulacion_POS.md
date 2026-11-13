@@ -40,14 +40,15 @@ services:
 
   # 4. Mock API para Canales de Delivery (Rappi / Uber Eats) y Pasarelas de Pago
   delivery-webhook-mock:
-    image: node:18-alpine
+    build:
+      context: ./emulator/webhook
     container_name: delivery-webhook-mock
-    working_dir: /app
-    volumes:
-      - ./emulator/webhook:/app
     ports:
       - "5000:5000"
-    command: ["node", "server.js"]
+    environment:
+      - PORT=5000
+      - WEBHOOK_FAIL_RATE=${WEBHOOK_FAIL_RATE:-0}
+      - WEBHOOK_API_KEY=${WEBHOOK_API_KEY:-}
 ```
 
 ## 2. Descripción de Componentes Emulados
@@ -60,7 +61,19 @@ Funcionamiento: Recibe los bytes en formato ESC/POS enviados por la aplicación 
 
 Tecnología: Contenedor Linux con socat y un script de Python enlazado.
 Funcionamiento: Crea un puerto serial virtual que emite periódicamente tramas de peso formateadas (ej. ST,GS,+001.25kg\r\n). La aplicación .NET conectada mediante System.IO.Ports lee este flujo exactamente igual que si estuviera conectada al puerto RS232 físico de la terminal Volcora.
-### C. Webhook Simulator para Delivery (Rappi / Uber Eats)
+### C. Webhook Simulator para Delivery (Rappi / Uber Eats) y sink del Outbox
 
-Tecnología: API ligera en Node.js.
-Funcionamiento: Permite disparar peticiones HTTP POST manuales o automatizadas para simular la llegada de una orden de delivery, la cual se comunica vía SignalR o API REST local con la aplicación POS para la impresión automática de comanda en cocina.
+Tecnología: API ligera en Python (`http.server`, sin dependencias), servicio `delivery-webhook-mock` en el puerto 5000.
+Funcionamiento:
+
+- `POST /webhook`: destino de la sincronización Outbox (`HttpOutboxSink`, `Sync.WebhookUrl = http://localhost:5000/webhook`). Recibe `{ id, eventType, aggregateType, aggregateId, occurredAt, payload }`, registra una línea por evento (`[WEBHOOK] <eventType> <aggregateId>`) y guarda en memoria los últimos 100 eventos.
+- `GET /webhook` o `GET /events`: devuelve `{ count, events }` con los últimos 100 eventos recibidos (se pierden al reiniciar el contenedor).
+- `POST` a cualquier otra ruta: simula la llegada de una orden de delivery (imprime el JSON y responde 200), comportamiento original.
+- `GET /`: health check.
+
+Variables de entorno:
+
+- `WEBHOOK_FAIL_RATE` (0..1, por defecto 0): probabilidad de responder 500 en `POST /webhook` para ejercitar los reintentos del Outbox.
+- `WEBHOOK_API_KEY` (vacía por defecto): si se define, `POST /webhook` exige `Authorization: Bearer <clave>` (debe coincidir con `Sync.ApiKey`); sin ella responde 401.
+
+Ejemplo: `WEBHOOK_FAIL_RATE=0.3 docker compose -f docker/docker-compose.yml up -d delivery-webhook-mock`, luego `curl http://localhost:5000/events`.

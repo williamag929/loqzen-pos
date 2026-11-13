@@ -17,6 +17,143 @@ namespace Infrastructure.Data.Migrations
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "8.0.11");
 
+            modelBuilder.Entity("Core.Domain.Entities.BillPayment", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AccountReference")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("BillerId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("BillerName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CashShiftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ChangeAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Commission")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("CustomerName")
+                        .HasMaxLength(150)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Method")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("PaidAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReceiptNumber")
+                        .IsRequired()
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<decimal>("TenderedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("VoidOverrideId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("VoidReason")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("VoidedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CashShiftId");
+
+                    b.HasIndex("ReceiptNumber")
+                        .IsUnique();
+
+                    b.ToTable("BillPayments");
+                });
+
+            modelBuilder.Entity("Core.Domain.Entities.Biller", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .HasMaxLength(30)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ColorHex")
+                        .HasMaxLength(9)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CommissionFixed")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CommissionPercent")
+                        .HasPrecision(6, 4)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("SortOrder")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Name")
+                        .IsUnique();
+
+                    b.ToTable("Billers");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.CashCountLine", b =>
                 {
                     b.Property<Guid>("Id")
@@ -46,6 +183,61 @@ namespace Infrastructure.Data.Migrations
                     b.ToTable("CashCountLines");
                 });
 
+            modelBuilder.Entity("Core.Domain.Entities.CashMovement", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("Amount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("BillPaymentId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CashShiftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ManagerOverrideId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("OccurredAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reason")
+                        .IsRequired()
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Reference")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("UserId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CashShiftId");
+
+                    b.ToTable("CashMovements");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.CashShift", b =>
                 {
                     b.Property<Guid>("Id")
@@ -62,6 +254,13 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime?>("ClosedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("ClosedByName")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("ClosedByUserId")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("ClosingAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
@@ -69,7 +268,14 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<Guid?>("DifferenceOverrideId")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("ExpectedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("FloatLeftAmount")
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
@@ -77,6 +283,9 @@ namespace Infrastructure.Data.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("OpenedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("OpenedByUserId")
                         .HasColumnType("TEXT");
 
                     b.Property<decimal>("OpeningAmount")
@@ -91,6 +300,9 @@ namespace Infrastructure.Data.Migrations
 
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("WasBlindCount")
+                        .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
 
@@ -657,6 +869,48 @@ namespace Infrastructure.Data.Migrations
                     b.ToTable("OutboxMessages");
                 });
 
+            modelBuilder.Entity("Core.Domain.Entities.PartialCashCount", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("CashShiftId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("CountedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CountedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<decimal>("ExpectedAmount")
+                        .HasPrecision(18, 2)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("LinesJson")
+                        .IsRequired()
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("UserName")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CashShiftId");
+
+                    b.ToTable("PartialCashCounts");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.Payment", b =>
                 {
                     b.Property<Guid>("Id")
@@ -937,6 +1191,17 @@ namespace Infrastructure.Data.Migrations
                     b.Navigation("CashShift");
                 });
 
+            modelBuilder.Entity("Core.Domain.Entities.CashMovement", b =>
+                {
+                    b.HasOne("Core.Domain.Entities.CashShift", "CashShift")
+                        .WithMany("Movements")
+                        .HasForeignKey("CashShiftId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("CashShift");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.Comanda", b =>
                 {
                     b.HasOne("Core.Domain.Entities.DiningTable", "DiningTable")
@@ -1031,6 +1296,8 @@ namespace Infrastructure.Data.Migrations
             modelBuilder.Entity("Core.Domain.Entities.CashShift", b =>
                 {
                     b.Navigation("CountLines");
+
+                    b.Navigation("Movements");
 
                     b.Navigation("Orders");
                 });

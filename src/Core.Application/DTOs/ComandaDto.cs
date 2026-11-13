@@ -82,8 +82,10 @@ public class CashCloseSummaryDto
     public decimal TransferSales { get; set; }
     public decimal OtherSales { get; set; }
     public int OrderCount { get; set; }
-    /// <summary>Opening + cash sales.</summary>
-    public decimal ExpectedCash => OpeningAmount + CashSales;
+    /// <summary>Cash bill payments + paid-ins − paid-outs − expenses − safe drops − tip payouts.</summary>
+    public decimal NonSaleCashNet { get; set; }
+    /// <summary>Opening + cash sales + non-sale cash net (same rule as ShiftReconciliationDto.ExpectedCash).</summary>
+    public decimal ExpectedCash => OpeningAmount + CashSales + NonSaleCashNet;
     public decimal TotalSales => CashSales + CardSales + TransferSales + OtherSales;
 }
 

@@ -16,7 +16,7 @@ public partial class UserSession : ObservableObject, IUserSession
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsLoggedIn), nameof(DisplayName), nameof(RoleLabel), nameof(ChipText), nameof(IsManager),
         nameof(CanAccessCheckout), nameof(CanAccessComandas), nameof(CanAccessKds), nameof(CanAccessCashShift),
-        nameof(CanAccessMasters), nameof(CanManageUsers), nameof(EffectiveRole))]
+        nameof(CanAccessMasters), nameof(CanAccessBillPayments), nameof(CanManageUsers), nameof(EffectiveRole))]
     private UserDto? _currentUser;
 
     public event Action? Changed;
@@ -35,6 +35,7 @@ public partial class UserSession : ObservableObject, IUserSession
     public bool CanAccessKds       => CanAccess(PosView.Kds);
     public bool CanAccessCashShift => CanAccess(PosView.CashShift);
     public bool CanAccessMasters   => CanAccess(PosView.Masters);
+    public bool CanAccessBillPayments => CanAccess(PosView.BillPayments);
     public bool CanManageUsers     => CurrentUser == null || UserPermissions.CanManageUsers(CurrentUser.Role);
 
     public bool CanAccess(PosView view) => CurrentUser == null || UserPermissions.CanAccess(CurrentUser.Role, view);

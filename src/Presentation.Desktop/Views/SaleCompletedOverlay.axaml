@@ -37,7 +37,7 @@
 
                 <Button Height="80" CornerRadius="14" Background="#059669" Foreground="White" FontSize="24" FontWeight="Black"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Content="🛒 Nueva venta" Command="{Binding DismissCommand}"/>
+                        Content="{Binding DismissLabel}" Command="{Binding DismissCommand}"/>
             </StackPanel>
         </Border>
     </Border>

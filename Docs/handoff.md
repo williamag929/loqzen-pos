@@ -1,11 +1,31 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Servidor LAN embebido (KDS web + comandera web en tiempo real), Outbox → webhook, bloqueo de PIN, overrides de un solo uso, visor para comandas
+**Última sesión:** Cuadre de caja de referencia (conteo a ciegas, movimientos, Z, historial) + recaudos (pago de recibos)
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-13 (noche): Cuadre de caja de referencia + recaudos
+
+Contrato del arquitecto → backend, hardware y UI en paralelo → QA. 454 tests (114 nuevos), build 0/0. Caja y Recaudos vistos en pantalla a 739 y 1077 px.
+
+**Hecho:**
+- Entidades `CashMovement`, `Biller`, `BillPayment`, `PartialCashCount`; `CashShift` guarda quién abrió/cerró, fondo dejado, conteo a ciegas y override de diferencia. Migración `CashOperations`; 5 convenios de ejemplo.
+- `ICashShiftService`: `GetReconciliationAsync` con **una sola regla** de efectivo esperado (también la usan los cierres antiguos), movimientos con override de un solo uso, arqueo parcial, `CloseShiftAsync(CloseShiftRequest)` que exige gerente + nota sobre `CashShift:MaxDifferenceWithoutManager` (si no, `CashDifferenceRequiresApprovalException` sin guardar nada), historial, fondo sugerido.
+- `IBillPaymentService`: convenios, recaudo con comisión fija + %, REC-000001, efectivo/tarjeta/transferencia, anulación con gerente.
+- `CashReports`: reporte Z, comprobante de recaudo y vale de movimiento (32 col, ASCII) → `IPrinterService.PrintLinesAsync` (con TXT de respaldo). `ICashDrawerService` implementado (patada por la impresora).
+- UI: Turno de Caja con tablero en vivo, botones de movimientos, arqueo parcial, asistente de cierre en 4 pasos, Z con reimpresión e historial; pestaña **🧾 Recaudos** (responsiva) y **🏢 Convenios** en Maestros. Emulador de webhook con `WEBHOOK_FAIL_RATE` y `WEBHOOK_API_KEY`.
+- Corregido: la app ignoraba SIGTERM desde que el servidor va embebido (el host web capturaba la señal).
+
+**⚠️ Para el usuario:** al abrir turno se sugiere el fondo que dejó el turno anterior. Los cajeros no ven el esperado (conteo a ciegas); los gerentes sí. Ajusta el umbral y las denominaciones en `appsettings.json` → `CashShift`.
+
+**Pendiente de probar a mano:** el asistente de cierre completo con clics, la anulación de un recaudo y la impresión real del Z.
+
+**Siguiente fase recomendada:** **segunda caja** (maestro/satélite) o **datáfono / pago en mesa**.
 
 ---
 

@@ -48,6 +48,18 @@ public static class DbInitializer
             Console.WriteLine("[DB] Usuarios por defecto creados: Administrador (PIN 1234), Cajero (PIN 1111), Mesero (PIN 2222). Cámbielos desde Maestros > Usuarios.");
         }
 
+        // Billers (recaudos) are seeded independently too, so existing DBs get the defaults.
+        if (!await context.Billers.AnyAsync())
+        {
+            context.Billers.AddRange(
+                new Biller { Name = "Energía", Code = "ENERGIA", CommissionFixed = 1500m, ColorHex = "#F59E0B", SortOrder = 1 },
+                new Biller { Name = "Acueducto", Code = "ACUEDUCTO", CommissionFixed = 1500m, ColorHex = "#3B82F6", SortOrder = 2 },
+                new Biller { Name = "Gas natural", Code = "GAS", CommissionFixed = 1500m, ColorHex = "#EF4444", SortOrder = 3 },
+                new Biller { Name = "Recargas celular", Code = "RECARGAS", CommissionFixed = 0m, CommissionPercent = 0.03m, ColorHex = "#10B981", SortOrder = 4 },
+                new Biller { Name = "Internet / TV", Code = "INTERNET", CommissionFixed = 2000m, ColorHex = "#8B5CF6", SortOrder = 5 });
+            await context.SaveChangesAsync();
+        }
+
         if (await context.Categories.AnyAsync())
         {
             return; // DB has already been seeded

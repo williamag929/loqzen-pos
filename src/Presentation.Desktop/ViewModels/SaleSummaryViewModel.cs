@@ -13,8 +13,10 @@ namespace Presentation.Desktop.ViewModels;
 public sealed class SaleSummaryViewModel
 {
     public SaleSummaryViewModel(string orderNumber, decimal total, decimal tendered, decimal change,
-        PaymentMethod method, string? tableName, Action onDismiss)
+        PaymentMethod method, string? tableName, Action onDismiss, string? title = null, string? dismissLabel = null)
     {
+        _title = title;
+        DismissLabel = dismissLabel ?? "🛒 Nueva venta";
         OrderNumber = orderNumber;
         Total = total;
         Tendered = tendered;
@@ -35,9 +37,14 @@ public sealed class SaleSummaryViewModel
     public bool IsCash => Method == PaymentMethod.Cash;
     public bool HasChange => IsCash && Change > 0;
 
-    public string Title => string.IsNullOrWhiteSpace(TableName)
+    private readonly string? _title;
+
+    /// <summary>Caption of the big button ("🛒 Nueva venta"; recaudos use "🧾 Nuevo recaudo").</summary>
+    public string DismissLabel { get; }
+
+    public string Title => _title ?? (string.IsNullOrWhiteSpace(TableName)
         ? $"✅ Venta completada · Factura {OrderNumber}"
-        : $"✅ {TableName} cerrada · Factura {OrderNumber}";
+        : $"✅ {TableName} cerrada · Factura {OrderNumber}");
 
     /// <summary>Big label above the figure.</summary>
     public string Headline => HasChange ? "CAMBIO A ENTREGAR" : IsCash ? "PAGO EXACTO · SIN CAMBIO" : $"{ReceiptDtoFactory.PaymentName(Method).ToUpperInvariant()} · SIN CAMBIO";

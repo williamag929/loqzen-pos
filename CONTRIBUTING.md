@@ -31,6 +31,7 @@ Luego lee, en este orden:
 | Definir un caso de uso | Interfaz en `Core.Application/Services/I*.cs`, implementación en `Infrastructure.Data/Services/` |
 | DTOs | `Core.Application/DTOs/` |
 | Formato de la tirilla/recibo | `Core.Application/Receipts/ReceiptFormatter*.cs` (**único** lugar) |
+| Reporte Z, comprobante de recaudo, vale de movimiento | `Core.Application/Receipts/CashReports*.cs` → `IPrinterService.PrintLinesAsync` |
 | Reglas de tiempo del KDS | `Core.Application/Kitchen/KdsTiming.cs` |
 | Drivers de hardware | `Infrastructure.Hardware/` detrás de las interfaces de `Core.Application/Hardware/HardwareInterfaces.cs` |
 | Pantallas | `Presentation.Desktop/Views/*.axaml` + `ViewModels/` (+ `Controls/`, `Converters/`) |
@@ -48,7 +49,8 @@ Luego lee, en este orden:
 | `ISalesService` | Venta rápida: orden, items, descuento, pago (+ Outbox) |
 | `IComandaService` | Mesas, comandas, items pendiente→confirmado, notas/pausa, cierre = factura |
 | `IKitchenService` | KDS: órdenes activas, avanzar estado, impresa, entregar/deshacer |
-| `ICashShiftService` | Abrir turno, resumen por medio de pago, cierre con conteo por denominación |
+| `ICashShiftService` | Turno: fondo sugerido, movimientos (`RecordMovementAsync`), `GetReconciliationAsync` (única regla de esperado), arqueo parcial, `CloseShiftAsync(CloseShiftRequest)` con umbral de gerente, historial |
+| `IBillPaymentService` | Recaudos: convenios, cobro con comisión (REC-xxxxxx), anulación con override; crea el movimiento de efectivo |
 | `IReportService` | Reportes diarios / Z |
 | `IKitchenEventBus` | Pub/sub en proceso: los servicios publican `KitchenEvent` tras guardar; el KDS de escritorio y el hub WebSocket se refrescan al instante |
 | `IOutboxDispatcher` / `IOutboxSink` | Envía `OutboxMessages` pendientes al webhook (`Sync`), reintentos exponenciales, `RetryFailedAsync` |
@@ -108,6 +110,7 @@ Luego lee, en este orden:
 | Test pasa con InMemory pero falla en producción | El proveedor InMemory no valida traducción SQL | Para flujos nuevos agrega un test en `Integration/` con SQLite `:memory:` real |
 | Cifra grande recortada en un `Grid` `*, Auto` | La columna `Auto` del monto no crecía al cambiar el texto | Etiqueta en `Auto`, monto en `*` con `TextAlignment="Right"` (modal de cobro) |
 | Encabezado con 3 `StackPanel` en un `Grid` se encima en ventanas angostas | `StackPanel` no recorta ni envuelve | Usa `WrapPanel` para barras de herramientas (KDS, barra superior) |
+| La app no se cerraba con `kill`/apagado del equipo | El `ConsoleLifetime` del host Kestrel capturaba SIGTERM y solo detenía el servidor | `EmbeddedHostLifetime` en `LoqzenServer`; el escritorio decide cuándo terminar |
 | `DataTemplate` con 2 hijos no compila (AVLN3000) | Un template solo admite un hijo | Envuelve en `<Panel>` |
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
 

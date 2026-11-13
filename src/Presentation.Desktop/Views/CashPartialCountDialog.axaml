@@ -1,0 +1,51 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:views="using:Presentation.Desktop.Views"
+             x:Class="Presentation.Desktop.Views.CashPartialCountDialog"
+             x:DataType="vm:CashShiftViewModel"
+             x:CompileBindings="True">
+
+    <!-- Arqueo parcial: count without closing; result shows expected vs counted vs difference. -->
+    <Border Background="#CC000000">
+        <Border Background="#0F172A" BorderBrush="#38BDF8" BorderThickness="2" CornerRadius="16" Padding="24" Margin="24"
+                HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="1000">
+            <Grid RowDefinitions="Auto, *, Auto, Auto">
+                <StackPanel Spacing="4" Margin="0,0,0,14">
+                    <TextBlock Text="🔢 Arqueo parcial" Foreground="White" FontSize="24" FontWeight="Black"/>
+                    <TextBlock Text="Cuente el efectivo del cajón. El turno sigue abierto." Foreground="#94A3B8" FontSize="14"/>
+                </StackPanel>
+
+                <Panel Grid.Row="1" MaxHeight="480"><views:CashCountGrid DataContext="{Binding PartialCount}"/></Panel>
+
+                <Panel Grid.Row="2" IsVisible="{Binding HasPartialResult}">
+                    <Border Background="#1E293B" CornerRadius="12" Padding="16" Margin="0,12,0,0">
+                        <UniformGrid Columns="3">
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Esperado" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding PartialExpectedText}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Contado" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding PartialCountedText}" Foreground="#38BDF8" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                            <StackPanel Spacing="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Diferencia" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
+                                <TextBlock Text="{Binding PartialDifferenceText}" Foreground="{Binding PartialDifferenceColor}" FontSize="28" FontWeight="Black" HorizontalAlignment="Center"/>
+                            </StackPanel>
+                        </UniformGrid>
+                    </Border>
+                </Panel>
+
+                <Grid Grid.Row="3" ColumnDefinitions="*, 2*" Margin="0,16,0,0">
+                    <Button Height="64" Margin="0,0,8,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="12"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            Content="Cerrar" Command="{Binding ClosePartialCountCommand}"/>
+                    <Button Grid.Column="1" Height="64" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="12"
+                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                            IsEnabled="{Binding !IsBusy}" Content="💾 Guardar arqueo" Command="{Binding SavePartialCountCommand}"/>
+                </Grid>
+            </Grid>
+        </Border>
+    </Border>
+</UserControl>

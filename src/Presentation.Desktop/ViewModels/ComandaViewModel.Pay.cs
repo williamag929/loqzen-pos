@@ -153,6 +153,6 @@ public partial class ComandaViewModel
             if (!await _printer.PrintReceiptAsync(receipt))
                 StatusMessage += " · ⚠️ impresora no disponible (TXT de respaldo)";
         }
-        if (method == PaymentMethod.Cash) await _printer.OpenCashDrawerAsync();
+        if (method == PaymentMethod.Cash) await _cashDrawer.OpenDrawerAsync();
     }
 }

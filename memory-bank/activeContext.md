@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 340 tests pass (`dotnet test`) — 2026-11-13 (tarde).
+- ✅ 454 tests pass (`dotnet test`) — 2026-11-13 (noche).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -209,6 +209,13 @@
 - Tests: `Kitchen/`, `Outbox/`, `Server/` (real Kestrel on port 0 + ClientWebSocket), `Security/PinAttemptLimiterTests`, `Services/{KitchenServiceEvents,ComandaEvents,PinLockout}Tests`.
 - Known gaps: web pages not opened in a real browser from this repo; `HttpOutboxSink` timeout uses real time; no mDNS; multi-terminal (second cash register) not supported — see roadmap.
 
+### Cash close of reference + bill payments (2026-11-13 noche; verified: 454 tests, Caja/Recaudos screenshots)
+- Domain `CashOperations.cs` (CashMovement, Biller, BillPayment, PartialCashCount), CashShift new fields; enums CashMovementType, BillPaymentStatus, AuthorizedAction.CashMovement/CashDifference/VoidBillPayment; migration `CashOperations`.
+- Application: `CashShiftSettings` (section CashShift), `CashMovementTypes`, `ShiftReconciliationDto` (ExpectedCash rule), `CloseShiftRequest`, `CashDifferenceRequiresApprovalException`, `IBillPaymentService`, `CashReports` (ZReport/BillPaymentReceipt/MovementSlip), `IPrinterService.PrintLinesAsync`, `PosView.BillPayments`.
+- Data: `CashShiftService(db, TimeProvider? = null, CashShiftSettings? = null)` split in `.Reconciliation/.Operations`; single private `ComputeAsync`; `BillPaymentService(db, clock)`. Hardware: `PrinterKickCashDrawerService`/`MockCashDrawerService`.
+- Desktop: `CashShiftViewModel` singleton split (`.Movements/.Close/.History`), `CashCountViewModel`, views CashCountGrid/CashMovementDialog/CashPartialCountDialog/CashCloseWizard/ShiftReportView; `BillPaymentsViewModel` + `BillPaymentsView` (tab 5, responsive in code-behind); Masters `.Billers.cs`; `Services/RequiredOverride.cs`; `ICashDrawerService` used by Checkout/Comanda/Recaudos/movements.
+- Server: `EmbeddedHostLifetime` (fix: SIGTERM was swallowed by the web host).
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
@@ -216,6 +223,7 @@
 4. ~~Implement manager authorization system (Fase 2 of returns)~~ ✅ Done 2026-11-13 (users + PIN + roles + audit).
 5. ~~Embed Kestrel + KDS/comanderas on other devices~~ ✅ 2026-11-13.
 6. ~~Customer display for comandas~~ ✅ 2026-11-13.
-7. Second cash register (master/satellite) or payment terminal / pay-at-table (see README roadmap).
+7. ~~Cash close of reference + bill payments~~ ✅ 2026-11-13.
+8. Second cash register (master/satellite) or payment terminal / pay-at-table (see README roadmap).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

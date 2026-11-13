@@ -39,6 +39,16 @@ public static class ServiceCollectionExtensions
                            ?? new Core.Application.DTOs.AuthorizationSettings();
         services.AddSingleton(authSettings);
 
+        // Lists are read explicitly: the binder APPENDS to the defaults of an initialized List<decimal>.
+        var cashSection = configuration.GetSection("CashShift");
+        var cashSettings = cashSection.Get<Core.Application.DTOs.CashShiftSettings>() ?? new Core.Application.DTOs.CashShiftSettings();
+        var defaults = new Core.Application.DTOs.CashShiftSettings();
+        cashSettings.Bills = cashSection.GetSection("Bills").Get<System.Collections.Generic.List<decimal>>() is { Count: > 0 } bills ? bills : defaults.Bills;
+        cashSettings.Coins = cashSection.GetSection("Coins").Get<System.Collections.Generic.List<decimal>>() is { Count: > 0 } coins ? coins : defaults.Coins;
+        var movementRoles = cashSection.GetSection("ManagerRequiredFor");
+        cashSettings.ManagerRequiredFor = movementRoles.Exists() ? movementRoles.Get<System.Collections.Generic.List<string>>() ?? new() : null;
+        services.AddSingleton(cashSettings);
+
         var syncSettings = configuration.GetSection("Sync").Get<SyncSettings>() ?? new SyncSettings();
         services.AddSingleton(syncSettings);
 
@@ -62,6 +72,7 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ITaxService, TaxService>();
         services.AddTransient<ICustomerService, CustomerService>();
         services.AddTransient<ICashShiftService, CashShiftService>();
+        services.AddTransient<IBillPaymentService, BillPaymentService>();
 
         // ── Sales Services ───────────────────────────────────────────────────────
         services.AddTransient<ISalesService, SalesService>();
@@ -102,6 +113,13 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IPrinterService>(sp =>
                 new EscPosNetworkPrinterService(hwSettings.PrinterHost, hwSettings.PrinterPort));
 
+        // Cash drawer: kicked through the receipt printer (RJ11 port) or mocked with the printer.
+        if (hwSettings.UseMockPrinter)
+            services.AddSingleton<ICashDrawerService, Infrastructure.Hardware.CashDrawer.MockCashDrawerService>();
+        else
+            services.AddSingleton<ICashDrawerService>(sp =>
+                new Infrastructure.Hardware.CashDrawer.PrinterKickCashDrawerService(sp.GetRequiredService<IPrinterService>()));
+
         if (hwSettings.UseMockScale)
             services.AddSingleton<IScaleService, MockScaleService>();
         else
@@ -116,7 +134,8 @@ public static class ServiceCollectionExtensions
         // ── ViewModels ───────────────────────────────────────────────────────────
         services.AddTransient<CheckoutViewModel>();
         services.AddSingleton<KdsViewModel>(); // owns a timer: exactly one instance
-        services.AddTransient<CashShiftViewModel>();
+        services.AddSingleton<CashShiftViewModel>();   // owns a 30 s refresh timer: exactly one instance
+        services.AddSingleton<BillPaymentsViewModel>(); // subscribes to the scanner while its tab is active
         services.AddTransient<MastersViewModel>();
         services.AddSingleton<CustomerDisplayViewModel>();
         services.AddSingleton<ComandaViewModel>();

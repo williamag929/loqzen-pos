@@ -1,0 +1,52 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+             xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+             xmlns:vm="using:Presentation.Desktop.ViewModels"
+             x:Class="Presentation.Desktop.Views.CashCountGrid"
+             x:DataType="vm:CashCountViewModel"
+             x:CompileBindings="True">
+
+    <!-- Denomination count: [−] qty [+] [+10] per bill / coin (from CashShiftSettings). The total is the sum of the rows. -->
+    <Grid RowDefinitions="*, Auto">
+        <ScrollViewer Grid.Row="0" VerticalScrollBarVisibility="Auto">
+            <ItemsControl ItemsSource="{Binding Rows}">
+                <ItemsControl.ItemsPanel>
+                    <ItemsPanelTemplate>
+                        <WrapPanel Orientation="Horizontal"/>
+                    </ItemsPanelTemplate>
+                </ItemsControl.ItemsPanel>
+                <ItemsControl.ItemTemplate>
+                    <DataTemplate x:DataType="vm:CashCountRowViewModel">
+                        <Border Background="#1E293B" CornerRadius="10" Padding="10,6" Margin="0,0,8,8" Width="440">
+                            <Grid ColumnDefinitions="130, Auto, *, Auto, Auto, 100">
+                                <TextBlock Text="{Binding Label}" Foreground="White" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Width="56" Height="56" CornerRadius="10" Background="#334155" Foreground="White"
+                                        FontSize="24" FontWeight="Bold" Content="−" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        Command="{Binding MinusCommand}"/>
+                                <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="24" FontWeight="Black"
+                                           HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="44" TextAlignment="Center"/>
+                                <Button Grid.Column="3" Width="56" Height="56" CornerRadius="10" Background="#334155" Foreground="White"
+                                        FontSize="24" FontWeight="Bold" Content="+" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        Command="{Binding PlusCommand}"/>
+                                <Button Grid.Column="4" Width="60" Height="56" Margin="6,0,0,0" CornerRadius="10" Background="#1D4ED8" Foreground="White"
+                                        FontSize="16" FontWeight="Bold" Content="+10" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
+                                        Command="{Binding PlusTenCommand}"/>
+                                <TextBlock Grid.Column="5" Text="{Binding SubtotalText}" Foreground="#E2E8F0" FontSize="16"
+                                           TextAlignment="Right" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
+                            </Grid>
+                        </Border>
+                    </DataTemplate>
+                </ItemsControl.ItemTemplate>
+            </ItemsControl>
+        </ScrollViewer>
+
+        <Border Grid.Row="1" Background="#0B1220" CornerRadius="10" Padding="16,10" Margin="0,8,0,0">
+            <Grid ColumnDefinitions="Auto, *, Auto">
+                <Button Height="52" Padding="16,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="14" FontWeight="Bold"
+                        Content="↺ Poner en cero" Command="{Binding ResetCountCommand}"/>
+                <TextBlock Grid.Column="1" Text="Total contado" Foreground="#94A3B8" FontSize="16" FontWeight="Bold"
+                           VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,14,0"/>
+                <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="#38BDF8" FontSize="32" FontWeight="Black" VerticalAlignment="Center"/>
+            </Grid>
+        </Border>
+    </Grid>
+</UserControl>

@@ -6,7 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](#-stack)
 [![Avalonia UI](https://img.shields.io/badge/Avalonia%20UI-11.2-blueviolet)](#-stack)
 [![SQLite](https://img.shields.io/badge/SQLite-Offline--First-003B57?logo=sqlite&logoColor=white)](#-stack)
-[![Tests](https://img.shields.io/badge/tests-340%20passing-success)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-454%20passing-success)](#-tests)
 
 👉 **¿Vas a colaborar? Lee primero [`CONTRIBUTING.md`](CONTRIBUTING.md).**
 
@@ -39,7 +39,8 @@
 | **Tirilla en pantalla** idéntica a la impresa (mismo formateador) | ✅ |
 | **Modo restaurante**: comandas por mesa, 3 paneles táctiles, productos amarillo→verde con espera configurable, notas por producto | ✅ |
 | **KDS cocina**: actualización automática, luz en el borde de órdenes nuevas, alerta por tiempo, estado de impresión, archivo con deshacer | ✅ |
-| Turno de caja: apertura, **cuadre por denominaciones** (COP), resumen por medio de pago | ✅ |
+| **Turno de caja de referencia**: fondo sugerido, tablero en vivo, movimientos (entrada, salida, gasto, retiro a bóveda, propinas) con PIN de gerente y vale impreso, arqueo parcial, **cierre en 4 pasos con conteo a ciegas**, diferencia grande → gerente + nota, fondo para el siguiente turno, **reporte Z** impreso e historial | ✅ |
+| **Recaudos** (pago de recibos: energía, agua, gas, recargas…): convenios con comisión, comprobante REC-000001, efectivo/tarjeta/transferencia, anulación con gerente; entra al cuadre aparte de las ventas | ✅ |
 | Maestros (productos, categorías, impuestos, clientes) | ✅ |
 | Impresión ESC/POS por TCP 9100 + respaldo TXT si falla + pulso de cajón | ✅ |
 | Visor de cliente (segunda pantalla) | ✅ venta rápida · ⚠️ no muestra comandas |
@@ -84,7 +85,7 @@ Flujo para probar en 2 minutos:
 
 Abrir directamente en una pestaña (pantallas dedicadas, p. ej. cocina):
 ```bash
-LOQZEN_START_VIEW=kds dotnet run --project src/Presentation.Desktop   # kds | comandas | caja | maestros
+LOQZEN_START_VIEW=kds dotnet run --project src/Presentation.Desktop   # kds | comandas | caja | recaudos | maestros
 ```
 
 ---
@@ -111,6 +112,11 @@ Apertura con fondo inicial; cierre con conteo por denominación (100.000 … 50)
 ### Usuarios y autorización de gerente (🔐)
 PIN de 4–6 dígitos en pantalla táctil (sin usuario, el PIN identifica a la persona; se guarda con hash PBKDF2 y no puede repetirse entre usuarios activos). Roles ordenados por privilegio: **Cocina** (solo KDS) → **Mesero** (+Comandas) → **Cajero** (+Punto de Venta, Turno) → **Gerente** (+Maestros, autoriza) → **Admin** (+crea otros Admin). Las pestañas se muestran según el rol y el chip 👤 permite **Cambiar usuario**.
 Devolver un producto, aplicar descuento o **anular un producto que ya está en cocina** abre el modal de PIN de gerente (si quien está conectado ya es gerente, se registra sin preguntar). Cada aprobación queda en `ManagerOverrides` (quién autorizó, a quién, monto, referencia, hora). En el KDS el producto anulado aparece tachado con etiqueta **ANULADO**; si no queda nada por cocinar la orden se cancela.
+
+### Turno de caja y recaudos (💼 Caja · 🧾 Recaudos)
+- **Esperado = fondo + ventas en efectivo + recaudos en efectivo + entradas − salidas − gastos − retiros − propinas.** Una sola regla en todo el sistema.
+- **Cierre en 4 pasos:** revisión (bloquea si hay comandas abiertas, muestra lo esperado en tarjeta para comparar con el datáfono) → **conteo a ciegas** por denominación → resultado (diferencia en verde/ámbar/rojo; sobre el umbral pide PIN de gerente y nota) → fondo que queda para el siguiente turno. Imprime el **reporte Z**; el historial permite reimprimir cualquier cierre.
+- **Recaudos:** elija convenio, escanee o digite la referencia, valor + comisión = total, cobre en efectivo/tarjeta/transferencia, comprobante impreso y pantalla de cambio. Anular pide gerente. Los convenios se administran en Maestros → 🏢 Convenios.
 
 ### Pantallas en red (🌐 KDS web y comandera web)
 El escritorio arranca un servidor Kestrel en el puerto 5055 (chip 🌐 en la barra superior; tocarlo copia la URL). Cualquier tablet o celular en la misma red abre:
@@ -169,6 +175,8 @@ loqzen-pos/
 | | `QuickNotes` | 12 notas | Botones de notas rápidas ("Sin cebolla"…) |
 | `Authorization` | `RequireLogin` | `true` | `false` = terminal abierto sin pantalla de PIN (p. ej. KDS de cocina) |
 | | `ManagerRequiredFor` | `ReturnItem`, `ApplyDiscount`, `CancelKitchenItem` | Acciones que piden PIN de gerente (también `OpenCashDrawer`, `CloseShift`); `[]` = ninguna |
+| `CashShift` | `BlindCount` / `MaxDifferenceWithoutManager` / `DefaultFloat` | `true` / `5000` / `200000` | Conteo a ciegas, umbral de diferencia que pide gerente + nota, fondo sugerido |
+| | `Bills` / `Coins` / `ManagerRequiredFor` | COP / — | Denominaciones del conteo; movimientos que piden gerente (por defecto salidas, gastos, retiros y propinas) |
 | `Server` | `Enabled` / `Port` / `BindAddress` | `true` / `5055` / `0.0.0.0` | Servidor LAN embebido (KDS web, comandera web, REST, WebSocket). `127.0.0.1` = solo este equipo |
 | `Sync` | `Enabled` / `WebhookUrl` / `ApiKey` | `false` / `http://localhost:5000/webhook` / — | Envío del Outbox a un ERP o webhook (POST JSON, `Authorization: Bearer`) |
 | | `IntervalSeconds` / `BatchSize` / `MaxRetries` / `TimeoutSeconds` | `15` / `50` / `10` / `10` | Reintentos con espera exponencial (1 s … 5 min); tras `MaxRetries` queda *fallido* y se reintenta desde Caja |
@@ -251,8 +259,8 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] Kestrel embebido en el escritorio + KDS web y comandera web en tiempo real (WebSocket)
 - [x] Visor de cliente para comandas
 - [x] Despachador del Outbox hacia ERP/webhook
-- [ ] **Pago de recibos / recaudos en caja** (servicios públicos, recargas, convenios): módulo con comisión, su propio comprobante y **entrada al cuadre de caja** como movimiento aparte de las ventas
-- [ ] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
+- [x] **Pago de recibos / recaudos en caja** (servicios públicos, recargas, convenios): módulo con comisión, su propio comprobante y **entrada al cuadre de caja** como movimiento aparte de las ventas
+- [x] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
 - [ ] **Segunda caja** (modo maestro/satélite: `TerminalId` en ventas y turnos, varios turnos abiertos, servicios del escritorio sobre HTTP)
 - [ ] Datáfono semi-integrado (`IPaymentTerminalService`: el POS envía el monto, el datáfono cobra chip/NFC/Apple Pay/Google Pay y responde aprobado → pago con tarjeta se confirma solo) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
 - [ ] **Pago en la mesa**: una sola caja y varios datáfonos inalámbricos (Wi-Fi/4G) asignados a meseros. Desde la comandera web el mesero toca "Cobrar en mesa" → el POS envía el monto al datáfono del mesero → el cliente paga en la mesa (tap, chip, Apple Pay / Google Pay) sin acercarse a la caja ni entregar la tarjeta → el datáfono responde aprobado → la comanda se cierra y factura sola en la caja. Requiere el `IPaymentTerminalService` anterior con soporte multi-terminal (un datáfono por mesero/mesa) y el endpoint de cierre en `Presentation.Server`.

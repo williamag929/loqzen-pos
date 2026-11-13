@@ -74,12 +74,13 @@ public partial class App : Application
             var main = Services.GetRequiredService<MainViewModel>();
             desktop.MainWindow = new MainWindow { DataContext = main };
 
-            // Optional start tab (kiosk screens / demos): LOQZEN_START_VIEW=kds|comandas|caja|maestros
+            // Optional start tab (kiosk screens / demos): LOQZEN_START_VIEW=kds|comandas|caja|recaudos|maestros
             switch (Environment.GetEnvironmentVariable("LOQZEN_START_VIEW")?.ToLowerInvariant())
             {
                 case "kds": _ = main.ShowKdsCommand.ExecuteAsync(null); break;
                 case "comandas": _ = main.ShowComandasCommand.ExecuteAsync(null); break;
                 case "caja": _ = main.ShowCashShiftCommand.ExecuteAsync(null); break;
+                case "recaudos": _ = main.ShowBillPaymentsCommand.ExecuteAsync(null); break;
                 case "maestros": _ = main.ShowMastersCommand.ExecuteAsync(null); break;
             }
         }
@@ -115,4 +116,4 @@ public partial class App : Application
             Console.WriteLine($"[LAN] Error al detener el servidor: {ex.Message}");
         }
     }
-}
+}

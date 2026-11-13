@@ -76,6 +76,51 @@ public class MigrationTests : IDisposable
     }
 
     [Fact]
+    public async Task DatabaseAtManagerOverrideConsumed_IsUpgradedToCashOperations_AndGetsBillers()
+    {
+        // Simulates a user DB from the release before "cuadre de caja de referencia + recaudos".
+        await using (var old = NewContext())
+        {
+            await old.GetInfrastructure().GetRequiredService<Microsoft.EntityFrameworkCore.Migrations.IMigrator>()
+                .MigrateAsync("20261113054830_ManagerOverrideConsumed");
+            // Raw SQL: the current model has columns the old schema lacks.
+            await old.Database.ExecuteSqlRawAsync(
+                "INSERT INTO CashShifts (Id, ShiftNumber, CashierId, CashierName, OpenedAt, ClosedAt, OpeningAmount, ClosingAmount, ExpectedAmount, Status, CreatedAt) " +
+                "VALUES ('6F9619FF-8B86-D011-B42D-00C04FC964FF', 1, '00000000-0000-0000-0000-000000000000', 'Legacy', '2026-11-01 08:00:00', '2026-11-01 18:00:00', '50000.0', '50000.0', '50000.0', 1, '2026-11-01 08:00:00')");
+        }
+
+        await using (var db = NewContext()) await DbInitializer.InitializeAsync(db);
+
+        await using var check = NewContext();
+        (await check.Database.GetPendingMigrationsAsync()).Should().BeEmpty();
+        (await check.Database.GetAppliedMigrationsAsync()).Should().Contain("20261113062640_CashOperations");
+        (await check.Billers.CountAsync()).Should().Be(5, "default billers are seeded on upgraded DBs");
+        (await check.Billers.CountAsync(b => b.IsActive)).Should().Be(5);
+        var legacy = await check.CashShifts.SingleAsync();
+        legacy.CashierName.Should().Be("Legacy", "existing shifts are preserved");
+        legacy.FloatLeftAmount.Should().Be(0m, "new column defaults to 0");
+        legacy.WasBlindCount.Should().BeFalse();
+        legacy.DifferenceOverrideId.Should().BeNull();
+        (await check.CashMovements.CountAsync()).Should().Be(0, "new tables exist");
+        (await check.BillPayments.CountAsync()).Should().Be(0);
+        (await check.PartialCashCounts.CountAsync()).Should().Be(0);
+        Directory.GetFiles(_dir, "*.bak").Should().BeEmpty();
+
+        // Legacy close (no ClosedByName) → suggested opening falls back to the default float.
+        (await new Infrastructure.Data.Services.CashShiftService(check).GetSuggestedOpeningAmountAsync()).Should().Be(200000m);
+    }
+
+    [Fact]
+    public async Task FreshDatabase_SeedsBillers_Once()
+    {
+        await using (var db = NewContext()) await DbInitializer.InitializeAsync(db);
+        await using (var db = NewContext()) await DbInitializer.InitializeAsync(db);
+
+        await using var check = NewContext();
+        (await check.Billers.CountAsync()).Should().Be(5, "seed must not duplicate billers");
+    }
+
+    [Fact]
     public async Task LegacyEnsureCreatedDatabase_IsBackedUp_AndRecreated()
     {
         // Simulate a pre-migrations DB: has tables but no __EFMigrationsHistory.

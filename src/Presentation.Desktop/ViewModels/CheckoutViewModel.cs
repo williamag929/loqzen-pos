@@ -21,6 +21,7 @@ public partial class CheckoutViewModel : ObservableObject
     private readonly IKitchenService _kitchenService;
     private readonly ICashShiftService _cashShiftService;
     private readonly IPrinterService _printerService;
+    private readonly ICashDrawerService _cashDrawer;
     private readonly IScaleService _scaleService;
     private readonly IBarcodeScannerService _scannerService;
     private readonly IManagerAuthPrompt _authPrompt;
@@ -103,8 +104,10 @@ public partial class CheckoutViewModel : ObservableObject
         IScaleService scaleService,
         IBarcodeScannerService scannerService,
         IManagerAuthPrompt authPrompt,
-        IUserSession session)
+        IUserSession session,
+        ICashDrawerService cashDrawer)
     {
+        _cashDrawer = cashDrawer;
         _categoryService = categoryService;
         _productService = productService;
         _salesService = salesService;
@@ -127,6 +130,7 @@ public partial class CheckoutViewModel : ObservableObject
         {
             Avalonia.Threading.Dispatcher.UIThread.Post(() =>
             {
+                if (IsScannerSuspended) return; // the Recaudos tab is reading a bill reference
                 AddProductByBarcode(barcode);
             });
         };
@@ -134,6 +138,9 @@ public partial class CheckoutViewModel : ObservableObject
 
         _ = InitializeAsync();
     }
+
+    /// <summary>Set by MainViewModel while the Recaudos tab owns the scanner (bill references are not products).</summary>
+    public bool IsScannerSuspended { get; set; }
 
     [RelayCommand]
     public void ScanBarcode(string barcode)
@@ -447,7 +454,7 @@ public partial class CheckoutViewModel : ObservableObject
             StatusMessage = "❌ Apertura de cajón no autorizada";
             return;
         }
-        await _printerService.OpenCashDrawerAsync();
+        await _cashDrawer.OpenDrawerAsync();
         StatusMessage = "Cajón monedero abierto";
     }
 
@@ -622,7 +629,7 @@ public partial class CheckoutViewModel : ObservableObject
             // 6. Open cash drawer for cash payments
             if (SelectedPaymentMethod == PaymentMethod.Cash)
             {
-                await _printerService.OpenCashDrawerAsync();
+                await _cashDrawer.OpenDrawerAsync();
             }
 
             var completedOrderNumber = paymentResult.OrderNumber;
