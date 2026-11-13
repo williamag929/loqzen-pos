@@ -39,6 +39,9 @@ public static class ServiceCollectionExtensions
         services.AddTransient<ICustomerService, CustomerService>();
         services.AddTransient<ICashShiftService, CashShiftService>();
 
+        // ── Sales Services ───────────────────────────────────────────────────────
+        services.AddTransient<ISalesService, SalesService>();
+
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────
         if (hwSettings.UseMockPrinter)
             services.AddSingleton<IPrinterService, MockPrinterService>();
