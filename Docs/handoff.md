@@ -1,9 +1,10 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-12  
-**Última sesión:** Implementación Sistema de Devoluciones en Carrito (Fase 1)
+**Última sesión:** Comandas multi-mesa, notas por producto, KDS mejorado, cuadre de caja, migraciones, README + CONTRIBUTING
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
+
 ---
 
 ---
