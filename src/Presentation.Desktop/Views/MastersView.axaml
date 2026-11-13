@@ -45,6 +45,10 @@
                             Content="🏢 Convenios"
                             Background="{Binding IsBillersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowBillersCommand}"/>
+                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="🖥️ Cajas"
+                            Background="{Binding IsTerminalsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                            Foreground="White" Command="{Binding ShowTerminalsCommand}"/>
                 </WrapPanel>
                 <!-- Notification -->
                 <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
@@ -338,6 +342,90 @@
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
+                </ScrollViewer>
+            </Grid>
+
+            <!-- ══ TERMINALS TAB (cajas: principal + satélites, recepciones del inbox) ═══ -->
+            <Grid IsVisible="{Binding IsTerminalsTab}" RowDefinitions="Auto, *">
+                <!-- Header: this register + the URL the satellites must use -->
+                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                    <Grid ColumnDefinitions="*, Auto">
+                        <StackPanel Spacing="4" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding ThisTerminalText}" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <WrapPanel Orientation="Horizontal">
+                                <TextBlock Text="Dirección para las cajas satélite: " Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
+                                <Border Background="#1E293B" CornerRadius="6" Padding="10,4" Margin="0,2,0,2">
+                                    <SelectableTextBlock Text="{Binding MasterUrlText}" Foreground="#C4B5FD" FontSize="14" FontWeight="Bold"/>
+                                </Border>
+                            </WrapPanel>
+                            <TextBlock Text="{Binding MasterUrlHint}" Foreground="{Binding MasterUrlHintColor}" FontSize="12" TextWrapping="Wrap"/>
+                        </StackPanel>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                                FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
+                                Content="↻ Actualizar" IsEnabled="{Binding !IsLoadingTerminals}" Command="{Binding LoadTerminalsCommand}"/>
+                    </Grid>
+                </Border>
+                <ScrollViewer Grid.Row="1" Padding="16">
+                    <StackPanel Spacing="10">
+                        <TextBlock Text="{Binding TerminalsSummary}" Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
+                        <TextBlock Text="No hay cajas registradas todavía." Foreground="#64748B" FontSize="15" IsVisible="{Binding !HasTerminals}"/>
+
+                        <!-- Registers: one card per terminal (WrapPanel so narrow windows stack them) -->
+                        <ItemsControl ItemsSource="{Binding Terminals}">
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:TerminalRowViewModel">
+                                    <Border Background="#1E293B" CornerRadius="10" Padding="16,12" Margin="0,0,10,10" Width="330" MinHeight="96">
+                                        <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto, Auto">
+                                            <Ellipse Grid.RowSpan="4" Width="14" Height="14" Fill="{Binding DotColor}" Margin="0,4,12,0" VerticalAlignment="Top"/>
+                                            <WrapPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
+                                                <TextBlock Text="{Binding Code}" Foreground="White" FontSize="18" FontWeight="Black" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <Border Background="{Binding KindColor}" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
+                                                    <TextBlock Text="{Binding KindLabel}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                </Border>
+                                            </WrapPanel>
+                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Name}" Foreground="#CBD5E1" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                            <WrapPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding LastSeenText}" Foreground="#94A3B8" FontSize="12" Margin="0,0,10,0"/>
+                                                <TextBlock Text="{Binding LastSyncText}" Foreground="#94A3B8" FontSize="12"/>
+                                            </WrapPanel>
+                                            <WrapPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,4,0,0">
+                                                <TextBlock Text="{Binding OpenShiftText}" Foreground="{Binding OpenShiftColor}" FontSize="13" FontWeight="Bold" Margin="0,0,10,0"/>
+                                                <TextBlock Text="{Binding DetailText}" Foreground="#64748B" FontSize="12"/>
+                                            </WrapPanel>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+
+                        <!-- Inbox receipts: last 50 envelopes received from satellites -->
+                        <TextBlock Text="📥 Últimas recepciones de las cajas satélite" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
+                        <TextBlock Text="Todavía no se ha recibido nada de las cajas satélite." Foreground="#64748B" FontSize="14" IsVisible="{Binding !HasInboxReceipts}"/>
+                        <ItemsControl ItemsSource="{Binding InboxReceipts}">
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate x:DataType="vm:InboxReceiptRowViewModel">
+                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
+                                        <Grid ColumnDefinitions="120, 90, *, 120">
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding TerminalCode}" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <StackPanel Grid.Column="2" VerticalAlignment="Center">
+                                                <WrapPanel Orientation="Horizontal">
+                                                    <TextBlock Text="{Binding EventText}" Foreground="#CBD5E1" FontSize="13" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding AggregateText}" Foreground="#64748B" FontSize="11" VerticalAlignment="Center"/>
+                                                </WrapPanel>
+                                                <TextBlock Text="{Binding ErrorText}" Foreground="#F87171" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
+                                            </StackPanel>
+                                            <TextBlock Grid.Column="3" Text="{Binding OutcomeText}" Foreground="{Binding OutcomeColor}" FontSize="13" FontWeight="Bold"
+                                                       TextAlignment="Right" VerticalAlignment="Center"/>
+                                        </Grid>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
+                    </StackPanel>
                 </ScrollViewer>
             </Grid>
 

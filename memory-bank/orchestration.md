@@ -15,6 +15,7 @@ I (Cline) act as **Architect / Orchestrator**. I own the plan, review architectu
 1. Orchestrator writes the **contract** first (entities, enums, DTOs, `I*Service`) so agents can work in parallel.
 2. Backend + UI agents run concurrently, path-scoped, each building only its own project. QA starts when backend reports.
 3. Orchestrator reviews, fixes what QA flags, runs the full gate, updates docs/memory-bank, commits. Subagents never commit.
+4. (2026-11-13, second register) Contract stubs that throw `NotImplementedException` let UI/network agents build against Data before the backend lands. The orchestrator also runs the app for real (isolated `XDG_DATA_HOME`, `DOTNET_ENVIRONMENT=Qa*` json in the bin dir, screenshots by window PID via `hyprctl clients -j` + `grim -g`) — that is how the SKU-collision bug was found, which no unit test had caught. Agents are resumed with SendMessage for follow-ups instead of being respawned.
 
 ## Orchestrator checklist for every task
 1. Read `memory-bank/*` first; update `activeContext.md` at the end.

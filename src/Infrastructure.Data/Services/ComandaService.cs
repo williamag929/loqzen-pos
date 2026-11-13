@@ -25,14 +25,17 @@ public partial class ComandaService : IComandaService
     private readonly ComandaSettings _settings;
     private readonly TimeProvider _clock;
     private readonly IKitchenEventBus? _events;
+    private readonly ITerminalContext? _terminal;
 
     /// <param name="events">Optional: when provided, every KitchenOrder created/changed here publishes a KitchenEvent after SaveChanges.</param>
-    public ComandaService(PosDbContext db, ComandaSettings settings, TimeProvider clock, IKitchenEventBus? events = null)
+    /// <param name="terminal">Optional: when set, invoices created at close are stamped with this register's id/code.</param>
+    public ComandaService(PosDbContext db, ComandaSettings settings, TimeProvider clock, IKitchenEventBus? events = null, ITerminalContext? terminal = null)
     {
         _db = db;
         _settings = settings;
         _clock = clock;
         _events = events;
+        _terminal = terminal;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;

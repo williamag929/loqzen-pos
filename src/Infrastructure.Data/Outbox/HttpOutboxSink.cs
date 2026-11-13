@@ -5,6 +5,7 @@ using System.Text;
 using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
+using Core.Application.Services;
 using Core.Application.Sync;
 using Core.Domain.Entities;
 
@@ -12,8 +13,9 @@ namespace Infrastructure.Data.Outbox;
 
 /// <summary>
 /// Delivers one Outbox message as a JSON envelope via HTTP POST to <see cref="SyncSettings.WebhookUrl"/>:
-/// <c>{ id, eventType, aggregateType, aggregateId, occurredAt, payload }</c> where <c>payload</c> is the stored
-/// PayloadJson embedded as a nested JSON value (not a string). Sends <c>Authorization: Bearer &lt;ApiKey&gt;</c>
+/// <c>{ id, eventType, aggregateType, aggregateId, occurredAt, terminalCode, payload }</c> where <c>payload</c> is the stored
+/// PayloadJson embedded as a nested JSON value (not a string) and <c>terminalCode</c> identifies this register
+/// (null when no ITerminalContext is set). The same envelope is what the master's /api/sync/inbox expects (SyncEnvelopeDto). Sends <c>Authorization: Bearer &lt;ApiKey&gt;</c>
 /// when configured. The per-request timeout comes from <see cref="SyncSettings.TimeoutSeconds"/> through a
 /// linked CancellationTokenSource, so the shared <see cref="HttpClient"/> is never reconfigured.
 /// Any non-2xx response or transport error throws, which the dispatcher records as a failed attempt.
@@ -24,11 +26,13 @@ public class HttpOutboxSink : IOutboxSink
 
     private readonly HttpClient _http;
     private readonly SyncSettings _settings;
+    private readonly ITerminalContext? _terminal;
 
-    public HttpOutboxSink(HttpClient http, SyncSettings settings)
+    public HttpOutboxSink(HttpClient http, SyncSettings settings, ITerminalContext? terminal = null)
     {
         _http = http;
         _settings = settings;
+        _terminal = terminal;
     }
 
     public async Task DeliverAsync(OutboxMessage message, CancellationToken ct = default)
@@ -72,7 +76,7 @@ public class HttpOutboxSink : IOutboxSink
     /// PayloadJson is embedded as a nested JSON value. If it is not valid JSON (should not happen: every
     /// writer uses JsonSerializer) it is sent as a plain string so a corrupt row does not block the queue forever.
     /// </summary>
-    private static object BuildEnvelope(OutboxMessage m)
+    private object BuildEnvelope(OutboxMessage m)
     {
         object payload;
         try
@@ -92,6 +96,7 @@ public class HttpOutboxSink : IOutboxSink
             aggregateType = m.AggregateType,
             aggregateId = m.AggregateId,
             occurredAt = m.CreatedAt,
+            terminalCode = _terminal is { IsSet: true } ? _terminal.Code : null,
             payload
         };
     }

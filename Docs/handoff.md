@@ -1,11 +1,34 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Cuadre de caja de referencia (conteo a ciegas, movimientos, Z, historial) + recaudos (pago de recibos)
+**Última sesión:** Segunda caja (maestro / satélite) con cierre del día consolidado
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-13 (madrugada): Segunda caja — maestro / satélite
+
+Contrato del arquitecto (entidades, DTOs, interfaces y *stubs* que lanzan `NotImplementedException` para que UI y red compilaran contra Data desde el minuto uno) → backend, red y UI en paralelo → dos agentes de QA (servicios/sync y servidor/extremo a extremo). 620 tests, build 0/0. Además se corrió **de verdad** una principal y una satélite aisladas (`DOTNET_ENVIRONMENT=Qa*`, bases en `/tmp`) y así apareció el único bug serio de la fase.
+
+**Diseño:** cada caja tiene **su propia SQLite** (sin conexión nunca se deja de vender). La satélite baja el catálogo (productos, categorías, impuestos, convenios, usuarios con su PIN) de la principal con `GET /api/catalog/snapshot` conservando los ids, manda latidos a `POST /api/terminals/heartbeat` y empuja su Outbox (ventas, turnos, movimientos, recaudos) a `POST /api/sync/inbox`. La principal aplica cada sobre **una sola vez** (`SyncInboxReceipts` por id de mensaje), crea un turno *placeholder* si una venta llega antes que su apertura, y consolida.
+
+**Hecho:**
+- Dominio: `Terminal` (código `CAJA-01`, Principal/Satélite, último latido/sync), `SyncInboxReceipt`; `TerminalId`/`TerminalCode` en `CashShift`, `Order`, `BillPayment`; `BaseEntity.Id` ahora es asignable (filas replicadas conservan su id). Migración `Terminals`.
+- Aplicación: `TerminalSettings` (sección `Terminal`), `ITerminalContext` (identidad de esta caja, se llena al arrancar), `ITerminalService`, `ICatalogSyncService`, `ISyncInboxService`, `IMasterApiClient`, `SyncEventTypes` (contrato de cargas por evento), `DayConsolidationDto`, `ICashShiftService.GetDayConsolidationAsync`, `CashReports.DayConsolidationReport`.
+- Datos: todas las consultas de "turno actual" filtran por caja (en la principal también viven los turnos replicados); numeración de turnos por caja; cargas del Outbox ampliadas (`{ order: { items, payments } }`, `{ shift: {..., countLines} }`, `{ movement }`, `{ billPayment }`, más las claves antiguas); `HttpOutboxSink` añade `terminalCode`.
+- Servidor: `/api/sync/inbox`, `/api/catalog/snapshot`, `/api/terminals` (+ `heartbeat`), `/api/reports/day`, protegidos con `Terminal:ApiKey` si se configura; `/health` informa la caja.
+- Escritorio: chip 🖥️ (verde sincronizado / ámbar sin conexión con N pendientes / rojo configuración), satélite solo muestra Venta, Caja y Recaudos, **Maestros → 🖥️ Cajas** (cajas en línea, último sync, turno abierto, últimos 50 sobres), **Caja → 📊 Cierre del día** (por caja + totales, imprimible), encabezado `CAJA-02 · Turno #5`, `appsettings.Satellite.example.json`.
+
+**Bug encontrado en la prueba real:** la satélite nunca aplicaba el catálogo. Su base nueva ya traía el catálogo de ejemplo con otros Guid pero el mismo SKU, y el índice único reventaba. `CatalogSyncService` ahora empareja por id y luego por clave natural (sin tildes ni mayúsculas): borra la fila gemela si nadie la referencia, o la desactiva y renombra. Cubierto por `CatalogSyncSqliteTests`.
+
+**⚠️ Para el usuario:** en la segunda máquina copia las claves de `appsettings.Satellite.example.json` (`Code` `CAJA-02`, `Mode` `Satellite`, `MasterUrl` `http://<ip de la principal>:5055`, `Server:Enabled=false`). La IP aparece en la principal en Maestros → 🖥️ Cajas. Si quieres clave, pon el mismo `Terminal:ApiKey` en las dos.
+
+**Limitaciones conocidas:** comandas y KDS solo en la principal (las tablets usan sus páginas web); clientes y `ManagerOverrides` de la satélite no se replican; sin mDNS (hay que escribir la IP); `CatalogApplyResult.Updated` cuenta filas sin cambios; por debajo de 900 px de ancho la barra de Caja se recorta (ya era así). No se probó con clics: pestaña Cajas, cierre del día e impresión; la venta real en la satélite la cubre el test extremo a extremo.
+
+**Siguiente fase recomendada:** **datáfono semi-integrado + pago en mesa** (`IPaymentTerminalService`), o segunda caja parte 2 (comandas/KDS compartidos, mDNS).
 
 ---
 

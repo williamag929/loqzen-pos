@@ -76,6 +76,13 @@ namespace Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TerminalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TerminalId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -103,6 +110,8 @@ namespace Infrastructure.Data.Migrations
 
                     b.HasIndex("ReceiptNumber")
                         .IsUnique();
+
+                    b.HasIndex("TerminalId");
 
                     b.ToTable("BillPayments");
                 });
@@ -298,6 +307,13 @@ namespace Infrastructure.Data.Migrations
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("TerminalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TerminalId")
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime?>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -305,6 +321,11 @@ namespace Infrastructure.Data.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("TerminalId");
+
+                    b.HasIndex("TerminalCode", "ShiftNumber")
+                        .IsUnique();
 
                     b.ToTable("CashShifts");
                 });
@@ -744,6 +765,13 @@ namespace Infrastructure.Data.Migrations
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TerminalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TerminalId")
+                        .HasColumnType("TEXT");
+
                     b.Property<decimal>("Total")
                         .HasPrecision(18, 2)
                         .HasColumnType("TEXT");
@@ -759,6 +787,8 @@ namespace Infrastructure.Data.Migrations
 
                     b.HasIndex("OrderNumber")
                         .IsUnique();
+
+                    b.HasIndex("TerminalId");
 
                     b.ToTable("Orders");
                 });
@@ -1113,6 +1143,59 @@ namespace Infrastructure.Data.Migrations
                     b.ToTable("StoreConfigurations");
                 });
 
+            modelBuilder.Entity("Core.Domain.Entities.SyncInboxReceipt", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("AggregateId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AggregateType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Error")
+                        .HasMaxLength(500)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("EventType")
+                        .IsRequired()
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid>("MessageId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<int>("Outcome")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<DateTime>("ReceivedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TerminalCode")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("MessageId")
+                        .IsUnique();
+
+                    b.HasIndex("TerminalCode", "ReceivedAt");
+
+                    b.ToTable("SyncInboxReceipts");
+                });
+
             modelBuilder.Entity("Core.Domain.Entities.Tax", b =>
                 {
                     b.Property<Guid>("Id")
@@ -1140,6 +1223,59 @@ namespace Infrastructure.Data.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("Taxes");
+                });
+
+            modelBuilder.Entity("Core.Domain.Entities.Terminal", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("AppVersion")
+                        .HasMaxLength(40)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Code")
+                        .IsRequired()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime>("CreatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<bool>("IsActive")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("Kind")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("LastAddress")
+                        .HasMaxLength(64)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastCatalogPullAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSeenAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("LastSyncAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("UpdatedAt")
+                        .HasColumnType("TEXT");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Code")
+                        .IsUnique();
+
+                    b.ToTable("Terminals");
                 });
 
             modelBuilder.Entity("Core.Domain.Entities.User", b =>

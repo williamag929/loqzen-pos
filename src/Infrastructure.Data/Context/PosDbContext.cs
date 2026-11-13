@@ -29,6 +29,8 @@ public class PosDbContext : DbContext
     public DbSet<Biller> Billers => Set<Biller>();
     public DbSet<BillPayment> BillPayments => Set<BillPayment>();
     public DbSet<PartialCashCount> PartialCashCounts => Set<PartialCashCount>();
+    public DbSet<Terminal> Terminals => Set<Terminal>();
+    public DbSet<SyncInboxReceipt> SyncInboxReceipts => Set<SyncInboxReceipt>();
 
     public PosDbContext()
     {
@@ -101,6 +103,8 @@ public class PosDbContext : DbContext
             entity.Property(o => o.TaxTotal).HasPrecision(18, 2);
             entity.Property(o => o.DiscountTotal).HasPrecision(18, 2);
             entity.Property(o => o.Total).HasPrecision(18, 2);
+            entity.Property(o => o.TerminalCode).HasMaxLength(20);
+            entity.HasIndex(o => o.TerminalId);
 
             entity.HasMany(o => o.Items)
                   .WithOne(i => i.Order)
@@ -144,7 +148,12 @@ public class PosDbContext : DbContext
             entity.Property(s => s.ExpectedAmount).HasPrecision(18, 2);
             entity.Property(s => s.FloatLeftAmount).HasPrecision(18, 2);
             entity.Property(s => s.ClosedByName).HasMaxLength(100);
+            entity.Property(s => s.TerminalCode).HasMaxLength(20);
             entity.Ignore(s => s.Difference);
+            entity.HasIndex(s => s.TerminalId);
+            // ShiftNumber is a per-terminal sequence. SQLite treats NULLs as distinct in unique indexes,
+            // so legacy rows (TerminalCode == null) may keep repeating numbers.
+            entity.HasIndex(s => new { s.TerminalCode, s.ShiftNumber }).IsUnique();
         });
 
         // OutboxMessage
@@ -312,6 +321,8 @@ public class PosDbContext : DbContext
             entity.Property(b => b.ChangeAmount).HasPrecision(18, 2);
             entity.Ignore(b => b.Total);
             entity.HasIndex(b => b.CashShiftId);
+            entity.Property(b => b.TerminalCode).HasMaxLength(20);
+            entity.HasIndex(b => b.TerminalId);
         });
 
         // PartialCashCount (arqueo parcial)
@@ -323,6 +334,29 @@ public class PosDbContext : DbContext
             entity.Property(p => p.UserName).HasMaxLength(100);
             entity.Ignore(p => p.Difference);
             entity.HasIndex(p => p.CashShiftId);
+        });
+
+        // Terminal (cash register identity; master lists itself + satellites)
+        modelBuilder.Entity<Terminal>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Code).IsRequired().HasMaxLength(20);
+            entity.HasIndex(t => t.Code).IsUnique();
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(60);
+            entity.Property(t => t.AppVersion).HasMaxLength(40);
+            entity.Property(t => t.LastAddress).HasMaxLength(64);
+        });
+
+        // SyncInboxReceipt (idempotency ledger of /api/sync/inbox)
+        modelBuilder.Entity<SyncInboxReceipt>(entity =>
+        {
+            entity.HasKey(r => r.Id);
+            entity.HasIndex(r => r.MessageId).IsUnique();
+            entity.Property(r => r.TerminalCode).IsRequired().HasMaxLength(20);
+            entity.Property(r => r.EventType).IsRequired().HasMaxLength(100);
+            entity.Property(r => r.AggregateType).IsRequired().HasMaxLength(100);
+            entity.Property(r => r.Error).HasMaxLength(500);
+            entity.HasIndex(r => new { r.TerminalCode, r.ReceivedAt });
         });
     }
 }

@@ -65,6 +65,9 @@
                     <Button Height="52" Padding="18,0" Margin="4" Background="#1E293B" Foreground="White"
                             FontSize="15" FontWeight="Bold" CornerRadius="8"
                             Content="📜 Historial" Command="{Binding ShowHistoryCommand}"/>
+                    <Button Height="52" Padding="18,0" Margin="4" Background="#1E293B" Foreground="White"
+                            FontSize="15" FontWeight="Bold" CornerRadius="8"
+                            Content="📊 Cierre del día" Command="{Binding ShowDayConsolidationCommand}"/>
                     <Button Height="52" Padding="22,0" Margin="4" Background="#2563EB" Foreground="White"
                             FontSize="15" FontWeight="Bold" CornerRadius="8"
                             Content="🟢 Abrir Turno" IsVisible="{Binding !IsShiftOpen}"
@@ -207,6 +210,7 @@
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsPartialCountVisible}"><views:CashPartialCountDialog/></Panel>
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsCloseWizardVisible}"><views:CashCloseWizard/></Panel>
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsHistoryVisible}"><views:ShiftReportView/></Panel>
+        <Panel Grid.RowSpan="3" IsVisible="{Binding IsDayConsolidationVisible}"><views:DayConsolidationView/></Panel>
         <!-- Z report on top of the history (opened from a history row) -->
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsZReportVisible}">
             <Border Background="#D9000000">

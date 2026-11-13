@@ -94,3 +94,24 @@ public enum BillPaymentStatus
     Completed = 0,
     Voided = 1
 }
+
+/// <summary>Role of this POS installation in a multi-register store.</summary>
+public enum TerminalKind
+{
+    /// <summary>Owns the catalog, the users and the consolidated reports; receives the satellites' sales.</summary>
+    Master = 0,
+    /// <summary>Sells with its own local database, pulls the catalog from the master and pushes its sales/shifts through the Outbox.</summary>
+    Satellite = 1
+}
+
+/// <summary>What the master did with one envelope received on /api/sync/inbox.</summary>
+public enum SyncInboxOutcome
+{
+    Applied = 0,
+    /// <summary>Same message id seen before: nothing changed (idempotent).</summary>
+    Duplicate = 1,
+    /// <summary>Event type the master does not replicate (kitchen events, ...): acknowledged and dropped.</summary>
+    Ignored = 2,
+    /// <summary>Payload invalid or business rule violated; the sender keeps retrying unless it fixes the message.</summary>
+    Rejected = 3
+}

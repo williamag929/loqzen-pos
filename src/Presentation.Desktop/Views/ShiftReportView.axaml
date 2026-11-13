@@ -15,8 +15,12 @@
                         <TextBlock Text="📜 Historial de turnos" Foreground="White" FontSize="24" FontWeight="Black"/>
                         <TextBlock Text="Toque un turno para ver y reimprimir su reporte Z." Foreground="#94A3B8" FontSize="14"/>
                     </StackPanel>
-                    <Button Grid.Column="1" Height="56" Padding="22,0" CornerRadius="12" Background="#334155" Foreground="White"
-                            FontSize="16" FontWeight="Bold" Content="✖ Cerrar" Command="{Binding CloseHistoryCommand}"/>
+                    <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center">
+                        <Button Height="56" Padding="18,0" Margin="0,0,8,0" CornerRadius="12" Background="#1E3A5F" Foreground="White"
+                                FontSize="15" FontWeight="Bold" Content="📊 Cierre del día" Command="{Binding ShowDayConsolidationCommand}"/>
+                        <Button Height="56" Padding="22,0" CornerRadius="12" Background="#334155" Foreground="White"
+                                FontSize="16" FontWeight="Bold" Content="✖ Cerrar" Command="{Binding CloseHistoryCommand}"/>
+                    </WrapPanel>
                 </Grid>
 
                 <Grid Grid.Row="1" ColumnDefinitions="80, *, 130, 130, 130, 110" Margin="16,0,16,6">

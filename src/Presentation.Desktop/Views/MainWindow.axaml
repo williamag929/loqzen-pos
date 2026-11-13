@@ -40,36 +40,37 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Navigation Tabs – touch targets >= 44px; each tab hides for roles that may not use it.
+                <!-- Navigation Tabs – touch targets >= 44px; each tab hides for roles that may not use it
+                     AND on a satellite register (Comandas / KDS / Maestros live on the master).
                      WrapPanel inside the * column wraps to a second row instead of overlapping the tools. -->
                 <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding CheckoutTabLabel}" IsVisible="{Binding Session.CanAccessCheckout}"
+                            Content="{Binding CheckoutTabLabel}" IsVisible="{Binding IsCheckoutTabVisible}"
                             Background="{Binding IsCheckoutActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCheckoutCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding ComandasTabLabel}" IsVisible="{Binding Session.CanAccessComandas}"
+                            Content="{Binding ComandasTabLabel}" IsVisible="{Binding IsComandasTabVisible}"
                             Background="{Binding IsComandaActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowComandasCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding KdsTabLabel}" IsVisible="{Binding Session.CanAccessKds}"
+                            Content="{Binding KdsTabLabel}" IsVisible="{Binding IsKdsTabVisible}"
                             Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowKdsCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding CashShiftTabLabel}" IsVisible="{Binding Session.CanAccessCashShift}"
+                            Content="{Binding CashShiftTabLabel}" IsVisible="{Binding IsCashShiftTabVisible}"
                             Background="{Binding IsCashShiftActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCashShiftCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding BillPaymentsTabLabel}" IsVisible="{Binding Session.CanAccessBillPayments}"
+                            Content="{Binding BillPaymentsTabLabel}" IsVisible="{Binding IsBillPaymentsTabVisible}"
                             Background="{Binding IsBillPaymentsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowBillPaymentsCommand}"/>
 
                     <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="{Binding MastersTabLabel}" IsVisible="{Binding Session.CanAccessMasters}"
+                            Content="{Binding MastersTabLabel}" IsVisible="{Binding IsMastersTabVisible}"
                             Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowMastersCommand}"/>
                 </WrapPanel>
@@ -101,6 +102,15 @@
                             Command="{Binding CopyKdsUrlCommand}">
                         <TextBlock Text="{Binding LanChipDisplayText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                     </Button>
+
+                    <!-- Terminal chip: this register (CAJA-01 · Principal · N satélites) or, on a satellite, the link
+                         with the master (green synced / amber selling offline / red config error). Not a button. -->
+                    <Border Height="44" MinWidth="44" Padding="12,0" Margin="4" MaxWidth="300" IsVisible="{Binding IsTerminalChipVisible}"
+                            Background="#1E293B" BorderBrush="{Binding TerminalChipColor}" BorderThickness="1" CornerRadius="8"
+                            ToolTip.Tip="{Binding TerminalChipDisplayTooltip}" VerticalAlignment="Center">
+                        <TextBlock Text="{Binding TerminalChipDisplayText}" Foreground="{Binding TerminalChipColor}" FontWeight="Bold" FontSize="12"
+                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    </Border>
 
                     <!-- User chip: who is signed in + change user (back to PIN screen) -->
                     <StackPanel Orientation="Horizontal" IsVisible="{Binding Session.IsLoggedIn}">

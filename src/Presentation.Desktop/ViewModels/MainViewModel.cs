@@ -5,6 +5,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Security;
+using Core.Application.Services;
+using Microsoft.Extensions.DependencyInjection;
 using Presentation.Desktop.Services;
 using Presentation.Server;
 
@@ -84,7 +86,8 @@ public partial class MainViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CheckoutTabLabel), nameof(ComandasTabLabel), nameof(KdsTabLabel),
         nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(BillPaymentsTabLabel), nameof(ScanLabel), nameof(CustomerDisplayLabel),
-        nameof(LogoutLabel), nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip), nameof(IsWide))]
+        nameof(LogoutLabel), nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip), nameof(IsWide),
+        nameof(TerminalChipDisplayText), nameof(TerminalChipDisplayTooltip))]
     private bool _isCompact;
     public bool IsWide => !IsCompact;
 
@@ -119,7 +122,13 @@ public partial class MainViewModel : ObservableObject
         AuthorizationSettings authSettings,
         ServerSettings serverSettings,
         LoqzenServer server,
-        LanServerStatus serverStatus)
+        LanServerStatus serverStatus,
+        TerminalSettings terminalSettings,
+        ITerminalContext terminalContext,
+        TerminalStatus terminalStatus,
+        SatelliteSyncWorker satelliteSync,
+        OutboxSyncWorker outboxSync,
+        IServiceScopeFactory scopes)
     {
         _checkout = checkout;
         _kds = kds;
@@ -138,6 +147,7 @@ public partial class MainViewModel : ObservableObject
 
         Checkout.CustomerDisplay = CustomerDisplay;
         Session.Changed += OnSessionChanged;
+        InitTerminal(terminalSettings, terminalContext, terminalStatus, satelliteSync, outboxSync, scopes);
 
         // "URL copiada" confirmation reverts after 2 s.
         _copiedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
@@ -246,18 +256,19 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsLoginVisible));
         OnPropertyChanged(nameof(IsLanChipVisible));
+        NotifyTabVisibility();
         if (!Session.IsLoggedIn) return;
 
-        // Land on a screen the role may use, and (re)load it so it reflects the new user.
-        var target = Session.CanAccess(ViewOf(ActiveViewIndex)) ? ActiveViewIndex : FirstAllowedIndex();
+        // Land on a screen the role may use ON THIS TERMINAL, and (re)load it so it reflects the new user.
+        var target = CanShow(ActiveViewIndex) ? ActiveViewIndex : FirstAllowedIndex();
         _ = ShowIndexAsync(target);
     }
 
     private int FirstAllowedIndex()
     {
         foreach (var index in new[] { 0, 4, 1, 2, 5, 3 }) // Checkout, Comandas, KDS, Caja, Recaudos, Maestros
-            if (Session.CanAccess(ViewOf(index))) return index;
-        return 1; // KDS is open to every role
+            if (CanShow(index)) return index;
+        return IsSatellite ? 0 : 1; // KDS is open to every role on a master; a satellite has no KDS
     }
 
     private Task ShowIndexAsync(int index) => index switch

@@ -124,6 +124,8 @@ public class ShiftReconciliationDto
 {
     public Guid ShiftId { get; set; }
     public int ShiftNumber { get; set; }
+    /// <summary>Register the shift belongs to ("CAJA-02"); null on legacy rows / single-register installs.</summary>
+    public string? TerminalCode { get; set; }
     public string CashierName { get; set; } = string.Empty;
     public CashShiftStatus Status { get; set; }
     public DateTime OpenedAt { get; set; }
@@ -199,6 +201,8 @@ public class ShiftHistoryItemDto
 {
     public Guid ShiftId { get; set; }
     public int ShiftNumber { get; set; }
+    /// <summary>Register the shift belongs to ("CAJA-02"); null on legacy rows / single-register installs.</summary>
+    public string? TerminalCode { get; set; }
     public string CashierName { get; set; } = string.Empty;
     public DateTime OpenedAt { get; set; }
     public DateTime? ClosedAt { get; set; }

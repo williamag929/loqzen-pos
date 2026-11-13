@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Reflection;
 using System.Threading.Tasks;
 using Avalonia;
 using Avalonia.Controls.ApplicationLifetimes;
@@ -18,6 +19,9 @@ namespace Presentation.Desktop;
 public partial class App : Application
 {
     public static IServiceProvider Services { get; private set; } = null!;
+
+    /// <summary>Informational version of this build ("1.2.0"), reported to the master in heartbeats.</summary>
+    public static string AppVersion { get; } = ResolveAppVersion();
 
     public override void Initialize()
     {
@@ -48,6 +52,11 @@ public partial class App : Application
             DbInitializer.InitializeAsync(db).GetAwaiter().GetResult();
         }
 
+        // ── This register's identity (master / satellite) ────────────────────────
+        // Upserts the Terminals row and fills TerminalContext so every service stamps TerminalId/Code.
+        // A failure must never keep the POS closed: it is logged and shown in the 🖥️ nav-bar chip.
+        RegisterTerminal();
+
         // ── Embedded LAN server (browser KDS / comandera tablets) ───────────────
         // Started in the background so the window opens immediately. A port already in use must
         // never prevent the POS from opening: the failure is logged and shown in the nav-bar chip.
@@ -64,10 +73,15 @@ public partial class App : Application
         var syncWorker = Services.GetRequiredService<OutboxSyncWorker>();
         syncWorker.Start();
 
+        // ── Satellite worker (heartbeat + catalog pull from the master; no-op on a master) ──
+        var satelliteWorker = Services.GetRequiredService<SatelliteSyncWorker>();
+        satelliteWorker.Start();
+
         // ── Create Main Window with DI-resolved ViewModel ───────────────────────
         if (ApplicationLifetime is IClassicDesktopStyleApplicationLifetime desktop)
         {
             desktop.Exit += (_, _) => syncWorker.Dispose();
+            desktop.Exit += (_, _) => satelliteWorker.Dispose();
             if (server != null)
                 desktop.Exit += (_, _) => StopLanServer(server);
 
@@ -75,17 +89,57 @@ public partial class App : Application
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Optional start tab (kiosk screens / demos): LOQZEN_START_VIEW=kds|comandas|caja|recaudos|maestros
+            // kds / comandas / maestros are ignored on a satellite (those screens live on the master).
             switch (Environment.GetEnvironmentVariable("LOQZEN_START_VIEW")?.ToLowerInvariant())
             {
-                case "kds": _ = main.ShowKdsCommand.ExecuteAsync(null); break;
-                case "comandas": _ = main.ShowComandasCommand.ExecuteAsync(null); break;
+                case "kds" when main.IsMaster: _ = main.ShowKdsCommand.ExecuteAsync(null); break;
+                case "comandas" when main.IsMaster: _ = main.ShowComandasCommand.ExecuteAsync(null); break;
                 case "caja": _ = main.ShowCashShiftCommand.ExecuteAsync(null); break;
                 case "recaudos": _ = main.ShowBillPaymentsCommand.ExecuteAsync(null); break;
-                case "maestros": _ = main.ShowMastersCommand.ExecuteAsync(null); break;
+                case "maestros" when main.IsMaster: _ = main.ShowMastersCommand.ExecuteAsync(null); break;
             }
         }
 
         base.OnFrameworkInitializationCompleted();
+    }
+
+    /// <summary>Synchronous on purpose: services resolved later in this same start-up must already see the context.</summary>
+    private static void RegisterTerminal()
+    {
+        var settings = Services.GetRequiredService<Core.Application.DTOs.TerminalSettings>();
+        var context = Services.GetRequiredService<Core.Application.Services.TerminalContext>();
+        var status = Services.GetRequiredService<TerminalStatus>();
+
+        if (settings.IsSatellite && string.IsNullOrWhiteSpace(settings.MasterUrl))
+            status.SetConfigError("Falta Terminal:MasterUrl");
+
+        try
+        {
+            using var scope = Services.CreateScope();
+            var terminals = scope.ServiceProvider.GetRequiredService<Core.Application.Services.ITerminalService>();
+            var dto = Task.Run(() => terminals.EnsureRegisteredAsync(settings.Code, settings.Name, settings.Mode, AppVersion))
+                .GetAwaiter().GetResult();
+            context.Set(dto);
+            status.MarkRegistered();
+            Console.WriteLine($"[Terminal] {dto.Code} · {dto.KindLabel} ({dto.Name})");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Terminal] No se pudo registrar la caja {settings.Code}: {ex.Message}");
+            status.MarkRegistrationFailed(ex.Message);
+        }
+    }
+
+    private static string ResolveAppVersion()
+    {
+        var asm = typeof(App).Assembly;
+        var info = asm.GetCustomAttribute<System.Reflection.AssemblyInformationalVersionAttribute>()?.InformationalVersion;
+        if (!string.IsNullOrWhiteSpace(info))
+        {
+            var plus = info.IndexOf('+');
+            return plus > 0 ? info[..plus] : info;
+        }
+        return asm.GetName().Version?.ToString(3) ?? "0.0.0";
     }
 
     private static async void StartLanServer(LoqzenServer server, LanServerStatus status)

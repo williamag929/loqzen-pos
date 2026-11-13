@@ -8,6 +8,7 @@ using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
+using Infrastructure.Data.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data.Services;
@@ -19,10 +20,20 @@ namespace Infrastructure.Data.Services;
 public class SalesService : ISalesService
 {
     private readonly PosDbContext _dbContext;
+    private readonly ITerminalContext? _terminal;
 
-    public SalesService(PosDbContext dbContext)
+    /// <param name="terminal">Optional: when set, new orders are stamped with this register's id/code.</param>
+    public SalesService(PosDbContext dbContext, ITerminalContext? terminal = null)
     {
         _dbContext = dbContext;
+        _terminal = terminal;
+    }
+
+    private void StampTerminal(Order order)
+    {
+        if (_terminal is not { IsSet: true } || order.TerminalId != null) return;
+        order.TerminalId = _terminal.Id;
+        order.TerminalCode = _terminal.Code;
     }
 
     public async Task<OrderDto> CreateOrderAsync(Guid? customerId, Guid cashShiftId, CancellationToken ct = default)
@@ -37,6 +48,7 @@ public class SalesService : ISalesService
             CashShiftId = cashShiftId,
             UpdatedAt = DateTime.UtcNow
         };
+        StampTerminal(order);
 
         _dbContext.Orders.Add(order);
         await _dbContext.SaveChangesAsync(ct);
@@ -204,19 +216,20 @@ public class SalesService : ISalesService
 
         order.Status = OrderStatus.Completed;
         order.UpdatedAt = DateTime.UtcNow;
+        StampTerminal(order);
+        order.Payments.Add(payment);
 
-        // Outbox pattern: write sync event in same transaction
+        var shiftNumber = order.CashShiftId is { } shiftId
+            ? await _dbContext.CashShifts.Where(s => s.Id == shiftId).Select(s => (int?)s.ShiftNumber).FirstOrDefaultAsync(ct)
+            : null;
+
+        // Outbox pattern: write sync event in same transaction (contract shape, see SyncEventTypes)
         var outboxMessage = new OutboxMessage
         {
-            EventType = "OrderCompleted",
+            EventType = SyncEventTypes.OrderCompleted,
             AggregateType = "Order",
             AggregateId = order.Id,
-            PayloadJson = JsonSerializer.Serialize(new
-            {
-                orderId = order.Id, orderNumber = order.OrderNumber, total = order.Total,
-                paymentMethod = method.ToString(), customerId = order.CustomerId,
-                cashShiftId = order.CashShiftId, completedAt = DateTime.UtcNow
-            }),
+            PayloadJson = OutboxPayloads.OrderCompleted(order, shiftNumber, DateTime.UtcNow),
             Status = SyncStatus.Pending,
             UpdatedAt = DateTime.UtcNow
         };
@@ -247,7 +260,7 @@ public class SalesService : ISalesService
     #region Private Helpers
 
     private async Task<Order?> GetOrderWithItemsAsync(Guid orderId, CancellationToken ct) =>
-        await _dbContext.Orders.Include(o => o.Items).FirstOrDefaultAsync(o => o.Id == orderId, ct);
+        await _dbContext.Orders.Include(o => o.Items).Include(o => o.Payments).FirstOrDefaultAsync(o => o.Id == orderId, ct);
 
     private static void RecalculateItemTotals(OrderItem item, Product product)
     {

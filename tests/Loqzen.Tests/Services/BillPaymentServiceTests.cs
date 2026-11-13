@@ -88,7 +88,7 @@ public class BillPaymentServiceTests : IDisposable
         await act.Should().ThrowAsync<ArgumentException>().WithMessage("*menor que el total*");
         (await _db.BillPayments.CountAsync()).Should().Be(0);
         (await _db.CashMovements.CountAsync()).Should().Be(0);
-        (await _db.OutboxMessages.CountAsync()).Should().Be(0);
+        (await _db.OutboxMessages.CountAsync(o => o.EventType != "CashShiftOpened")).Should().Be(0);
     }
 
     [Fact]
@@ -116,7 +116,7 @@ public class BillPaymentServiceTests : IDisposable
         m.Reference.Should().Be(p.ReceiptNumber);
         m.BillPaymentId.Should().Be(p.Id);
 
-        var o = await _db.OutboxMessages.AsNoTracking().SingleAsync();
+        var o = await _db.OutboxMessages.AsNoTracking().SingleAsync(x => x.EventType != "CashShiftOpened");
         o.EventType.Should().Be("BillPaymentRecorded");
         o.AggregateId.Should().Be(p.Id);
         o.PayloadJson.Should().Contain("REC-000001");

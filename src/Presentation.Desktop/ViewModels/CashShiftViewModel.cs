@@ -253,7 +253,8 @@ public partial class CashShiftViewModel : ObservableObject
         if (IsShiftOpen && CurrentShift != null)
         {
             var elapsed = DateTime.UtcNow - CurrentShift.OpenedAt;
-            ShiftStatusText = $"🟢 Turno #{CurrentShift.ShiftNumber} abierto – {CurrentShift.CashierName} " +
+            var terminal = string.IsNullOrWhiteSpace(CurrentShift.TerminalCode) ? string.Empty : $"{CurrentShift.TerminalCode} · ";
+            ShiftStatusText = $"🟢 {terminal}Turno #{CurrentShift.ShiftNumber} abierto – {CurrentShift.CashierName} " +
                               $"| Inicio: {CurrentShift.OpenedAt.ToLocalTime():HH:mm} " +
                               $"| {(int)elapsed.TotalHours}h {elapsed.Minutes}m";
             ShiftStatusColor = "#10B981";

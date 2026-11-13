@@ -3,6 +3,7 @@ using System.Reflection;
 using System.Text.Json.Serialization;
 using Core.Application.DTOs;
 using Core.Application.Kitchen;
+using Core.Application.Services;
 using Microsoft.AspNetCore.Hosting.Server;
 using Microsoft.AspNetCore.Hosting.Server.Features;
 using Presentation.Server.Dtos;
@@ -17,6 +18,13 @@ namespace Presentation.Server;
 /// REST for KDS/comandera tablets and the WebSocket hub (/ws/kds) fed by <c>IKitchenEventBus</c>.
 /// Resolves application services (IKitchenService, IComandaService, ...) from <c>appServices</c>,
 /// one DI scope per request, so it shares the desktop's SQLite DB and settings.
+/// <para>Routes:</para>
+/// <list type="bullet">
+/// <item><c>GET /health</c>, <c>GET /</c>, <c>/kds</c>, <c>/comandera</c> (embedded pages), <c>GET /ws/kds</c> (WebSocket)</item>
+/// <item><c>/api/kds/*</c> settings/orders/advance/printed/undo — <c>/api/catalog/products|categories</c> — <c>/api/tables</c>, <c>/api/comandas/*</c></item>
+/// <item>Master/satellite (Bearer <c>TerminalSettings.ApiKey</c> when set): <c>POST /api/sync/inbox</c>,
+///   <c>GET /api/catalog/snapshot</c>, <c>GET /api/terminals</c>, <c>POST /api/terminals/heartbeat</c>, <c>GET /api/reports/day?date=</c></item>
+/// </list>
 /// </summary>
 public sealed class LoqzenServer : IAsyncDisposable
 {
@@ -159,10 +167,11 @@ public sealed class LoqzenServer : IAsyncDisposable
         app.UseCors();
         app.UseWebSockets(new WebSocketOptions { KeepAliveInterval = TimeSpan.FromSeconds(20) });
 
+        // GET /health → { status, node, version, utcNow, connectedClients, terminal: { code, name, kind } | null }.
         app.MapGet("/health", () =>
         {
             var now = _appServices.ResolveClock().GetUtcNow().UtcDateTime;
-            return Results.Ok(new HealthDto("ok", NodeName, Version, now, hub.Count));
+            return Results.Ok(new HealthDto("ok", NodeName, Version, now, hub.Count, ResolveTerminal()));
         });
 
         app.MapGet("/", ServeKdsPage);
@@ -172,8 +181,17 @@ public sealed class LoqzenServer : IAsyncDisposable
         app.MapKdsEndpoints(_appServices, hub);
         app.MapCatalogEndpoints(_appServices);
         app.MapComandaEndpoints(_appServices);
+        app.MapTerminalEndpoints(_appServices);
+        app.MapSyncEndpoints(_appServices);
 
         return app;
+    }
+
+    /// <summary>This register's identity, or null when ITerminalContext is not registered or not yet set.</summary>
+    private HealthTerminalDto? ResolveTerminal()
+    {
+        var terminal = _appServices.GetService<ITerminalContext>();
+        return terminal is { IsSet: true } ? new HealthTerminalDto(terminal.Code, terminal.Name, terminal.Kind) : null;
     }
 
     private static IResult ServeKdsPage() => ServeEmbeddedPage("kds.html");

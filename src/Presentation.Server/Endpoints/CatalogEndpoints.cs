@@ -3,7 +3,10 @@ using Presentation.Server.Dtos;
 
 namespace Presentation.Server.Endpoints;
 
-/// <summary>Read-only catalog for the comandera tablet (/api/catalog/*). Active rows only.</summary>
+/// <summary>
+/// Read-only catalog for the comandera tablet (/api/catalog/products, /categories: active rows only) and the
+/// full replication snapshot for satellite registers (/api/catalog/snapshot: active AND inactive, behind the API key).
+/// </summary>
 public static class CatalogEndpoints
 {
     public static IEndpointRouteBuilder MapCatalogEndpoints(this IEndpointRouteBuilder app, IServiceProvider appServices)
@@ -36,6 +39,11 @@ public static class CatalogEndpoints
                 .ToList();
             return Results.Ok(list);
         }));
+
+        // GET /api/catalog/snapshot → CatalogSnapshotDto (master → satellite; ids preserved, includes PinHash — LAN only).
+        group.MapGet("/snapshot", () => appServices.WithScopedAsync<ICatalogSyncService>(async catalog =>
+            Results.Ok(await catalog.BuildSnapshotAsync())))
+            .RequireTerminalApiKey(appServices);
 
         return app;
     }

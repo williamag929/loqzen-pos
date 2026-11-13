@@ -50,7 +50,8 @@
 | Bloqueo tras 5 PIN fallidos (30 s) · autorizaciones de gerente de un solo uso | ✅ |
 | **Usuarios con PIN** (4–6 dígitos), roles Cocina/Mesero/Cajero/Gerente/Admin, pestañas según rol | ✅ |
 | **Autorización de gerente** (PIN) para devoluciones, descuentos y anular productos ya en cocina, con auditoría (`ManagerOverrides`) | ✅ |
-| Segunda caja (modo satélite), datáfono, ZPL, mDNS, app Android nativa | ❌ pendiente |
+| **Segunda caja (maestro / satélite)**: cada caja con su propia base, la satélite recibe el catálogo y envía ventas/turnos/recaudos a la principal, **cierre del día por caja** | ✅ |
+| Datáfono, ZPL, mDNS, app Android nativa | ❌ pendiente |
 
 Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
 
@@ -124,6 +125,13 @@ El escritorio arranca un servidor Kestrel en el puerto 5055 (chip 🌐 en la bar
 - `http://<ip>:5055/comandera` — comandera para meseros: mesas libres/ocupadas, categorías → productos, notas rápidas, anular pendientes, "Enviar ya" y "Lista para pagar". El cobro sigue en la caja.
 Todo pasa por los mismos servicios que el escritorio (mismas reglas, misma base de datos). API REST documentada en `src/Presentation.Server/Endpoints/`.
 
+### Segunda caja (🖥️ maestro / satélite)
+Cada caja corre esta misma app con **su propia base SQLite**: si se cae la red o la caja principal, la satélite **sigue vendiendo** y sincroniza al volver.
+- **Principal** (`Terminal:Mode = Master`, la de siempre): dueña del catálogo, los usuarios y los reportes; recibe las ventas de las satélites en `POST /api/sync/inbox` (idempotente: un reintento nunca duplica una venta).
+- **Satélite** (`Terminal:Mode = Satellite` + `Terminal:MasterUrl`): baja productos, categorías, impuestos, convenios y usuarios (mismos PIN) de la principal cada `CatalogPullSeconds`, manda un latido cada `HeartbeatSeconds` y empuja su Outbox (ventas, turnos, movimientos, recaudos) a la principal. Solo muestra Venta, Caja y Recaudos (comandas y KDS viven en la principal; las tablets usan sus páginas web).
+- Cada caja tiene **su propio turno y su propio cuadre**; los turnos, órdenes y recaudos llevan `TerminalCode` (`CAJA-02 · Turno #5`). En la principal, **Caja → 📊 Cierre del día** consolida todas las cajas (ventas por medio de pago, recaudos, diferencias) e imprime el reporte; **Maestros → 🖥️ Cajas** muestra cada caja (en línea, última sincronización, turno abierto) y los últimos sobres recibidos.
+- Configurar la segunda máquina: copia las claves de `appsettings.Satellite.example.json` (código `CAJA-02`, `MasterUrl = http://<ip de la principal>:5055`, `Server:Enabled=false`). Opcional `Terminal:ApiKey` igual en las dos para proteger la API de sincronización.
+
 ## 🛠 Stack
 
 | Capa | Tecnología |
@@ -180,6 +188,8 @@ loqzen-pos/
 | `Server` | `Enabled` / `Port` / `BindAddress` | `true` / `5055` / `0.0.0.0` | Servidor LAN embebido (KDS web, comandera web, REST, WebSocket). `127.0.0.1` = solo este equipo |
 | `Sync` | `Enabled` / `WebhookUrl` / `ApiKey` | `false` / `http://localhost:5000/webhook` / — | Envío del Outbox a un ERP o webhook (POST JSON, `Authorization: Bearer`) |
 | | `IntervalSeconds` / `BatchSize` / `MaxRetries` / `TimeoutSeconds` | `15` / `50` / `10` / `10` | Reintentos con espera exponencial (1 s … 5 min); tras `MaxRetries` queda *fallido* y se reintenta desde Caja |
+| `Terminal` | `Code` / `Name` / `Mode` | `CAJA-01` / `Caja principal` / `Master` | Identidad de esta caja. `Satellite` = segunda caja que sincroniza con la principal |
+| | `MasterUrl` / `ApiKey` / `CatalogPullSeconds` / `HeartbeatSeconds` | — / — / `60` / `30` | Solo satélite: URL de la principal, clave compartida opcional, frecuencia de catálogo y latido (ver `appsettings.Satellite.example.json`) |
 | `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
 | | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
 | | `PollSeconds` | `3` | Cada cuánto el KDS revisa órdenes nuevas |
@@ -261,7 +271,8 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] Despachador del Outbox hacia ERP/webhook
 - [x] **Pago de recibos / recaudos en caja** (servicios públicos, recargas, convenios): módulo con comisión, su propio comprobante y **entrada al cuadre de caja** como movimiento aparte de las ventas
 - [x] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
-- [ ] **Segunda caja** (modo maestro/satélite: `TerminalId` en ventas y turnos, varios turnos abiertos, servicios del escritorio sobre HTTP)
+- [x] **Segunda caja** (maestro/satélite): `Terminal` + `TerminalId/TerminalCode` en turnos, ventas y recaudos; la satélite vende con su propia base, baja el catálogo y empuja su Outbox a `POST /api/sync/inbox` (idempotente); turno y cuadre por caja; **cierre del día consolidado** en la principal
+- [ ] Segunda caja, parte 2: comandas y KDS compartidos entre cajas (hoy viven solo en la principal), clientes y auditoría de gerente replicados, descubrimiento de la principal por mDNS
 - [ ] Datáfono semi-integrado (`IPaymentTerminalService`: el POS envía el monto, el datáfono cobra chip/NFC/Apple Pay/Google Pay y responde aprobado → pago con tarjeta se confirma solo) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
 - [ ] **Pago en la mesa**: una sola caja y varios datáfonos inalámbricos (Wi-Fi/4G) asignados a meseros. Desde la comandera web el mesero toca "Cobrar en mesa" → el POS envía el monto al datáfono del mesero → el cliente paga en la mesa (tap, chip, Apple Pay / Google Pay) sin acercarse a la caja ni entregar la tarjeta → el datáfono responde aprobado → la comanda se cierra y factura sola en la caja. Requiere el `IPaymentTerminalService` anterior con soporte multi-terminal (un datáfono por mesero/mesa) y el endpoint de cierre en `Presentation.Server`.
 - [ ] ZPL, mDNS, app Android nativa

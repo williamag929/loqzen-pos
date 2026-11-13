@@ -45,6 +45,7 @@ public partial class CashShiftService
         {
             ShiftId = shift.Id,
             ShiftNumber = shift.ShiftNumber,
+            TerminalCode = shift.TerminalCode,
             CashierName = shift.CashierName,
             Status = shift.Status,
             OpenedAt = shift.OpenedAt,
@@ -80,7 +81,7 @@ public partial class CashShiftService
         var shift = shiftId is { } id
             ? await _db.CashShifts.AsNoTracking().FirstOrDefaultAsync(s => s.Id == id, ct)
                 ?? throw new InvalidOperationException("Turno no encontrado.")
-            : await _db.CashShifts.AsNoTracking().FirstOrDefaultAsync(s => s.Status == CashShiftStatus.Open, ct)
+            : await Scoped(_db.CashShifts.AsNoTracking()).FirstOrDefaultAsync(s => s.Status == CashShiftStatus.Open, ct)
                 ?? throw new InvalidOperationException("No hay ningún turno abierto.");
 
         var r = await ComputeAsync(shift, ct);
@@ -116,7 +117,7 @@ public partial class CashShiftService
 
     public async Task<decimal> GetSuggestedOpeningAmountAsync(CancellationToken ct = default)
     {
-        var last = await _db.CashShifts.AsNoTracking()
+        var last = await Scoped(_db.CashShifts.AsNoTracking())
             .Where(s => s.Status == CashShiftStatus.Closed)
             .OrderByDescending(s => s.ShiftNumber)
             .Select(s => new { s.FloatLeftAmount, s.ClosedByName })
@@ -128,23 +129,26 @@ public partial class CashShiftService
     public async Task<IReadOnlyList<ShiftHistoryItemDto>> GetHistoryAsync(int take = 30, CancellationToken ct = default)
     {
         take = Math.Clamp(take, 1, 1000);
-        return await _db.CashShifts.AsNoTracking()
+        return await Scoped(_db.CashShifts.AsNoTracking())
             .Where(s => s.Status == CashShiftStatus.Closed)
             .OrderByDescending(s => s.ShiftNumber)
             .Take(take)
-            .Select(s => new ShiftHistoryItemDto
-            {
-                ShiftId = s.Id,
-                ShiftNumber = s.ShiftNumber,
-                CashierName = s.CashierName,
-                OpenedAt = s.OpenedAt,
-                ClosedAt = s.ClosedAt,
-                ExpectedAmount = s.ExpectedAmount,
-                ClosingAmount = s.ClosingAmount,
-                HadManagerApproval = s.DifferenceOverrideId != null
-            })
+            .Select(s => ToHistoryItem(s))
             .ToListAsync(ct);
     }
+
+    private static ShiftHistoryItemDto ToHistoryItem(CashShift s) => new()
+    {
+        ShiftId = s.Id,
+        ShiftNumber = s.ShiftNumber,
+        TerminalCode = s.TerminalCode,
+        CashierName = s.CashierName,
+        OpenedAt = s.OpenedAt,
+        ClosedAt = s.ClosedAt,
+        ExpectedAmount = s.ExpectedAmount,
+        ClosingAmount = s.ClosingAmount,
+        HadManagerApproval = s.DifferenceOverrideId != null
+    };
 
     private static CashMovementDto ToDto(CashMovement m) => new()
     {

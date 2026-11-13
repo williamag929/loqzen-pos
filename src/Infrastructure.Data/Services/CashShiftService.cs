@@ -21,18 +21,35 @@ public partial class CashShiftService : ICashShiftService
     private readonly PosDbContext _db;
     private readonly TimeProvider _clock;
     private readonly CashShiftSettings _settings;
+    private readonly ITerminalContext? _terminal;
 
-    public CashShiftService(PosDbContext db, TimeProvider? clock = null, CashShiftSettings? settings = null)
+    /// <param name="terminal">Optional: when set, every "current shift" query is scoped to this register (see <see cref="Scoped"/>).</param>
+    public CashShiftService(PosDbContext db, TimeProvider? clock = null, CashShiftSettings? settings = null, ITerminalContext? terminal = null)
     {
         _db = db;
         _clock = clock ?? TimeProvider.System;
         _settings = settings ?? new CashShiftSettings();
+        _terminal = terminal;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
+    /// <summary>
+    /// Restricts shifts to the current register when an ITerminalContext is set. On the master the database also
+    /// holds the satellites' replicated shifts (which may be Open), so "the open shift" must be ours; legacy rows
+    /// (TerminalId == null) belong to the master. Without a context (single register, tests) nothing is filtered.
+    /// </summary>
+    private IQueryable<CashShift> Scoped(IQueryable<CashShift> query)
+    {
+        if (_terminal is not { IsSet: true }) return query;
+        var id = _terminal.Id;
+        return _terminal.Kind == TerminalKind.Master
+            ? query.Where(s => s.TerminalId == id || s.TerminalId == null)
+            : query.Where(s => s.TerminalId == id);
+    }
+
     public async Task<CashShift?> GetCurrentShiftAsync(CancellationToken ct = default)
-        => await _db.CashShifts
+        => await Scoped(_db.CashShifts)
             .FirstOrDefaultAsync(s => s.Status == CashShiftStatus.Open, ct);
 
     public Task<CashShift> OpenShiftAsync(string cashierName, decimal openingAmount, CancellationToken ct = default)
@@ -51,6 +68,7 @@ public partial class CashShiftService : ICashShiftService
         shift.Notes          = notes;
         shift.UpdatedAt      = UtcNow;
 
+        _db.OutboxMessages.Add(ShiftOutbox(SyncEventTypes.CashShiftClosed, shift, Array.Empty<CashCountLineDto>()));
         await _db.SaveChangesAsync(ct);
         return shift;
     }
@@ -110,6 +128,7 @@ public partial class CashShiftService : ICashShiftService
         shift.Notes = notes;
         shift.UpdatedAt = UtcNow;
 
+        _db.OutboxMessages.Add(ShiftOutbox(SyncEventTypes.CashShiftClosed, shift, lines));
         await _db.SaveChangesAsync(ct);
         return shift;
     }

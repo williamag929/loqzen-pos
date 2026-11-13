@@ -6,10 +6,11 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.Services;
 using Core.Domain.Entities;
+using Microsoft.Extensions.DependencyInjection;
 
 namespace Presentation.Desktop.ViewModels;
 
-public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4, Billers = 5 }
+public enum MastersTab { Products = 0, Categories = 1, Taxes = 2, Customers = 3, Users = 4, Billers = 5, Terminals = 6 }
 
 public partial class MastersViewModel : ObservableObject
 {
@@ -20,6 +21,10 @@ public partial class MastersViewModel : ObservableObject
     private readonly IUserService     _users;
     private readonly IUserSession     _session;
     private readonly IBillPaymentService _billPayments;
+    private readonly IServiceScopeFactory _scopes;           // terminal / inbox services: one scope per operation
+    private readonly Core.Application.DTOs.TerminalSettings _terminalSettings;
+    private readonly ITerminalContext _terminalContext;
+    private readonly Core.Application.DTOs.ServerSettings _serverSettings;
 
     // ── Tab ─────────────────────────────────────────────────────────────────
     [ObservableProperty]
@@ -29,6 +34,7 @@ public partial class MastersViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(IsCustomersTab))]
     [NotifyPropertyChangedFor(nameof(IsUsersTab))]
     [NotifyPropertyChangedFor(nameof(IsBillersTab))]
+    [NotifyPropertyChangedFor(nameof(IsTerminalsTab))]
     private MastersTab _activeTab = MastersTab.Products;
 
     public bool IsProductsTab   => ActiveTab == MastersTab.Products;
@@ -94,9 +100,17 @@ public partial class MastersViewModel : ObservableObject
         ICustomerService customers,
         IUserService users,
         IUserSession session,
-        IBillPaymentService billPayments)
+        IBillPaymentService billPayments,
+        IServiceScopeFactory scopes,
+        Core.Application.DTOs.TerminalSettings terminalSettings,
+        ITerminalContext terminalContext,
+        Core.Application.DTOs.ServerSettings serverSettings)
     {
         _billPayments = billPayments;
+        _scopes = scopes;
+        _terminalSettings = terminalSettings;
+        _terminalContext = terminalContext;
+        _serverSettings = serverSettings;
         _products = products;
         _categories = categories;
         _taxes = taxes;

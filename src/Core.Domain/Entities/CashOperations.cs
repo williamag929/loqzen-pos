@@ -49,6 +49,9 @@ public class Biller : BaseEntity
 public class BillPayment : BaseEntity
 {
     public Guid CashShiftId { get; set; }
+    /// <summary>Register that collected it (null = legacy row, owned by the master).</summary>
+    public Guid? TerminalId { get; set; }
+    public string? TerminalCode { get; set; }
     public Guid BillerId { get; set; }
     public string BillerName { get; set; } = string.Empty;
 

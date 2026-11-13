@@ -174,6 +174,9 @@ public partial class BillPaymentsViewModel : ObservableObject
             Notification = $"📷 Referencia leída: {Reference}";
         });
 
+    /// <summary>Satellite: billers changed on the master. Same loader (selection is kept by id); nothing typed is lost.</summary>
+    public Task ReloadBillersAsync() => LoadAsync();
+
     [RelayCommand]
     public async Task LoadAsync()
     {

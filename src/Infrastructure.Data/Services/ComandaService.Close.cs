@@ -6,6 +6,7 @@ using System.Threading.Tasks;
 using Core.Application.DTOs;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
+using Infrastructure.Data.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data.Services;
@@ -45,7 +46,11 @@ public partial class ComandaService
         if (comanda.Status is ComandaStatus.Closed or ComandaStatus.Cancelled)
             return PaymentResultDto.Failed(Guid.Empty, "La comanda ya está cerrada.");
 
-        if (!await _db.CashShifts.AnyAsync(s => s.Id == cashShiftId && s.Status == CashShiftStatus.Open, ct))
+        var shiftNumber = await _db.CashShifts
+            .Where(s => s.Id == cashShiftId && s.Status == CashShiftStatus.Open)
+            .Select(s => (int?)s.ShiftNumber)
+            .FirstOrDefaultAsync(ct);
+        if (shiftNumber == null)
             return PaymentResultDto.Failed(Guid.Empty, "No hay turno de caja abierto.");
 
         var billable = comanda.Items.Where(i => i.Status != ComandaItemStatus.Cancelled).ToList();
@@ -80,15 +85,11 @@ public partial class ComandaService
 
         _db.OutboxMessages.Add(new OutboxMessage
         {
-            EventType = "OrderCompleted",
+            EventType = SyncEventTypes.OrderCompleted,
             AggregateType = "Order",
             AggregateId = order.Id,
-            PayloadJson = JsonSerializer.Serialize(new
-            {
-                orderId = order.Id, orderNumber = order.OrderNumber, total = order.Total,
-                paymentMethod = method.ToString(), cashShiftId, comandaId = comanda.Id,
-                comandaNumber = comanda.Number, table = comanda.TableName, completedAt = UtcNow
-            }),
+            PayloadJson = OutboxPayloads.OrderCompleted(order, shiftNumber, UtcNow,
+                new { comandaId = comanda.Id, comandaNumber = comanda.Number, table = comanda.TableName }),
             Status = SyncStatus.Pending,
             UpdatedAt = UtcNow
         });
@@ -105,6 +106,9 @@ public partial class ComandaService
             Status = OrderStatus.Completed,
             CashShiftId = cashShiftId,
             Notes = $"Comanda #{comanda.Number} - {comanda.TableName}",
+            TerminalId = _terminal is { IsSet: true } ? _terminal.Id : null,
+            TerminalCode = _terminal is { IsSet: true } ? _terminal.Code : null,
+            CreatedAt = UtcNow,
             UpdatedAt = UtcNow
         };
         foreach (var i in billable)

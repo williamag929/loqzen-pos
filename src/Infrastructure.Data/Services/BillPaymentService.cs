@@ -10,6 +10,7 @@ using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
+using Infrastructure.Data.Outbox;
 using Microsoft.EntityFrameworkCore;
 
 namespace Infrastructure.Data.Services;
@@ -26,14 +27,28 @@ public class BillPaymentService : IBillPaymentService
 
     private readonly PosDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly ITerminalContext? _terminal;
 
-    public BillPaymentService(PosDbContext db, TimeProvider clock)
+    /// <param name="terminal">Optional: when set, "the open shift" is this register's and new payments are stamped with its id/code.</param>
+    public BillPaymentService(PosDbContext db, TimeProvider clock, ITerminalContext? terminal = null)
     {
         _db = db;
         _clock = clock;
+        _terminal = terminal;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
+
+    /// <summary>Same rule as CashShiftService.Scoped: this register's shifts (+ legacy rows on the master).</summary>
+    private IQueryable<CashShift> OpenShifts()
+    {
+        IQueryable<CashShift> q = _db.CashShifts.AsNoTracking().Where(s => s.Status == CashShiftStatus.Open);
+        if (_terminal is not { IsSet: true }) return q;
+        var id = _terminal.Id;
+        return _terminal.Kind == TerminalKind.Master
+            ? q.Where(s => s.TerminalId == id || s.TerminalId == null)
+            : q.Where(s => s.TerminalId == id);
+    }
 
     public async Task<IReadOnlyList<BillerDto>> GetBillersAsync(bool includeInactive = false, CancellationToken ct = default)
     {
@@ -110,7 +125,7 @@ public class BillPaymentService : IBillPaymentService
         if (customer is { Length: > 150 })
             throw new ArgumentException("El nombre del cliente admite máximo 150 caracteres.", nameof(request));
 
-        var shift = await _db.CashShifts.AsNoTracking().FirstOrDefaultAsync(s => s.Status == CashShiftStatus.Open, ct)
+        var shift = await OpenShifts().FirstOrDefaultAsync(ct)
             ?? throw new InvalidOperationException("No hay ningún turno abierto.");
         var biller = await _db.Billers.AsNoTracking().FirstOrDefaultAsync(b => b.Id == request.BillerId && b.IsActive, ct)
             ?? throw new InvalidOperationException("Convenio no encontrado o inactivo.");
@@ -138,6 +153,8 @@ public class BillPaymentService : IBillPaymentService
         var payment = new BillPayment
         {
             CashShiftId = shift.Id,
+            TerminalId = shift.TerminalId ?? (_terminal is { IsSet: true } ? _terminal.Id : null),
+            TerminalCode = shift.TerminalCode ?? (_terminal is { IsSet: true } ? _terminal.Code : null),
             BillerId = biller.Id,
             BillerName = biller.Name,
             AccountReference = reference,
@@ -171,12 +188,8 @@ public class BillPaymentService : IBillPaymentService
                 CreatedAt = UtcNow
             });
 
-        _db.OutboxMessages.Add(Outbox("BillPaymentRecorded", payment.Id, new
-        {
-            billPaymentId = payment.Id, receiptNumber, shiftId = shift.Id, billerId = biller.Id,
-            billerName = biller.Name, accountReference = reference, amount = payment.Amount,
-            commission, total, method = payment.Method.ToString(), userName, paidAt = payment.PaidAt
-        }));
+        // Top-level shiftNumber lets the master's inbox number a placeholder shift when this event arrives before CashShiftOpened.
+        _db.OutboxMessages.Add(Outbox(SyncEventTypes.BillPaymentRecorded, payment, new { shiftNumber = shift.ShiftNumber }));
 
         await _db.SaveChangesAsync(ct);
         return ToDto(payment);
@@ -232,12 +245,7 @@ public class BillPaymentService : IBillPaymentService
                 CreatedAt = UtcNow
             });
 
-        _db.OutboxMessages.Add(Outbox("BillPaymentVoided", payment.Id, new
-        {
-            billPaymentId = payment.Id, receiptNumber = payment.ReceiptNumber, shiftId = payment.CashShiftId,
-            total = payment.Total, method = payment.Method.ToString(), reason = why,
-            managerOverrideId = approval.Id, managerName = approval.ManagerName, voidedAt = payment.VoidedAt
-        }));
+        _db.OutboxMessages.Add(Outbox(SyncEventTypes.BillPaymentVoided, payment, new { managerName = approval.ManagerName }));
 
         await _db.SaveChangesAsync(ct);
         return ToDto(payment);
@@ -245,8 +253,7 @@ public class BillPaymentService : IBillPaymentService
 
     public async Task<IReadOnlyList<BillPaymentDto>> GetForShiftAsync(Guid? shiftId = null, CancellationToken ct = default)
     {
-        var id = shiftId ?? await _db.CashShifts
-            .Where(s => s.Status == CashShiftStatus.Open).Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
+        var id = shiftId ?? await OpenShifts().Select(s => (Guid?)s.Id).FirstOrDefaultAsync(ct);
         if (id == null) return Array.Empty<BillPaymentDto>();
 
         var list = await _db.BillPayments.AsNoTracking()
@@ -269,12 +276,13 @@ public class BillPaymentService : IBillPaymentService
         return ReceiptPrefix + (n + 1).ToString("D6", CultureInfo.InvariantCulture);
     }
 
-    private OutboxMessage Outbox(string eventType, Guid aggregateId, object payload) => new()
+    /// <summary>Contract payload <c>{ billPayment: {...} }</c> (see SyncEventTypes) plus legacy flat keys.</summary>
+    private OutboxMessage Outbox(string eventType, BillPayment payment, object? extra = null) => new()
     {
         EventType = eventType,
         AggregateType = "BillPayment",
-        AggregateId = aggregateId,
-        PayloadJson = JsonSerializer.Serialize(payload),
+        AggregateId = payment.Id,
+        PayloadJson = OutboxPayloads.BillPayment(payment, extra),
         Status = SyncStatus.Pending,
         CreatedAt = UtcNow,
         UpdatedAt = UtcNow

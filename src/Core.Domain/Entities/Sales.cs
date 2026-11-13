@@ -22,6 +22,10 @@ public class Order : BaseEntity
     public Guid? CashShiftId { get; set; }
     public CashShift? CashShift { get; set; }
 
+    /// <summary>Register that sold it (null = legacy row, owned by the master).</summary>
+    public Guid? TerminalId { get; set; }
+    public string? TerminalCode { get; set; }
+
     public ICollection<OrderItem> Items { get; set; } = new List<OrderItem>();
     public ICollection<Payment> Payments { get; set; } = new List<Payment>();
 }

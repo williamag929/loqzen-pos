@@ -210,6 +210,26 @@ public partial class CheckoutViewModel : ObservableObject
         }
     }
 
+    /// <summary>
+    /// Satellite: the catalog was just pulled from the master. Reloads categories and products and keeps the
+    /// cart and the selected category (matched by id) untouched. Exceptions stay in StatusMessage.
+    /// </summary>
+    public async Task ReloadCatalogAsync()
+    {
+        var selectedId = SelectedCategory?.Id;
+        try
+        {
+            await LoadDataAsync();
+            if (selectedId is { } id)
+                SelectedCategory = Categories.FirstOrDefault(c => c.Id == id); // null = category deactivated
+            StatusMessage = "🔄 Catálogo actualizado desde la caja principal";
+        }
+        catch (Exception ex)
+        {
+            StatusMessage = $"⚠️ No se pudo actualizar el catálogo: {ex.Message}";
+        }
+    }
+
     private async Task LoadDataAsync()
     {
         // Through the master services (no DbContext in the ViewModel): categories come ordered by

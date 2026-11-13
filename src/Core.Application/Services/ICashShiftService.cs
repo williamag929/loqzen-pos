@@ -68,6 +68,17 @@ public interface ICashShiftService
     /// </summary>
     Task<ShiftReconciliationDto> CloseShiftAsync(CloseShiftRequest request, CancellationToken ct = default);
 
-    /// <summary>Closed shifts, newest first.</summary>
+    /// <summary>Closed shifts, newest first. Scoped to THIS terminal when an ITerminalContext is set.</summary>
     Task<IReadOnlyList<ShiftHistoryItemDto>> GetHistoryAsync(int take = 30, CancellationToken ct = default);
+
+    // ── Multi-register (2026-11, segunda caja) ───────────────────────────────
+    // Every "current shift" query above is scoped to the current terminal (ITerminalContext) when one is set:
+    // on the master the database also holds the satellites' replicated shifts, which may be Open.
+    // Legacy rows (TerminalId == null) count as the master's.
+
+    /// <summary>
+    /// Cierre del día across registers: all shifts whose OpenedAt falls in the LOCAL day (TimeProvider.LocalTimeZone),
+    /// grouped by terminal, plus their orders/bill payments/movements. Includes open shifts (flagged).
+    /// </summary>
+    Task<DayConsolidationDto> GetDayConsolidationAsync(DateOnly localDay, CancellationToken ct = default);
 }

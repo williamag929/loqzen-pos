@@ -9,7 +9,14 @@ namespace Presentation.Server.Dtos;
 
 // ─── Wire DTOs (camelCase, enums as strings — see ServerJson.Options) ─────────
 
-public sealed record HealthDto(string Status, string Node, string Version, DateTime UtcNow, int ConnectedClients);
+/// <summary><c>Terminal</c> is null until the desktop sets <c>ITerminalContext</c> (or when it is not registered at all).</summary>
+public sealed record HealthDto(string Status, string Node, string Version, DateTime UtcNow, int ConnectedClients, HealthTerminalDto? Terminal);
+
+/// <summary>Identity of this register as reported by /health (satellites ping it to decide "online").</summary>
+public sealed record HealthTerminalDto(string Code, string Name, TerminalKind Kind);
+
+/// <summary>Body of POST /api/sync/inbox responses: 200 for Applied/Duplicate/Ignored, 422 for Rejected.</summary>
+public sealed record SyncInboxResponseDto(SyncInboxOutcome Outcome, string? Error);
 
 public sealed record ErrorDto(string Error);
 

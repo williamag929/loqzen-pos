@@ -1,3 +1,5 @@
+using System.Security.Cryptography;
+using System.Text;
 using Core.Application.DTOs;
 using Core.Application.Kitchen;
 using Microsoft.Extensions.Options;
@@ -46,6 +48,23 @@ public static class EndpointSupport
 
     public static IResult NotFound(string message) => Error(StatusCodes.Status404NotFound, message);
 
+    public static IResult Unauthorized() => Error(StatusCodes.Status401Unauthorized, "No autorizado.");
+
+    /// <summary>
+    /// Master/satellite routes (/api/sync/*, /api/terminals/*, /api/catalog/snapshot, /api/reports/*) require
+    /// <c>Authorization: Bearer &lt;TerminalSettings.ApiKey&gt;</c> when an ApiKey is configured; with no key they
+    /// stay open like the KDS/comandera routes. Per-endpoint filter on purpose: no global middleware.
+    /// </summary>
+    public static TBuilder RequireTerminalApiKey<TBuilder>(this TBuilder builder, IServiceProvider appServices)
+        where TBuilder : IEndpointConventionBuilder =>
+        builder.AddEndpointFilter(new TerminalApiKeyFilter(appServices));
+
+    /// <summary>TerminalSettings as registered by the desktop (plain singleton or IOptions), else defaults.</summary>
+    public static TerminalSettings ResolveTerminalSettings(this IServiceProvider appServices) =>
+        appServices.GetService<TerminalSettings>()
+        ?? appServices.GetService<IOptions<TerminalSettings>>()?.Value
+        ?? new TerminalSettings();
+
     /// <summary>KdsSettings as registered by the desktop (plain singleton or IOptions), else defaults.</summary>
     public static KdsSettings ResolveKdsSettings(this IServiceProvider appServices) =>
         appServices.GetService<KdsSettings>()
@@ -59,4 +78,37 @@ public static class EndpointSupport
 
     public static TimeProvider ResolveClock(this IServiceProvider appServices) =>
         appServices.GetService<TimeProvider>() ?? TimeProvider.System;
+}
+
+/// <summary>
+/// Checks the Bearer token against <see cref="TerminalSettings.ApiKey"/> (resolved per request so a key set
+/// through IOptions is honoured). Empty/absent key = open route. Comparison is constant-time.
+/// </summary>
+internal sealed class TerminalApiKeyFilter : IEndpointFilter
+{
+    private const string BearerPrefix = "Bearer ";
+    private readonly IServiceProvider _appServices;
+
+    public TerminalApiKeyFilter(IServiceProvider appServices) => _appServices = appServices;
+
+    public ValueTask<object?> InvokeAsync(EndpointFilterInvocationContext context, EndpointFilterDelegate next)
+    {
+        var expected = _appServices.ResolveTerminalSettings().ApiKey;
+        if (string.IsNullOrWhiteSpace(expected))
+            return next(context);
+
+        return IsAuthorized(context.HttpContext, expected.Trim())
+            ? next(context)
+            : ValueTask.FromResult<object?>(EndpointSupport.Unauthorized());
+    }
+
+    private static bool IsAuthorized(HttpContext ctx, string expected)
+    {
+        string? header = ctx.Request.Headers.Authorization;
+        if (header is null || !header.StartsWith(BearerPrefix, StringComparison.OrdinalIgnoreCase))
+            return false;
+        var presented = header[BearerPrefix.Length..].Trim();
+        if (presented.Length == 0) return false;
+        return CryptographicOperations.FixedTimeEquals(Encoding.UTF8.GetBytes(presented), Encoding.UTF8.GetBytes(expected));
+    }
 }

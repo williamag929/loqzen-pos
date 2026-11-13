@@ -49,7 +49,27 @@ public static class ServiceCollectionExtensions
         cashSettings.ManagerRequiredFor = movementRoles.Exists() ? movementRoles.Get<System.Collections.Generic.List<string>>() ?? new() : null;
         services.AddSingleton(cashSettings);
 
+        // ── Terminal identity (master / satellite). See appsettings.Satellite.example.json. ──
+        var terminalSettings = configuration.GetSection("Terminal").Get<Core.Application.DTOs.TerminalSettings>()
+                               ?? new Core.Application.DTOs.TerminalSettings();
+        services.AddSingleton(terminalSettings);
+        var terminalContext = new TerminalContext();
+        services.AddSingleton(terminalContext);
+        services.AddSingleton<ITerminalContext>(terminalContext);
+        services.AddSingleton<TerminalStatus>();
+
         var syncSettings = configuration.GetSection("Sync").Get<SyncSettings>() ?? new SyncSettings();
+        if (terminalSettings.IsSatellite)
+        {
+            // A satellite's Outbox always goes to the master's inbox (never to an ERP webhook):
+            // forced BEFORE the singleton / sink registration below so the HttpOutboxSink sees it.
+            // Without a MasterUrl nothing is sent (messages stay Pending) and the 🖥️ chip shows the config error.
+            var hasMaster = !string.IsNullOrWhiteSpace(terminalSettings.MasterUrl);
+            syncSettings.Enabled = hasMaster;
+            syncSettings.ApiKey = terminalSettings.ApiKey;
+            if (hasMaster)
+                syncSettings.WebhookUrl = terminalSettings.MasterUrl!.TrimEnd('/') + "/api/sync/inbox";
+        }
         services.AddSingleton(syncSettings);
 
         var serverSettings = configuration.GetSection("Server").Get<Core.Application.DTOs.ServerSettings>()
@@ -95,6 +115,14 @@ public static class ServiceCollectionExtensions
             services.AddSingleton<IOutboxSink, NullOutboxSink>();
         services.AddTransient<IOutboxDispatcher, OutboxDispatcher>(); // owns a DbContext: resolve per tick in a scope
         services.AddSingleton<OutboxSyncWorker>();
+
+        // ── Multi-register: terminal registry, catalog replication, master inbox, satellite worker ──
+        services.AddScoped<ITerminalService, TerminalService>();
+        services.AddScoped<ICatalogSyncService, Infrastructure.Data.Sync.CatalogSyncService>();
+        services.AddScoped<ISyncInboxService, Infrastructure.Data.Sync.SyncInboxService>();
+        services.AddSingleton<IMasterApiClient>(sp =>
+            new Infrastructure.Data.Sync.MasterApiClient(sp.GetRequiredService<System.Net.Http.HttpClient>(), terminalSettings));
+        services.AddSingleton<SatelliteSyncWorker>(); // only started when IsSatellite (App.axaml.cs)
 
         // ── Users / authorization ────────────────────────────────────────────────
         services.AddTransient<IUserService, UserService>();

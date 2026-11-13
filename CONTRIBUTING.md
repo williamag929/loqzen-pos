@@ -58,6 +58,8 @@ Luego lee, en este orden:
 | `IUserService` | Usuarios con PIN (hash, unicidad entre activos, login por PIN) |
 | `IManagerAuthorizationService` | PIN de gerente → registra `ManagerOverride` (auditoría); `RequiresAuthorization` lee `Authorization:ManagerRequiredFor` |
 | `IProductService`, `ICategoryService`, `ITaxService`, `ICustomerService` | Maestros |
+| `ITerminalService`, `ITerminalContext` | Identidad de esta caja (`Terminal:Code`); el contexto se llena una vez al arrancar y los servicios filtran turnos por caja cuando está puesto |
+| `ICatalogSyncService`, `ISyncInboxService`, `IMasterApiClient` | Segunda caja: snapshot del catálogo (principal → satélite), inbox idempotente de sobres del Outbox (satélite → principal), cliente HTTP de la satélite |
 
 ---
 
@@ -113,6 +115,8 @@ Luego lee, en este orden:
 | La app no se cerraba con `kill`/apagado del equipo | El `ConsoleLifetime` del host Kestrel capturaba SIGTERM y solo detenía el servidor | `EmbeddedHostLifetime` en `LoqzenServer`; el escritorio decide cuándo terminar |
 | `DataTemplate` con 2 hijos no compila (AVLN3000) | Un template solo admite un hijo | Envuelve en `<Panel>` |
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
+| La satélite nunca aplica el catálogo ("error al guardar") | La base nueva ya traía el catálogo de ejemplo con **otros Guid** pero el mismo SKU/nombre; el snapshot de la principal chocaba con el índice único | `CatalogSyncService` empareja por id y, si no, por clave natural: borra la fila local si nadie la referencia o la desactiva y renombra. Pruébalo siempre con dos bases reales (`XDG_DATA_HOME` distintos) |
+| En la principal aparece "turno abierto" de otra caja | La base de la principal también guarda los turnos replicados de las satélites | Toda consulta de "turno actual" filtra por `ITerminalContext` (`TerminalId == mío`, o `null` para filas antiguas) |
 
 ---
 
@@ -181,4 +185,5 @@ Reglas:
 5. Barra superior: en ventanas angostas los botones "Scan"/"Visor Cliente" se superponen a las pestañas.
 
 ¿Dudas de arquitectura? Revisa `memory-bank/systemPatterns.md` y `memory-bank/projectbrief.md` (reglas invariables).
-6. Autorización: un `ManagerOverride` de `CancelKitchenItem` se puede reutilizar (no se marca como consumido); `UserService` no valida `CanAssignRole` (solo la UI); el requester queda vacío si el llamador no lo pasa en el flujo por PIN.
+6. Autorización: `UserService` no valida `CanAssignRole` (solo la UI); el requester queda vacío si el llamador no lo pasa en el flujo por PIN.
+7. Segunda caja, parte 2: comandas/KDS compartidos entre cajas (hoy solo en la principal); replicar clientes y `ManagerOverrides` de la satélite; mDNS para no escribir la IP; en la satélite el `CashMovement` de un recaudo en efectivo no viaja (el esperado de la principal sale del `BillPayment`, así que cuadra igual).

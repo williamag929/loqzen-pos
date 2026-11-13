@@ -15,6 +15,8 @@ public static partial class CashReports
         var b = new Builder(width);
         b.Header(storeName);
         b.Center(r.Status == CashShiftStatus.Closed ? $"CIERRE DE TURNO #{r.ShiftNumber}" : $"CORTE PARCIAL TURNO #{r.ShiftNumber}", ReceiptLineStyle.Bold);
+        if (!string.IsNullOrWhiteSpace(r.TerminalCode))
+            b.Center($"{r.TerminalCode} - Turno #{r.ShiftNumber}", ReceiptLineStyle.Bold);
         b.Text($"Cajero:  {r.CashierName}");
         b.Text($"Apertura: {Local(r.OpenedAt)}");
         if (r.ClosedAt is { } closed) b.Text($"Cierre:   {Local(closed)}");
@@ -156,6 +158,70 @@ public static partial class CashReports
         b.Blank();
         b.Text("Firma: ______________________");
         b.Blank();
+        return b.Lines;
+    }
+
+    /// <summary>
+    /// Cierre del día across registers: one block per caja (sales by method, recaudos, movements, difference,
+    /// its shifts) followed by the grand totals. Open shifts are flagged: the day is not final until they close.
+    /// </summary>
+    public static IReadOnlyList<ReceiptLine> DayConsolidationReport(DayConsolidationDto d, string storeName, int width = ReceiptFormatter.DefaultWidth)
+    {
+        var b = new Builder(width);
+        b.Header(storeName);
+        b.Center("CIERRE DEL DIA", ReceiptLineStyle.Bold);
+        b.Center(d.Day.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture));
+        b.Text($"Cajas:   {d.Terminals.Count}");
+        if (d.OpenShiftCount > 0)
+            b.Text($"TURNOS ABIERTOS: {d.OpenShiftCount}", ReceiptLineStyle.Bold);
+
+        foreach (var t in d.Terminals)
+        {
+            b.Section($"{t.TerminalCode} - {t.TerminalName}");
+            b.Cols("Turnos:", t.OpenShiftCount > 0
+                ? $"{t.ShiftCount} ({t.OpenShiftCount} abierto{(t.OpenShiftCount == 1 ? "" : "s")})"
+                : t.ShiftCount.ToString(CultureInfo.InvariantCulture));
+            foreach (var s in t.Shifts)
+            {
+                var state = s.ClosedAt == null ? "ABIERTO" : Cop(s.Difference);
+                b.Cols($" #{s.ShiftNumber} {Local(s.OpenedAt, "HH:mm")} {s.CashierName}", state);
+            }
+            b.Thin();
+            b.Cols("Efectivo:", Cop(t.CashSales));
+            b.Cols("Tarjeta:", Cop(t.CardSales));
+            b.Cols("Transferencia:", Cop(t.TransferSales));
+            if (t.OtherSales != 0) b.Cols("Otros:", Cop(t.OtherSales));
+            b.Cols("Total ventas:", Cop(t.TotalSales), ReceiptLineStyle.Bold);
+            b.Cols("# Ordenes:", t.OrderCount.ToString(CultureInfo.InvariantCulture));
+            if (t.BillPaymentCount > 0)
+            {
+                b.Cols($"Recaudos ({t.BillPaymentCount}):", Cop(t.BillPaymentsTotal));
+                b.Cols("Comisiones:", Cop(t.BillPaymentCommission));
+            }
+            if (t.CashIn != 0 || t.CashOut != 0)
+            {
+                b.Cols("Entradas:", Cop(t.CashIn));
+                b.Cols("Salidas:", Neg(t.CashOut));
+            }
+            b.Cols("Diferencia:", Cop(t.Difference), ReceiptLineStyle.Bold);
+        }
+
+        b.Section("TOTAL DEL DIA");
+        b.Cols("Efectivo:", Cop(d.CashSales));
+        b.Cols("Tarjeta:", Cop(d.CardSales));
+        b.Cols("Transferencia:", Cop(d.TransferSales));
+        if (d.OtherSales != 0) b.Cols("Otros:", Cop(d.OtherSales));
+        b.Thin();
+        b.Large("VENTAS:", Cop(d.TotalSales));
+        b.Cols("# Ordenes:", d.OrderCount.ToString(CultureInfo.InvariantCulture));
+        b.Cols("Recaudos:", Cop(d.BillPaymentsTotal));
+        b.Cols("Comisiones:", Cop(d.BillPaymentCommission));
+        var diff = d.Difference;
+        b.Cols("Diferencia " + (diff switch { > 0 => "(sobrante):", < 0 => "(faltante):", _ => "(exacta):" }), Cop(diff), ReceiptLineStyle.Bold);
+
+        b.Sep();
+        b.Blank();
+        b.Text("Firma gerente: _____________");
         return b.Lines;
     }
 

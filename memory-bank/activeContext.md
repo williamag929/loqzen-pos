@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 454 tests pass (`dotnet test`) — 2026-11-13 (noche).
+- ✅ 620 tests pass (`dotnet test`) — 2026-11-13 (madrugada, segunda caja).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -216,6 +216,15 @@
 - Desktop: `CashShiftViewModel` singleton split (`.Movements/.Close/.History`), `CashCountViewModel`, views CashCountGrid/CashMovementDialog/CashPartialCountDialog/CashCloseWizard/ShiftReportView; `BillPaymentsViewModel` + `BillPaymentsView` (tab 5, responsive in code-behind); Masters `.Billers.cs`; `Services/RequiredOverride.cs`; `ICashDrawerService` used by Checkout/Comanda/Recaudos/movements.
 - Server: `EmbeddedHostLifetime` (fix: SIGTERM was swallowed by the web host).
 
+### Second cash register — master/satellite (2026-11-13 madrugada; verified: 620 tests, real master+satellite run on ports 5077, screenshots)
+- Domain `Terminals.cs` (Terminal, SyncInboxReceipt), enums TerminalKind/SyncInboxOutcome, `TerminalId/TerminalCode` on CashShift/Order/BillPayment, `BaseEntity.Id` settable; migration `Terminals`.
+- Application `DTOs/TerminalDto.cs` (TerminalSettings section `Terminal`, snapshot records, SyncEnvelopeDto, **SyncEventTypes payload contract**, DayConsolidationDto), `Services/ITerminalService.cs` (ITerminalContext/TerminalContext singleton, ITerminalService, ICatalogSyncService, ISyncInboxService, IMasterApiClient), `ICashShiftService.GetDayConsolidationAsync`, `CashReports.DayConsolidationReport`.
+- Data: `TerminalService` (EnsureRegistered adopts legacy null-terminal rows on Master), `Sync/{CatalogSyncService (twin resolution by natural key), SyncInboxService (idempotent, placeholder shifts, REC/ORD number qualification "CAJA-02:REC-000001"), MasterApiClient}`, `Outbox/OutboxPayloads.cs`, terminal-scoped CashShiftService/BillPaymentService (`ITerminalContext? terminal = null` last ctor param), `HttpOutboxSink` envelope `terminalCode`.
+- Server: `Endpoints/{SyncEndpoints,TerminalEndpoints}.cs`, `/api/catalog/snapshot`, `TerminalApiKeyFilter` (Bearer `Terminal:ApiKey`), `/health.terminal`.
+- Desktop: `Services/{SatelliteSyncWorker,TerminalStatus}.cs`, `MainViewModel.Terminal.cs` (🖥️ chip, satellite hides Comandas/KDS/Maestros), `MastersViewModel.Terminals.cs` (🖥️ Cajas), `CashShiftViewModel.History.cs` + `Views/DayConsolidationView.axaml` (📊 Cierre del día), `appsettings.Satellite.example.json`. Satellite forces `Sync` → `{MasterUrl}/api/sync/inbox` only when MasterUrl is set.
+- Tests: `Services/{TerminalService,CashShiftTerminalScoping,DayConsolidation}Tests`, `Sync/{CatalogSyncService,CatalogSyncSqlite,SyncInboxService}Tests`, `Outbox/HttpOutboxSinkTerminalTests`, `Server/{Terminal,CatalogSnapshot,SyncInbox,DayReport}EndpointTests`, `Server/MasterSatelliteRoundTripTests`; fixtures `SqliteDb`, `TestClock(TimeZoneInfo)`.
+- Known gaps: comandas/KDS not shared across registers; customers/ManagerOverrides not replicated; no mDNS; `CatalogApplyResult.Updated` counts unchanged rows; SalesService still uses DateTime.UtcNow.
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
@@ -224,6 +233,7 @@
 5. ~~Embed Kestrel + KDS/comanderas on other devices~~ ✅ 2026-11-13.
 6. ~~Customer display for comandas~~ ✅ 2026-11-13.
 7. ~~Cash close of reference + bill payments~~ ✅ 2026-11-13.
-8. Second cash register (master/satellite) or payment terminal / pay-at-table (see README roadmap).
+8. ~~Second cash register (master/satellite)~~ ✅ 2026-11-13.
+9. Payment terminal / pay-at-table (`IPaymentTerminalService`), or second register part 2 (shared comandas/KDS, mDNS).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

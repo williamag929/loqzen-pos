@@ -34,6 +34,11 @@ public class CashShift : BaseEntity
     /// <summary>True when the cashier counted without seeing the expected amount.</summary>
     public bool WasBlindCount { get; set; }
 
+    /// <summary>Register this shift belongs to. Null only on rows created before multi-terminal support (treated as the master's).</summary>
+    public Guid? TerminalId { get; set; }
+    /// <summary>Denormalized Terminal.Code so a shift replicated to the master still reads "CAJA-02 · Turno #5" without a join.</summary>
+    public string? TerminalCode { get; set; }
+
     public ICollection<CashMovement> Movements { get; set; } = new List<CashMovement>();
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();

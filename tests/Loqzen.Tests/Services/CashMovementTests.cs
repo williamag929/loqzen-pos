@@ -42,7 +42,7 @@ public class CashMovementTests : IDisposable
         dto.ManagerOverrideId.Should().BeNull();
         dto.OccurredAt.Should().Be(_clock.GetUtcNow().UtcDateTime);
         (await _service.GetReconciliationAsync()).ExpectedCash.Should().Be(120000m);
-        (await _db.OutboxMessages.SingleAsync()).EventType.Should().Be("CashMovementRecorded");
+        (await _db.OutboxMessages.SingleAsync(o => o.EventType != "CashShiftOpened")).EventType.Should().Be("CashMovementRecorded");
     }
 
     [Theory]
@@ -58,7 +58,7 @@ public class CashMovementTests : IDisposable
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*autorización*");
         (await _db.CashMovements.CountAsync()).Should().Be(0);
-        (await _db.OutboxMessages.CountAsync()).Should().Be(0);
+        (await _db.OutboxMessages.CountAsync(o => o.EventType != "CashShiftOpened")).Should().Be(0);
     }
 
     [Theory]
@@ -82,7 +82,7 @@ public class CashMovementTests : IDisposable
         var o = await _db.ManagerOverrides.AsNoTracking().SingleAsync(x => x.Id == oid);
         o.ConsumedAt.Should().Be(_clock.GetUtcNow().UtcDateTime);
         o.ConsumedFor.Should().Be($"CashMovement {dto.Id}");
-        var outbox = await _db.OutboxMessages.AsNoTracking().SingleAsync();
+        var outbox = await _db.OutboxMessages.AsNoTracking().SingleAsync(o => o.EventType != "CashShiftOpened");
         outbox.EventType.Should().Be("CashMovementRecorded");
         outbox.AggregateId.Should().Be(dto.Id);
         outbox.PayloadJson.Should().Contain(type.ToString());
@@ -191,7 +191,7 @@ public class CashMovementTests : IDisposable
 
         await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("El monto (*) supera el efectivo esperado en caja (*)*");
         (await _db.CashMovements.CountAsync()).Should().Be(0);
-        (await _db.OutboxMessages.CountAsync()).Should().Be(0);
+        (await _db.OutboxMessages.CountAsync(o => o.EventType != "CashShiftOpened")).Should().Be(0);
         (await _db.ManagerOverrides.AsNoTracking().SingleAsync()).ConsumedAt.Should().BeNull();
 
         // Exactly the expected cash is allowed.
