@@ -4,6 +4,7 @@ using System.Text.Json;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Application.DTOs;
+using Core.Application.Kitchen;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Microsoft.EntityFrameworkCore;
@@ -77,10 +78,12 @@ public partial class ComandaService
         if (item.Status != ComandaItemStatus.Confirmed)
             throw new InvalidOperationException("Solo se pueden anular items confirmados.");
 
-        // The approval must be a real CancelKitchenItem override (a discount/return approval cannot be reused here).
-        var overrideOk = await _db.ManagerOverrides
-            .AnyAsync(o => o.Id == managerOverrideId && o.Action == AuthorizedAction.CancelKitchenItem, ct);
-        if (!overrideOk)
+        // The approval must be a real CancelKitchenItem override (a discount/return approval cannot be reused here)
+        // and still unused: each approval is single-use, so one PIN cannot strike unlimited items.
+        var managerOverride = await _db.ManagerOverrides.FirstOrDefaultAsync(o => o.Id == managerOverrideId, ct);
+        if (managerOverride == null
+            || managerOverride.Action != AuthorizedAction.CancelKitchenItem
+            || managerOverride.ConsumedAt != null)
             throw new InvalidOperationException("Se requiere autorización de gerente.");
 
         KitchenOrder? kitchenOrder = null;
@@ -92,6 +95,11 @@ public partial class ComandaService
         item.Status = ComandaItemStatus.Cancelled;
         item.UpdatedAt = UtcNow;
         comanda.UpdatedAt = UtcNow;
+
+        // Consume the approval in the same SaveChanges as the cancellation.
+        managerOverride.ConsumedAt = UtcNow;
+        managerOverride.ConsumedFor = $"ComandaItem {item.Id}";
+        managerOverride.UpdatedAt = UtcNow;
 
         if (kitchenOrder != null)
         {
@@ -134,6 +142,8 @@ public partial class ComandaService
         });
 
         await _db.SaveChangesAsync(ct);
+        // Status reflects the ticket after the change (may be Cancelled when nothing is left to cook).
+        if (kitchenOrder != null) PublishKitchenEvent(KitchenEventType.ItemCancelled, kitchenOrder);
         return MapToDto(comanda);
     }
 
@@ -174,7 +184,7 @@ public partial class ComandaService
     {
         var comanda = await RequireAsync(comandaId, ct);
         ConfirmItems(comanda, comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList());
-        await _db.SaveChangesAsync(ct);
+        await SaveAndPublishTicketsAsync(ct);
         return MapToDto(comanda);
     }
 
@@ -194,7 +204,7 @@ public partial class ComandaService
             count += due.Count;
         }
 
-        if (count > 0) await _db.SaveChangesAsync(ct);
+        if (count > 0) await SaveAndPublishTicketsAsync(ct);
         return count;
     }
 }

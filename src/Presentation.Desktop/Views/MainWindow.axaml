@@ -11,6 +11,7 @@
         Icon="/Assets/avalonia-logo.ico"
         Title="Loqzen POS Standalone - Volcora Edition"
         WindowState="Maximized"
+        MinWidth="900" MinHeight="600"
         Background="#0F172A">
 
     <Window.Resources>
@@ -21,77 +22,95 @@
     <Panel>
     <Grid RowDefinitions="Auto, *">
 
-        <!-- ── GLOBAL NAV BAR ─────────────────────────────────────── -->
+        <!-- ── GLOBAL NAV BAR ─────────────────────────────────────────
+             Responsive: tabs live in a WrapPanel (second row when narrow); below 1200 px the window
+             sets IsCompact → short tab labels, icon-only tools, brand subtitle hidden. MinWidth 900. -->
         <Border Grid.Row="0" Background="#020617" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="16,10">
             <Grid ColumnDefinitions="Auto, *, Auto">
 
                 <!-- Brand -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center">
+                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,12,0">
                     <Border Background="#2563EB" CornerRadius="6" Padding="8,4">
                         <TextBlock Text="LOQZEN" Foreground="White" FontWeight="Black" FontSize="13"/>
                     </Border>
-                    <TextBlock Text="Terminal POS Standalone" Foreground="White" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"/>
-                    <Border Background="#1E293B" CornerRadius="4" Padding="6,2" Margin="6,0,0,0">
+                    <TextBlock Text="Terminal POS Standalone" Foreground="White" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"
+                               IsVisible="{Binding IsWide}"/>
+                    <Border Background="#1E293B" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" IsVisible="{Binding IsWide}">
                         <TextBlock Text="OFFLINE-FIRST" Foreground="#10B981" FontSize="10" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
 
-                <!-- Navigation Tabs – touch targets >= 48px; each tab hides for roles that may not use it -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
-                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🛒 Punto de Venta" IsVisible="{Binding Session.CanAccessCheckout}"
+                <!-- Navigation Tabs – touch targets >= 44px; each tab hides for roles that may not use it.
+                     WrapPanel inside the * column wraps to a second row instead of overlapping the tools. -->
+                <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding CheckoutTabLabel}" IsVisible="{Binding Session.CanAccessCheckout}"
                             Background="{Binding IsCheckoutActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCheckoutCommand}"/>
 
-                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🍽️ Mesas / Comandas" IsVisible="{Binding Session.CanAccessComandas}"
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding ComandasTabLabel}" IsVisible="{Binding Session.CanAccessComandas}"
                             Background="{Binding IsComandaActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowComandasCommand}"/>
 
-                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="👨‍🍳 KDS Cocina" IsVisible="{Binding Session.CanAccessKds}"
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding KdsTabLabel}" IsVisible="{Binding Session.CanAccessKds}"
                             Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowKdsCommand}"/>
 
-                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="💼 Turno de Caja" IsVisible="{Binding Session.CanAccessCashShift}"
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding CashShiftTabLabel}" IsVisible="{Binding Session.CanAccessCashShift}"
                             Background="{Binding IsCashShiftActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCashShiftCommand}"/>
 
-                    <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🗂️ Maestros" IsVisible="{Binding Session.CanAccessMasters}"
+                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                            Content="{Binding MastersTabLabel}" IsVisible="{Binding Session.CanAccessMasters}"
                             Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowMastersCommand}"/>
-                </StackPanel>
+                </WrapPanel>
 
-                <!-- Peripheral Tools (cashier and up) + signed-in user chip -->
-                <StackPanel Grid.Column="2" Orientation="Horizontal" Spacing="8">
-                    <Button Height="42" Padding="12,0" IsVisible="{Binding Session.CanAccessCheckout}"
+                <!-- Peripheral Tools (cashier and up) + LAN chip + signed-in user chip.
+                     Icon-only when compact; the full label is in the tooltip (secondary hint, not primary actions). -->
+                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
+                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" IsVisible="{Binding Session.CanAccessCheckout}"
                             Background="#1E293B" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="8"
                             Foreground="#38BDF8" FontWeight="Bold"
-                            Content="⚡ Scan"
-                            ToolTip.Tip="Simular escáner USB HID (Código de Barras)"
+                            Content="{Binding ScanLabel}"
+                            ToolTip.Tip="Scan: simular escáner USB HID (Código de Barras)"
                             Command="{Binding TriggerBarcodeScanCommand}"/>
 
-                    <Button Height="42" Padding="12,0" IsVisible="{Binding Session.CanAccessCheckout}"
+                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" IsVisible="{Binding Session.CanAccessCheckout}"
                             Background="#1E293B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8"
                             Foreground="#10B981" FontWeight="Bold"
-                            Content="🖥️ Visor Cliente"
-                            ToolTip.Tip="Abrir pantalla secundaria del cliente"
+                            Content="{Binding CustomerDisplayLabel}"
+                            ToolTip.Tip="Visor Cliente: abrir pantalla secundaria del cliente"
                             Command="{Binding OpenCustomerDisplayCommand}"/>
 
+                    <!-- LAN server chip: browser-KDS URL for tablets + connected clients; tap = copy URL.
+                         Hidden when Server.Enabled=false; cashier and up. Trimmed so it never widens the bar. -->
+                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" MaxWidth="260" IsVisible="{Binding IsLanChipVisible}"
+                            Background="#1E293B" BorderBrush="#A78BFA" BorderThickness="1" CornerRadius="8"
+                            Foreground="#C4B5FD" FontWeight="Bold" FontSize="12"
+                            HorizontalContentAlignment="Stretch"
+                            ToolTip.Tip="{Binding LanChipDisplayTooltip}"
+                            Command="{Binding CopyKdsUrlCommand}">
+                        <TextBlock Text="{Binding LanChipDisplayText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                    </Button>
+
                     <!-- User chip: who is signed in + change user (back to PIN screen) -->
-                    <StackPanel Orientation="Horizontal" Spacing="8" IsVisible="{Binding Session.IsLoggedIn}">
-                        <Border Background="#1E293B" CornerRadius="8" Padding="12,0" Height="42" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Session.ChipText}" Foreground="#E2E8F0" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <StackPanel Orientation="Horizontal" IsVisible="{Binding Session.IsLoggedIn}">
+                        <Border Background="#1E293B" CornerRadius="8" Padding="12,0" Margin="4" Height="44" MaxWidth="200" VerticalAlignment="Center">
+                            <TextBlock Text="{Binding Session.ChipText}" Foreground="#E2E8F0" FontSize="13" FontWeight="Bold"
+                                       TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Height="42" Padding="12,0"
+                        <Button Height="44" MinWidth="44" Padding="12,0" Margin="4"
                                 Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8"
                                 Foreground="#F59E0B" FontWeight="Bold"
-                                Content="🔄 Cambiar usuario"
+                                Content="{Binding LogoutLabel}"
+                                ToolTip.Tip="Cambiar usuario (volver a la pantalla de PIN)"
                                 Command="{Binding LogoutCommand}"/>
                     </StackPanel>
-                </StackPanel>
+                </WrapPanel>
             </Grid>
         </Border>
 

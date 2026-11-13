@@ -31,10 +31,12 @@
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="14" FontWeight="Bold"
                            TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
 
+                <!-- Disabled while the PIN limiter has approvals locked (countdown in ErrorMessage); Cancelar stays usable -->
                 <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
                               ClearCommand="{Binding ClearCommand}"
                               ExactCommand="{Binding ConfirmCommand}"
-                              ExactLabel="OK"/>
+                              ExactLabel="OK"
+                              IsEnabled="{Binding IsInputEnabled}"/>
 
                 <Grid ColumnDefinitions="*, *">
                     <Button Height="64" Margin="0,0,6,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
@@ -42,7 +44,7 @@
                             Content="Cancelar" Command="{Binding CancelCommand}"/>
                     <Button Grid.Column="1" Height="64" Margin="6,0,0,0" CornerRadius="10" Background="#F59E0B" Foreground="#0F172A" FontSize="18" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            Content="✅ Autorizar" Command="{Binding ConfirmCommand}"/>
+                            Content="✅ Autorizar" Command="{Binding ConfirmCommand}" IsEnabled="{Binding IsInputEnabled}"/>
                 </Grid>
             </StackPanel>
         </Border>

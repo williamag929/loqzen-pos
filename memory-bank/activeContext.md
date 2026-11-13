@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 201 tests pass (`dotnet test`) — 2026-11-13.
+- ✅ 340 tests pass (`dotnet test`) — 2026-11-13 (tarde).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -79,11 +79,11 @@
 2. ~~No DI container~~ ✅ Implemented.
 3. ~~Sales use-case logic in CheckoutViewModel~~ ✅ Extracted to `ISalesService`.
 4. ~~CheckoutViewModel uses PosDbContext directly~~ ✅ Refactored to use ISalesService for order/payment flow (only product queries via DbContext for performance).
-5. `KdsViewModel` still uses `PosDbContext` directly for queries (should use Application-layer services).
+5. ~~ViewModels using `PosDbContext`~~ ✅ none left (Checkout moved to IProductService/ICategoryService/IKitchenService, 2026-11-13).
 6. ~~No EF Core migrations~~ ✅ InitialCreate migration (2026-11-12).
-7. Kestrel not embedded in desktop host; no mDNS; WebSocket bag never prunes closed sockets; no station filtering.
+7. ~~Kestrel not embedded; socket leak; no station filtering~~ ✅ Embedded `LoqzenServer` (2026-11-13). Still no mDNS.
 8. No KDS-offline > 30 s fallback to kitchen printer; no ZPL generation verified.
-9. No `ICashDrawerService` implementation; no Outbox dispatcher/background worker.
+9. No `ICashDrawerService` implementation (drawer via printer). ~~No Outbox dispatcher~~ ✅ `OutboxDispatcher` + `OutboxSyncWorker` (2026-11-13).
 10. ~~No test projects at all~~ ✅ Test project added with 42 passing tests (including MVP E2E).
 11. Android target not set up; docs claim .NET 9 option.
 
@@ -202,12 +202,20 @@
 - Change screen (2026-11-13): `SaleSummaryViewModel` + `Views/SaleCompletedOverlay` ("CAMBIO A ENTREGAR", 84 px figure, Nueva venta). Checkout sets `LastSale` after `CompleteSaleAsync` (cleared by Nueva venta or AddProduct); Comanda sets it after `CloseAndPayAsync`. Customer display already showed "Su Cambio" in its Completed state.
 - Known gaps: overrides are not single-use; service does not enforce CanAssignRole; no lockout after failed PINs; PIN modal not exercised by click (no Wayland input tool), only compile + XAML binding tests.
 
+### Embedded server + realtime + Outbox + hardening (2026-11-13 tarde; verified: 340 tests, KDS screenshots, Node WS probe)
+- `Presentation.Server` is a class library (`Microsoft.NET.Sdk` + `FrameworkReference Microsoft.AspNetCore.App`, `GlobalUsings.cs`). `LoqzenServer(appServices, ServerSettings)`: `StartAsync/StopAsync`, `Port` (0 = ephemeral, used by tests), `ConnectedClients`, `KdsUrl`, `LanAddress()`. Files: `Endpoints/{Kds,Catalog,Comanda}Endpoints.cs`, `Endpoints/EndpointSupport.cs` (`WithScopedAsync`, `MapError`), `Realtime/KdsSocketHub.cs`, `Dtos/ServerDtos.cs`, `Logging/ErrorConsoleLoggerProvider.cs`, `wwwroot/{kds,comandera}.html` (embedded).
+- Desktop: `ServerSettings`/`SyncSettings` bound; `LoqzenServer` singleton started from `App.axaml.cs` in the background (`LanServerStatus` tells running/failed); `OutboxSyncWorker` singleton (timer only when `Sync:Enabled`); `IKitchenEventBus`, `IPinAttemptLimiter` singletons. `MainViewModel.IsCompact` (<1200 px) drives short labels/icon tools; `CopyKdsUrlCommand`. `KdsViewModel`/`ComandaViewModel` subscribe to the bus (debounced reload). `CustomerDisplayViewModel.UpdateFromComanda` + `ContextTitle` (display shows whichever screen updated it last). `CashShiftViewModel` shows sync status + `RetryFailedSyncCommand`.
+- Data: `KitchenService(db, clock, IKitchenEventBus? = null)`, `ComandaService(db, settings, clock, IKitchenEventBus? = null)` publish after SaveChanges (`SaveAndPublishTicketsAsync`). `UserService`/`ManagerAuthorizationService` take `IPinAttemptLimiter? = null` (scopes "login"/"manager"). `CancelConfirmedItemAsync` consumes the override (`ConsumedAt/ConsumedFor`). `Outbox/{OutboxDispatcher,HttpOutboxSink,NullOutboxSink}` — backoff `min(2^RetryCount, 300)` s from `UpdatedAt ?? CreatedAt`, one SaveChanges per message, Failed after MaxRetries.
+- Tests: `Kitchen/`, `Outbox/`, `Server/` (real Kestrel on port 0 + ClientWebSocket), `Security/PinAttemptLimiterTests`, `Services/{KitchenServiceEvents,ComandaEvents,PinLockout}Tests`.
+- Known gaps: web pages not opened in a real browser from this repo; `HttpOutboxSink` timeout uses real time; no mDNS; multi-terminal (second cash register) not supported — see roadmap.
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
 3. ~~Add EF Core migrations~~ ✅ Done
 4. ~~Implement manager authorization system (Fase 2 of returns)~~ ✅ Done 2026-11-13 (users + PIN + roles + audit).
-5. Embed Kestrel in the desktop + WebSocket KDS/comanderas on other devices.
-6. Customer display for comandas.
+5. ~~Embed Kestrel + KDS/comanderas on other devices~~ ✅ 2026-11-13.
+6. ~~Customer display for comandas~~ ✅ 2026-11-13.
+7. Second cash register (master/satellite) or payment terminal / pay-at-table (see README roadmap).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

@@ -9,16 +9,16 @@ using Core.Application.Hardware;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
-using Infrastructure.Data.Context;
-using Microsoft.EntityFrameworkCore;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
 public partial class CheckoutViewModel : ObservableObject
 {
-    private readonly PosDbContext _dbContext;
+    private readonly ICategoryService _categoryService;
+    private readonly IProductService _productService;
     private readonly ISalesService _salesService;
+    private readonly IKitchenService _kitchenService;
     private readonly ICashShiftService _cashShiftService;
     private readonly IPrinterService _printerService;
     private readonly IScaleService _scaleService;
@@ -94,8 +94,10 @@ public partial class CheckoutViewModel : ObservableObject
     public int TotalItems => CartItems.Count;
 
     public CheckoutViewModel(
-        PosDbContext dbContext,
+        ICategoryService categoryService,
+        IProductService productService,
         ISalesService salesService,
+        IKitchenService kitchenService,
         ICashShiftService cashShiftService,
         IPrinterService printerService,
         IScaleService scaleService,
@@ -103,8 +105,10 @@ public partial class CheckoutViewModel : ObservableObject
         IManagerAuthPrompt authPrompt,
         IUserSession session)
     {
-        _dbContext = dbContext;
+        _categoryService = categoryService;
+        _productService = productService;
         _salesService = salesService;
+        _kitchenService = kitchenService;
         _cashShiftService = cashShiftService;
         _printerService = printerService;
         _scaleService = scaleService;
@@ -201,16 +205,19 @@ public partial class CheckoutViewModel : ObservableObject
 
     private async Task LoadDataAsync()
     {
-        var categories = await _dbContext.Categories.OrderBy(c => c.SortOrder).ToListAsync();
+        // Through the master services (no DbContext in the ViewModel): categories come ordered by
+        // SortOrder; products come with Category and Tax loaded (needed for tiles and tax lines).
+        var categories = await _categoryService.GetAllAsync();
         Categories.Clear();
         foreach (var c in categories)
         {
             Categories.Add(c);
         }
 
+        var products = await _productService.GetAllAsync();
         _allProducts.Clear();
-        _allProducts.AddRange(await _dbContext.Products.Include(p => p.Category).Include(p => p.Tax).Where(p => p.IsActive).ToListAsync());
-        
+        _allProducts.AddRange(products.Where(p => p.IsActive));
+
         FilterProducts();
     }
 
@@ -574,31 +581,34 @@ public partial class CheckoutViewModel : ObservableObject
                 return;
             }
 
-            // 4. Create KitchenOrder for KDS
-            var kitchenOrder = new KitchenOrder
+            // 4. Create KitchenOrder for KDS (through the service: Outbox + live event for the KDS/LAN hub).
+            //    Returns never go to the kitchen; a returns-only sale creates no ticket (CreateAsync rejects empty orders).
+            var kitchenItems = CartItems.Where(i => !i.IsReturn).ToList();
+            if (kitchenItems.Count > 0)
             {
-                OrderNumber = paymentResult.OrderNumber,
-                OrderId = paymentResult.OrderId,
-                TableNumber = "Mostrador Principal",
-                WaiterName = "Cajero",
-                Station = "Cocina Caliente",
-                Status = KitchenOrderStatus.Pending,
-                CreatedAt = DateTime.UtcNow
-            };
-
-            foreach (var item in CartItems.Where(i => !i.IsReturn)) // returns never go to the kitchen
-            {
-                kitchenOrder.Items.Add(new KitchenOrderItem
+                var kitchenOrder = new KitchenOrder
                 {
-                    ProductId = item.ProductId,
-                    ProductName = item.Name,
-                    Quantity = item.Quantity,
-                    Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
-                });
-            }
+                    OrderNumber = paymentResult.OrderNumber,
+                    OrderId = paymentResult.OrderId,
+                    TableNumber = "Mostrador Principal",
+                    WaiterName = "Cajero",
+                    Station = "Cocina Caliente",
+                    Status = KitchenOrderStatus.Pending
+                };
 
-            _dbContext.KitchenOrders.Add(kitchenOrder);
-            await _dbContext.SaveChangesAsync();
+                foreach (var item in kitchenItems)
+                {
+                    kitchenOrder.Items.Add(new KitchenOrderItem
+                    {
+                        ProductId = item.ProductId,
+                        ProductName = item.Name,
+                        Quantity = item.Quantity,
+                        Notes = item.IsWeighed ? $"Peso: {item.WeightKg:F2}kg" : null
+                    });
+                }
+
+                await _kitchenService.CreateAsync(kitchenOrder);
+            }
 
             // 5. Print receipt
             // Same builder as the on-screen preview, so the paper matches what the cashier saw.

@@ -1,4 +1,5 @@
 using Core.Application.DTOs;
+using Core.Application.Kitchen;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
 using Infrastructure.Data.Context;
@@ -19,7 +20,7 @@ public abstract class ComandaTestBase : IDisposable
     protected ComandaTestBase()
     {
         Db = TestDbContextFactory.Create();
-        Service = new ComandaService(Db, new ComandaSettings { ConfirmationDelaySeconds = 30 }, Clock);
+        Service = CreateService();
 
         var tax = new Tax { Name = "IVA", Rate = 0.19m };
         var food = new Category { Name = "Comidas" };
@@ -29,6 +30,10 @@ public abstract class ComandaTestBase : IDisposable
         Db.AddRange(tax, food, drinks, Burger, Soda);
         Db.SaveChanges();
     }
+
+    /// <summary>Same DB/clock/settings as <see cref="Service"/>, optionally wired to a kitchen event bus.</summary>
+    protected ComandaService CreateService(IKitchenEventBus? events = null) =>
+        new(Db, new ComandaSettings { ConfirmationDelaySeconds = 30 }, Clock, events);
 
     protected async Task<Guid> OpenShiftAsync()
     {

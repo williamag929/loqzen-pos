@@ -1,2 +1,532 @@
-<!doctype html><html lang="es"><head><meta charset="utf-8"><title>Loqzen KDS</title></head>
-<body style="background:#0F172A;color:#fff;font-family:sans-serif"><h1>Loqzen KDS</h1><p>Pendiente de implementar.</p></body></html>
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Loqzen KDS</title>
+<style>
+  :root {
+    --bg: #0F172A;
+    --card: #1E293B;
+    --card-2: #273449;
+    --accent: #2563EB;
+    --accent-2: #1D4ED8;
+    --text: #F1F5F9;
+    --muted: #94A3B8;
+    --line: #334155;
+    --green: #22C55E;
+    --amber: #F59E0B;
+    --red: #EF4444;
+    --grey: #475569;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 16px; }
+  body { display: flex; flex-direction: column; min-height: 100vh; -webkit-user-select: none; user-select: none; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; }
+  button:active { filter: brightness(1.15); }
+
+  /* ─── Header ─────────────────────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: var(--card); border-bottom: 1px solid var(--line);
+    padding: calc(10px + env(safe-area-inset-top, 0px)) 16px 10px;
+    display: flex; flex-wrap: wrap; gap: 12px 20px; align-items: center;
+  }
+  header h1 { margin: 0; font-size: 22px; font-weight: 700; white-space: nowrap; }
+  #stations { display: flex; flex-wrap: wrap; gap: 8px; flex: 1 1 auto; }
+  .station {
+    min-height: 56px; min-width: 56px; padding: 0 18px; border-radius: 12px;
+    background: var(--card-2); color: var(--text); font-size: 17px; font-weight: 600;
+    border: 2px solid transparent;
+  }
+  .station.active { background: var(--accent); border-color: #60A5FA; }
+  #counters { display: flex; gap: 10px; }
+  .counter { background: var(--card-2); border-radius: 12px; padding: 8px 14px; min-width: 96px; text-align: center; }
+  .counter b { display: block; font-size: 24px; line-height: 1.1; }
+  .counter span { font-size: 12px; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; }
+  .counter.pending b { color: #FBBF24; }
+  .counter.inprep b { color: #60A5FA; }
+  .counter.ready b { color: var(--green); }
+  #connection { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 14px; white-space: nowrap; }
+  #dot { width: 14px; height: 14px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(239,68,68,.25); }
+  #dot.online { background: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+
+  /* ─── Grid / cards ───────────────────────────────────────────────────── */
+  main { flex: 1; padding: 16px; }
+  #grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 16px; align-items: start; }
+  #empty { text-align: center; color: var(--muted); padding: 80px 16px; font-size: 20px; }
+  #empty[hidden] { display: none; }
+
+  .card {
+    background: var(--card); border-radius: 16px; border: 4px solid var(--green);
+    display: flex; flex-direction: column; overflow: hidden;
+    transition: border-color .3s;
+  }
+  .card.warn { border-color: var(--amber); }
+  .card.late { border-color: var(--red); animation: blink 1s steps(2, start) infinite; }
+  .card.delivered { border-color: var(--grey); opacity: .85; }
+  @keyframes blink { 50% { border-color: rgba(239,68,68,.25); } }
+
+  .card-head { display: flex; justify-content: space-between; align-items: baseline; padding: 12px 14px 4px; gap: 8px; }
+  .order-no { font-size: 24px; font-weight: 800; }
+  .elapsed { font-size: 22px; font-weight: 700; font-variant-numeric: tabular-nums; }
+  .card.warn .elapsed { color: var(--amber); }
+  .card.late .elapsed { color: var(--red); }
+  .card-meta { display: flex; justify-content: space-between; padding: 0 14px 10px; color: var(--muted); font-size: 15px; gap: 8px; }
+  .card-meta .table { color: var(--text); font-weight: 600; font-size: 17px; }
+  .general-notes { margin: 0 14px 10px; padding: 8px 10px; border-radius: 8px; background: rgba(245,158,11,.12); color: #FCD34D; font-size: 15px; }
+  .general-notes:empty { display: none; }
+
+  .items { list-style: none; margin: 0; padding: 0 14px; border-top: 1px solid var(--line); }
+  .item { display: grid; grid-template-columns: auto 1fr auto; gap: 6px 10px; align-items: center; padding: 10px 0; border-bottom: 1px solid var(--line); }
+  .item:last-child { border-bottom: 0; }
+  .qty { min-width: 44px; height: 44px; padding: 0 8px; border-radius: 10px; background: var(--accent); color: #fff;
+    font-weight: 800; font-size: 20px; display: inline-flex; align-items: center; justify-content: center; }
+  .name { font-size: 19px; font-weight: 600; line-height: 1.2; }
+  .notes { grid-column: 2 / -1; color: #FCD34D; font-size: 15px; }
+  .notes:empty { display: none; }
+  .anulado { display: none; color: var(--red); font-weight: 800; font-size: 13px; letter-spacing: .06em; }
+  .item.cancelled .qty { background: var(--grey); }
+  .item.cancelled .name, .item.cancelled .notes { text-decoration: line-through; color: var(--red); }
+  .item.cancelled .anulado { display: inline; }
+  .item.prepared .name { color: var(--muted); }
+
+  .card-foot { display: grid; grid-template-columns: 1fr auto; gap: 10px; padding: 12px 14px 14px; align-items: center; }
+  .pill { grid-column: 1 / -1; justify-self: start; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+    padding: 6px 12px; border-radius: 999px; background: var(--card-2); color: var(--muted); }
+  .pill.Pending { background: rgba(251,191,36,.18); color: #FBBF24; }
+  .pill.InPreparation { background: rgba(96,165,250,.18); color: #60A5FA; }
+  .pill.Ready { background: rgba(34,197,94,.18); color: var(--green); }
+  .pill.Delivered { background: rgba(148,163,184,.18); color: var(--muted); }
+  .action { min-height: 64px; border-radius: 14px; background: var(--accent); color: #fff; font-size: 20px; font-weight: 800; letter-spacing: .02em; }
+  .action.ready { background: #15803D; }
+  .action.undo { background: var(--grey); }
+  .action:disabled { opacity: .5; cursor: default; }
+  .print { width: 56px; height: 64px; border-radius: 14px; background: #15803D; font-size: 26px; }
+  .print.done { background: var(--grey); opacity: .8; }
+
+  /* ─── Toast ──────────────────────────────────────────────────────────── */
+  #toast { position: fixed; left: 50%; bottom: calc(24px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%);
+    background: var(--red); color: #fff; padding: 14px 20px; border-radius: 12px; font-weight: 600; font-size: 16px;
+    max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s; }
+  #toast.show { opacity: 1; }
+
+  @media (max-width: 640px) {
+    header h1 { font-size: 18px; }
+    .counter { min-width: 72px; padding: 6px 10px; }
+    .counter b { font-size: 20px; }
+    #grid { grid-template-columns: 1fr; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>👨‍🍳 Loqzen KDS</h1>
+  <div id="stations" aria-label="Estación"></div>
+  <div id="counters">
+    <div class="counter pending"><b id="cPending">0</b><span>Pendientes</span></div>
+    <div class="counter inprep"><b id="cInPrep">0</b><span>En preparación</span></div>
+    <div class="counter ready"><b id="cReady">0</b><span>Listos</span></div>
+  </div>
+  <div id="connection"><span id="dot"></span><span id="connText">conectando…</span></div>
+</header>
+
+<main>
+  <div id="grid"></div>
+  <div id="empty" hidden>Sin órdenes activas</div>
+</main>
+
+<div id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ─── State ───────────────────────────────────────────────────────────────
+  var STORAGE_KEY = 'kds.station';
+  var settings = { warningMinutes: 5, maxPrepMinutes: 15, archiveDelaySeconds: 20, stations: [] };
+  var station = '';
+  try { station = localStorage.getItem(STORAGE_KEY) || ''; } catch (e) { station = ''; }
+
+  var orders = [];                 // last list from the server (arrival order)
+  var cards = new Map();           // id -> { el, parts, sig }
+  var delivered = new Map();       // id -> { order, at } kept locally during the undo window
+  var clockOffsetMs = 0;           // serverUtc - clientNow, so elapsed does not depend on the tablet clock
+  var ws = null;
+  var wsBackoff = 1000;
+  var reconnectTimer = null;
+  var reloadTimer = null;
+  var pingTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var grid = $('grid'), empty = $('empty'), stationsEl = $('stations');
+  var dot = $('dot'), connText = $('connText'), toastEl = $('toast');
+
+  var STATUS_TEXT = { Pending: 'Pendiente', InPreparation: 'En preparación', Ready: 'Listo', Delivered: 'Entregado', Cancelled: 'Cancelado' };
+  var ACTION_TEXT = { Pending: 'PREPARAR', InPreparation: 'MARCAR LISTO', Ready: 'ENTREGAR', Delivered: 'DESHACER' };
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s == null ? '' : s)
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function parseUtc(s) {
+    if (!s) return null;
+    // Server timestamps are UTC; be defensive if a value arrives without zone info.
+    if (!/([zZ]|[+-]\d\d:?\d\d)$/.test(s)) s += 'Z';
+    var t = Date.parse(s);
+    return isNaN(t) ? null : t;
+  }
+  function now() { return Date.now() + clockOffsetMs; }
+  function fmtQty(q) {
+    var n = Number(q);
+    if (!isFinite(n)) return String(q);
+    return (Math.round(n) === n) ? String(n) : n.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  }
+  function urgency(createdMs) {
+    var minutes = Math.max(0, (now() - createdMs) / 60000);     // same rules as KdsTiming.Urgency
+    if (minutes < settings.warningMinutes) return 'ok';
+    if (minutes <= settings.maxPrepMinutes) return 'warn';
+    return 'late';
+  }
+  function elapsedText(createdMs) {
+    var secs = Math.max(0, Math.floor((now() - createdMs) / 1000));
+    var m = Math.floor(secs / 60), s = secs % 60;
+    return m + ':' + (s < 10 ? '0' : '') + s;
+  }
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 3500);
+  }
+
+  function api(method, path, body) {
+    var opts = { method: method, headers: { 'Accept': 'application/json' }, cache: 'no-store' };
+    if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (res) {
+      return res.text().then(function (txt) {
+        var data = null;
+        if (txt) { try { data = JSON.parse(txt); } catch (e) { data = null; } }
+        if (!res.ok) {
+          var err = new Error((data && data.error) || ('Error ' + res.status));
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+
+  // ─── Settings + stations ─────────────────────────────────────────────────
+  function loadSettings() {
+    return api('GET', '/api/kds/settings').then(function (s) {
+      if (!s) return;
+      settings.warningMinutes = Number(s.warningMinutes) || settings.warningMinutes;
+      settings.maxPrepMinutes = Number(s.maxPrepMinutes) || settings.maxPrepMinutes;
+      settings.archiveDelaySeconds = Number(s.archiveDelaySeconds) || settings.archiveDelaySeconds;
+      settings.stations = Array.isArray(s.stations) ? s.stations : [];
+      renderStations();
+    }).catch(function () { renderStations(); });
+  }
+
+  function renderStations() {
+    var list = [''].concat(settings.stations);
+    if (station && list.indexOf(station) < 0) list.push(station);
+    stationsEl.innerHTML = '';
+    list.forEach(function (name) {
+      var b = document.createElement('button');
+      b.className = 'station' + (name === station ? ' active' : '');
+      b.textContent = name || 'Todas';
+      b.setAttribute('data-station', name);
+      b.addEventListener('click', function () { setStation(name); });
+      stationsEl.appendChild(b);
+    });
+  }
+
+  function setStation(name) {
+    if (name === station) return;
+    station = name;
+    try { localStorage.setItem(STORAGE_KEY, station); } catch (e) { /* private mode */ }
+    renderStations();
+    delivered.clear();
+    connect(true);           // the WS filter lives in the query string
+    loadOrders();
+  }
+
+  // ─── Orders ──────────────────────────────────────────────────────────────
+  function ordersUrl() {
+    return '/api/kds/orders' + (station ? '?station=' + encodeURIComponent(station) : '');
+  }
+
+  var loading = false, loadAgain = false;
+  function loadOrders() {
+    if (loading) { loadAgain = true; return; }
+    loading = true;
+    api('GET', ordersUrl()).then(function (list) {
+      orders = Array.isArray(list) ? list : [];
+      // An order that came back from the server (undo) is no longer "locally delivered".
+      orders.forEach(function (o) { delivered.delete(o.id); });
+      render();
+    }).catch(function (err) {
+      if (err && err.status) toast(err.message);
+    }).then(function () {
+      loading = false;
+      if (loadAgain) { loadAgain = false; loadOrders(); }
+    });
+  }
+
+  function scheduleReload() {
+    clearTimeout(reloadTimer);
+    reloadTimer = setTimeout(loadOrders, 200);
+  }
+
+  function visibleOrders() {
+    var t = now(), list = orders.slice();
+    delivered.forEach(function (entry, id) {
+      if (t - entry.at > settings.archiveDelaySeconds * 1000) { delivered.delete(id); return; }
+      if (!station || (entry.order.station || '').toLowerCase() === station.toLowerCase()) list.push(entry.order);
+    });
+    list.sort(function (a, b) { return (parseUtc(a.createdAt) || 0) - (parseUtc(b.createdAt) || 0); });
+    return list;
+  }
+
+  // ─── Rendering (DOM nodes keyed by id, updated in place) ─────────────────
+  function render() {
+    var list = visibleOrders();
+    var seen = new Set();
+    var counts = { Pending: 0, InPreparation: 0, Ready: 0 };
+
+    list.forEach(function (o, index) {
+      seen.add(o.id);
+      if (counts[o.status] !== undefined) counts[o.status]++;
+      var entry = cards.get(o.id);
+      if (!entry) { entry = createCard(o); cards.set(o.id, entry); }
+      updateCard(entry, o);
+      var current = grid.children[index];
+      if (current !== entry.el) grid.insertBefore(entry.el, current || null);
+    });
+
+    cards.forEach(function (entry, id) {
+      if (!seen.has(id)) { entry.el.remove(); cards.delete(id); }
+    });
+
+    $('cPending').textContent = counts.Pending;
+    $('cInPrep').textContent = counts.InPreparation;
+    $('cReady').textContent = counts.Ready;
+    empty.hidden = list.length > 0;
+    tick();
+  }
+
+  function createCard(o) {
+    var el = document.createElement('article');
+    el.className = 'card';
+    el.setAttribute('data-id', o.id);
+    el.innerHTML =
+      '<div class="card-head"><span class="order-no"></span><span class="elapsed">0:00</span></div>' +
+      '<div class="card-meta"><span class="table"></span><span class="waiter"></span></div>' +
+      '<div class="general-notes"></div>' +
+      '<ul class="items"></ul>' +
+      '<div class="card-foot"><span class="pill"></span><button class="action" type="button"></button>' +
+      '<button class="print" type="button" aria-label="Imprimir comanda">🖨️</button></div>';
+    var parts = {
+      orderNo: el.querySelector('.order-no'),
+      elapsed: el.querySelector('.elapsed'),
+      table: el.querySelector('.table'),
+      waiter: el.querySelector('.waiter'),
+      notes: el.querySelector('.general-notes'),
+      items: el.querySelector('.items'),
+      pill: el.querySelector('.pill'),
+      action: el.querySelector('.action'),
+      print: el.querySelector('.print')
+    };
+    var entry = { el: el, parts: parts, sig: '', order: o, createdMs: parseUtc(o.createdAt) || now() };
+    parts.action.addEventListener('click', function () { onAction(entry); });
+    parts.print.addEventListener('click', function () { onPrint(entry); });
+    return entry;
+  }
+
+  function updateCard(entry, o) {
+    var p = entry.parts;
+    entry.order = o;
+    entry.createdMs = parseUtc(o.createdAt) || entry.createdMs;
+
+    p.orderNo.textContent = '#' + (o.orderNumber || '');
+    p.table.textContent = o.tableNumber || '';
+    p.waiter.textContent = o.waiterName || '';
+    p.notes.textContent = o.generalNotes || '';
+
+    var sig = JSON.stringify((o.items || []).map(function (i) { return [i.id, i.quantity, i.productName, i.notes, i.isPrepared, i.isCancelled]; }));
+    if (sig !== entry.sig) {
+      entry.sig = sig;
+      p.items.innerHTML = (o.items || []).map(function (i) {
+        var cls = 'item' + (i.isCancelled ? ' cancelled' : '') + (i.isPrepared ? ' prepared' : '');
+        return '<li class="' + cls + '">' +
+          '<span class="qty">' + esc(fmtQty(i.quantity)) + '×</span>' +
+          '<span class="name">' + esc(i.productName) + '</span>' +
+          '<span class="anulado">ANULADO</span>' +
+          '<div class="notes">' + esc(i.notes || '') + '</div>' +
+          '</li>';
+      }).join('');
+    }
+
+    p.pill.className = 'pill ' + (o.status || '');
+    p.pill.textContent = STATUS_TEXT[o.status] || o.status || '';
+
+    var action = ACTION_TEXT[o.status];
+    p.action.textContent = action || '—';
+    p.action.disabled = !action;
+    p.action.className = 'action' + (o.status === 'Ready' ? ' ready' : '') + (o.status === 'Delivered' ? ' undo' : '');
+
+    var printed = !!o.printedAt;
+    p.print.className = 'print' + (printed ? ' done' : '');
+    p.print.title = printed ? 'Ya impresa' : 'Marcar impresa';
+
+    entry.el.classList.toggle('delivered', o.status === 'Delivered');
+  }
+
+  // Elapsed time + urgency colour, every second. Class changes only when the bucket changes,
+  // so the blink animation of a late card never restarts.
+  function tick() {
+    cards.forEach(function (entry) {
+      entry.parts.elapsed.textContent = elapsedText(entry.createdMs);
+      var u = entry.order.status === 'Delivered' ? 'ok' : urgency(entry.createdMs);
+      var el = entry.el;
+      if (u === 'warn' && !el.classList.contains('warn')) { el.classList.remove('late'); el.classList.add('warn'); }
+      else if (u === 'late' && !el.classList.contains('late')) { el.classList.remove('warn'); el.classList.add('late'); }
+      else if (u === 'ok' && (el.classList.contains('warn') || el.classList.contains('late'))) { el.classList.remove('warn', 'late'); }
+    });
+    // Expire locally kept delivered cards.
+    var t = now(), expired = false;
+    delivered.forEach(function (entry, id) {
+      if (t - entry.at > settings.archiveDelaySeconds * 1000) { delivered.delete(id); expired = true; }
+    });
+    if (expired) render();
+  }
+
+  // ─── Actions ─────────────────────────────────────────────────────────────
+  function onAction(entry) {
+    var o = entry.order;
+    if (!o || !ACTION_TEXT[o.status]) return;
+    var btn = entry.parts.action;
+    btn.disabled = true;
+    var path = '/api/kds/orders/' + encodeURIComponent(o.id) + (o.status === 'Delivered' ? '/undo' : '/advance');
+    api('POST', path).then(function (updated) {
+      if (updated && updated.status === 'Delivered') {
+        delivered.set(updated.id, { order: updated, at: now() });
+      } else if (updated) {
+        delivered.delete(updated.id);
+      }
+      if (updated) {
+        var idx = orders.findIndex(function (x) { return x.id === updated.id; });
+        if (idx >= 0) {
+          if (updated.status === 'Delivered') orders.splice(idx, 1); else orders[idx] = updated;
+        } else if (updated.status !== 'Delivered') {
+          orders.push(updated);
+        }
+      }
+      render();
+      scheduleReload();
+    }).catch(function (err) {
+      toast(err.message || 'No se pudo actualizar la orden');
+      if (err.status === 404) { delivered.delete(o.id); scheduleReload(); }
+    }).then(function () { btn.disabled = !ACTION_TEXT[entry.order.status]; });
+  }
+
+  function onPrint(entry) {
+    var o = entry.order;
+    if (!o) return;
+    api('POST', '/api/kds/orders/' + encodeURIComponent(o.id) + '/printed').then(function (updated) {
+      if (updated) updateCard(entry, updated);
+      scheduleReload();
+    }).catch(function (err) { toast(err.message || 'No se pudo marcar como impresa'); });
+  }
+
+  // ─── Realtime (WebSocket with backoff) + polling fallback ────────────────
+  function setOnline(on) {
+    dot.className = on ? 'online' : '';
+    connText.textContent = on ? 'en línea' : 'reconectando…';
+  }
+
+  function connect(force) {
+    clearTimeout(reconnectTimer);
+    if (ws) {
+      var old = ws;
+      ws = null;
+      old.manualClose = true;
+      try { old.close(); } catch (e) { /* ignore */ }
+    }
+    if (force) wsBackoff = 1000;
+
+    var proto = location.protocol === 'https:' ? 'wss://' : 'ws://';
+    var url = proto + location.host + '/ws/kds' + (station ? '?station=' + encodeURIComponent(station) : '');
+    var socket;
+    try { socket = new WebSocket(url); } catch (e) { scheduleReconnect(); return; }
+    ws = socket;
+
+    socket.onopen = function () {
+      if (ws !== socket) return;
+      wsBackoff = 1000;
+      setOnline(true);
+      scheduleReload();
+    };
+    socket.onmessage = function (ev) {
+      if (ws !== socket) return;
+      if (typeof ev.data === 'string' && ev.data.trim() === 'pong') return;
+      scheduleReload();            // the event only tells us *something* changed; the REST list is the truth
+    };
+    socket.onerror = function () { /* onclose follows */ };
+    socket.onclose = function () {
+      if (socket.manualClose) return;
+      if (ws === socket) ws = null;
+      setOnline(false);
+      scheduleReconnect();
+    };
+  }
+
+  function scheduleReconnect() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () { connect(false); }, wsBackoff);
+    wsBackoff = Math.min(wsBackoff * 2, 10000);
+  }
+
+  function ping() {
+    if (ws && ws.readyState === 1) {
+      try { ws.send('ping'); } catch (e) { /* onclose follows */ }
+    }
+  }
+
+  function syncClock() {
+    var sent = Date.now();
+    return api('GET', '/health').then(function (h) {
+      var serverMs = h && parseUtc(h.utcNow);
+      if (serverMs) {
+        var rtt = Date.now() - sent;
+        clockOffsetMs = serverMs + rtt / 2 - Date.now();
+      }
+    }).catch(function () { /* keep the previous offset */ });
+  }
+
+  // ─── Boot ────────────────────────────────────────────────────────────────
+  setOnline(false);
+  renderStations();
+  syncClock().then(loadSettings).then(loadOrders);
+  connect(true);
+
+  setInterval(tick, 1000);
+  setInterval(function () { loadOrders(); syncClock(); }, 15000);
+  pingTimer = setInterval(ping, 25000);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      loadOrders();
+      if (!ws || ws.readyState > 1) connect(true);
+    }
+  });
+})();
+</script>
+</body>
+</html>

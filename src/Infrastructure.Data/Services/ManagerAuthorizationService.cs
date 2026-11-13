@@ -16,29 +16,41 @@ namespace Infrastructure.Data.Services;
 /// <summary>
 /// Manager approval for sensitive actions. Every approval is persisted as a <see cref="ManagerOverride"/>.
 /// Wrong PIN and "user cannot authorize" share one message so the UI does not leak which PINs exist.
+/// PIN approvals go through an optional <see cref="IPinAttemptLimiter"/> (scope "manager", independent from
+/// login): per terminal and in-memory, so restarting the app clears it. Good enough for a touch POS; the goal
+/// is to stop casual PIN guessing, not to be a hardened auth server.
 /// </summary>
 public class ManagerAuthorizationService : IManagerAuthorizationService
 {
     private const string UnauthorizedMessage = "PIN de gerente incorrecto o sin permiso para autorizar.";
+    private const string ManagerScope = "manager";
 
     private readonly PosDbContext _db;
     private readonly AuthorizationSettings _settings;
     private readonly TimeProvider _clock;
+    private readonly IPinAttemptLimiter? _limiter;
 
-    public ManagerAuthorizationService(PosDbContext db, AuthorizationSettings settings, TimeProvider clock)
+    /// <param name="limiter">Optional: locks PIN approval after repeated failures (see <see cref="PinAttemptLimiter"/>).</param>
+    public ManagerAuthorizationService(PosDbContext db, AuthorizationSettings settings, TimeProvider clock, IPinAttemptLimiter? limiter = null)
     {
         _db = db;
         _settings = settings;
         _clock = clock;
+        _limiter = limiter;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
     public bool RequiresAuthorization(AuthorizedAction action) => _settings.Requires(action);
 
+    /// <summary>
+    /// Throws <see cref="PinLockedException"/> while approvals are locked after too many failures (even for a
+    /// valid manager PIN). A wrong PIN and a valid PIN of a user who cannot authorize both count as failures.
+    /// </summary>
     public async Task<ManagerOverrideDto> AuthorizeWithPinAsync(AuthorizationRequest request, string pin, CancellationToken ct = default)
     {
         ArgumentNullException.ThrowIfNull(request);
+        _limiter?.EnsureNotLocked(ManagerScope);
 
         User? manager = null;
         if (PinHasher.IsValidPin(pin))
@@ -48,9 +60,14 @@ public class ManagerAuthorizationService : IManagerAuthorizationService
         }
 
         if (manager == null || !UserPermissions.CanAuthorize(manager.Role))
+        {
+            _limiter?.RegisterFailure(ManagerScope);
             throw new UnauthorizedAccessException(UnauthorizedMessage);
+        }
 
-        return await RecordAsync(request, manager, ct);
+        var dto = await RecordAsync(request, manager, ct);
+        _limiter?.RegisterSuccess(ManagerScope);
+        return dto;
     }
 
     public async Task<ManagerOverrideDto> AuthorizeAsUserAsync(AuthorizationRequest request, Guid managerUserId, CancellationToken ct = default)

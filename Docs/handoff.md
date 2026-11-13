@@ -1,11 +1,33 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Usuarios con PIN, roles por pestaña, autorización de gerente (devoluciones / descuentos / anular en cocina) con auditoría
+**Última sesión:** Servidor LAN embebido (KDS web + comandera web en tiempo real), Outbox → webhook, bloqueo de PIN, overrides de un solo uso, visor para comandas
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-13 (tarde): Servidor embebido, pantallas en red, Outbox, endurecimiento
+
+Modelo de `memory-bank/orchestration.md`: contrato primero, luego cuatro agentes en paralelo — red (`Presentation.Server`), backend (`Infrastructure.Data`), UI (`Presentation.Desktop`) y dos de QA (`tests/`). El backend y la UI recibieron tareas encadenadas a medida que entregaban.
+
+**Hecho (340 tests, build 0 errores/0 warnings; verificado en pantalla: KDS en vivo, barra responsiva, chip 🌐; verificado por HTTP/WS desde Node: `/health`, `/api/kds/orders`, `/advance`, push WebSocket y limpieza de conexiones):**
+- `Presentation.Server` pasó de proceso aparte a **biblioteca** (`LoqzenServer`) que el escritorio arranca en `Server:Port` (5055). Config aislada, log solo errores, una `IServiceScope` por petición, errores → `{error}` con 400/404/409/500. Rutas: health, `/kds`, `/comandera`, KDS (settings/orders/advance/printed/undo), catálogo, mesas, comandas (abrir/items/notas/anular/enviar/lista para pagar), `WS /ws/kds?station=`.
+- **KDS web** (`wwwroot/kds.html`) y **comandera web** (`wwwroot/comandera.html`): archivo único, sin CDN, táctil, reconexión con backoff, reloj corregido contra `/health`. Mismas reglas que el escritorio porque usan los mismos servicios.
+- `IKitchenEventBus` (Core.Application/Kitchen): `KitchenService` y `ComandaService` publican `Created/StatusChanged/Printed/ItemCancelled/Undone` tras guardar. El KDS y las comandas del escritorio se refrescan al instante (debounce 150 ms; la encuesta queda de respaldo). `CheckoutViewModel` crea el ticket de cocina vía `IKitchenService.CreateAsync` y ya no usa `PosDbContext`.
+- **Outbox → webhook**: `OutboxDispatcher` + `HttpOutboxSink` (`Sync:*`, apagado por defecto), `OutboxSyncWorker` en el escritorio, indicador y "Reintentar fallidos" en Turno de Caja.
+- Endurecimiento: `ManagerOverride.ConsumedAt/ConsumedFor` (un solo uso, migración `ManagerOverrideConsumed`); `PinAttemptLimiter` (5 fallos/min → 30 s) en login y PIN de gerente, con cuenta regresiva en pantalla.
+- UI: barra superior responsiva (iconos y etiquetas cortas bajo 1200 px, `MinWidth` 900), chip 🌐 con la URL del KDS web (toca para copiar), visor del cliente también para comandas, encabezado del KDS en `WrapPanel`, selector de categoría e impuesto en el formulario de producto (antes no existía).
+
+**⚠️ Para el usuario:** tras reiniciar, el chip 🌐 muestra la URL para tablets (`http://<ip>:5055/kds` y `/comandera`). Si el puerto está ocupado la app abre igual y el chip lo avisa. Para KDS de cocina sin login: `Authorization:RequireLogin=false` en un `appsettings.{env}.json`.
+
+**Limitaciones conocidas:** KDS web y comandera web no se abrieron en un navegador real desde este repo (solo API/WS por tests y Node; la captura headless salió antes de cargar datos) → probar en una tablet. `HttpOutboxSink` usa `CancelAfter` real (no `TimeProvider`). Sin mDNS: hay que escribir la IP. `UserService` no valida `CanAssignRole`.
+
+**Pedido del usuario (2026-11-13, caja):** (1) módulo de **pago de recibos / recaudos** en la caja (servicios, recargas, convenios) que entra al cuadre como movimiento propio, no como venta; (2) el **cuadre de caja** debe ser el mejor de la industria en facilidad y prevención de errores (referencia: Toast, Square). Diseño propuesto para (2): entidad `CashMovement` (In/Out, motivo, monto, usuario, override de gerente, referencia al recibo) que suma/resta del esperado; **conteo a ciegas** por defecto (`CashShift:BlindCount`), diferencia visible solo al terminar; umbral `CashShift:MaxDifferenceWithoutManager` → PIN + nota; esperado por medio de pago comparado con el cierre del datáfono; arqueo parcial y "dejar fondo"; Z impreso con `ReceiptFormatter`; historial por cajero. Lo que ya existe y se reutiliza: conteo por denominaciones, bloqueo si hay comandas abiertas, resumen por medio de pago.
+
+**Siguiente fase recomendada:** **cuadre de caja de referencia + pago de recibos**, **segunda caja** (maestro/satélite) o **datáfono / pago en mesa** — ambas anotadas en el roadmap del README y en CONTRIBUTING §10.
 
 ---
 
@@ -28,6 +50,8 @@ Ejecutada con el modelo de `memory-bank/orchestration.md`: el arquitecto escribi
 **Siguiente fase recomendada:** Kestrel embebido + KDS/comanderas en red (ver CONTRIBUTING §10).
 
 **Pedido del usuario (2026-11-13):** datáfono que reporte el pago automáticamente (tap, chip, Apple Pay / Google Pay). No estaba en el plan; solo el QR de pago en el visor. Propuesta: `IPaymentTerminalService` en `Core.Application/Hardware` (misma estrategia que la impresora: driver real + mock + emulador Docker), flujo `Tarjeta` → el POS envía monto → espera aprobación → `ProcessPaymentAsync(Card, reference=código de autorización)`; requiere elegir proveedor con API de semi-integración (Redeban/Credibanco, Bold, Mercado Pago Point, PayU).
+
+**Pedido del usuario (2026-11-13, pago en mesa):** una caja + varios datáfonos inalámbricos asignados a meseras, para que el cliente pague en la mesa sin ir a la caja ni soltar la tarjeta. Diseño propuesto: `IPaymentTerminalService` multi-terminal (registro de datáfonos con nombre/IP, asignación a mesero en la comandera web), botón "💳 Cobrar en mesa" en `/comandera` → `POST /api/comandas/{id}/pay-on-terminal { terminalId }` → el servidor envía el monto, espera la aprobación y llama `CloseAndPayAsync(Card, reference = código de autorización)` → evento al KDS/caja y factura impresa en la caja (o en impresora del datáfono). Depende de escoger proveedor; los datáfonos inalámbricos de Bold, Mercado Pago Point y Redeban tienen Wi-Fi/4G.
 
 ---
 

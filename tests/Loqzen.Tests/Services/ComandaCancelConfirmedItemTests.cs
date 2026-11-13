@@ -129,10 +129,10 @@ public class ComandaCancelConfirmedItemTests : ComandaTestBase
         await Service.AddItemAsync(c.Id, Burger.Id);
         var dto = await Service.AddItemAsync(c.Id, Burger.Id);
         await Service.ConfirmPendingNowAsync(c.Id);
-        var overrideId = await CreateOverrideAsync();
 
+        // Overrides are single-use: each cancellation needs its own approval.
         foreach (var item in dto.Items)
-            await Service.CancelConfirmedItemAsync(c.Id, item.Id, overrideId);
+            await Service.CancelConfirmedItemAsync(c.Id, item.Id, await CreateOverrideAsync());
 
         var kitchen = await KitchenOrderFor(Kitchen);
         kitchen.Status.Should().Be(KitchenOrderStatus.Cancelled);
@@ -226,13 +226,13 @@ public class ComandaCancelConfirmedItemTests : ComandaTestBase
         await Service.AddItemAsync(c2.Id, Burger.Id);
         var dto2 = await Service.AddItemAsync(c2.Id, Burger.Id);
         await Service.ConfirmPendingNowAsync(c2.Id);
-        var overrideId = await CreateOverrideAsync();
 
         var kds = new KitchenService(Db, Clock);
         (await kds.GetActiveAsync()).Should().HaveCount(3);
 
-        await Service.CancelConfirmedItemAsync(c1, burger1, overrideId);          // kitchen order of Mesa 1 fully cancelled
-        await Service.CancelConfirmedItemAsync(c2.Id, dto2.Items.First().Id, overrideId); // Mesa 2 partially cancelled
+        // One fresh (single-use) approval per cancellation.
+        await Service.CancelConfirmedItemAsync(c1, burger1, await CreateOverrideAsync());          // kitchen order of Mesa 1 fully cancelled
+        await Service.CancelConfirmedItemAsync(c2.Id, dto2.Items.First().Id, await CreateOverrideAsync()); // Mesa 2 partially cancelled
 
         var active = await kds.GetActiveAsync();
         active.Should().HaveCount(2);
@@ -244,6 +244,59 @@ public class ComandaCancelConfirmedItemTests : ComandaTestBase
         mesa2.Items.Should().HaveCount(2);
         mesa2.Items.Count(i => i.IsCancelled).Should().Be(1, "struck-through line is visible to the cook");
     }
+    // ---- single-use overrides ----
+
+    [Fact]
+    public async Task Cancel_MarksOverrideConsumed_WithClockAndItemReference()
+    {
+        var (cid, burgerId, _) = await ConfirmedBurgerAndSodaAsync();
+        var overrideId = await CreateOverrideAsync();
+        Clock.Advance(TimeSpan.FromMinutes(5));
+
+        await Service.CancelConfirmedItemAsync(cid, burgerId, overrideId);
+
+        var stored = await Db.ManagerOverrides.AsNoTracking().SingleAsync(o => o.Id == overrideId);
+        stored.ConsumedAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
+        stored.ConsumedFor.Should().Be($"ComandaItem {burgerId}");
+        stored.UpdatedAt.Should().Be(Clock.GetUtcNow().UtcDateTime);
+    }
+
+    [Fact]
+    public async Task Cancel_ReusingConsumedOverride_Throws_AndChangesNothing()
+    {
+        var (cid, burgerId, sodaId) = await ConfirmedBurgerAndSodaAsync();
+        var overrideId = await CreateOverrideAsync();
+        await Service.CancelConfirmedItemAsync(cid, burgerId, overrideId);
+        var outboxBefore = await Db.OutboxMessages.CountAsync();
+        var consumedAt = (await Db.ManagerOverrides.AsNoTracking().SingleAsync(o => o.Id == overrideId)).ConsumedAt;
+
+        var act = () => Service.CancelConfirmedItemAsync(cid, sodaId, overrideId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>().WithMessage("*autorización*");
+        (await Db.ComandaItems.SingleAsync(i => i.Id == sodaId)).Status.Should().Be(ComandaItemStatus.Confirmed);
+        var bar = await KitchenOrderFor(Bar);
+        bar.Status.Should().Be(KitchenOrderStatus.Pending);
+        bar.Items.Single().IsCancelled.Should().BeFalse();
+        (await Db.OutboxMessages.CountAsync()).Should().Be(outboxBefore, "no event for the rejected attempt");
+        var stored = await Db.ManagerOverrides.AsNoTracking().SingleAsync(o => o.Id == overrideId);
+        stored.ConsumedAt.Should().Be(consumedAt, "the first consumption is kept");
+        stored.ConsumedFor.Should().Be($"ComandaItem {burgerId}");
+    }
+
+    [Fact]
+    public async Task Cancel_OverrideNotConsumed_WhenCancellationIsRejected()
+    {
+        var (cid, _, _) = await ConfirmedBurgerAndSodaAsync();
+        var overrideId = await CreateOverrideAsync();
+
+        var act = () => Service.CancelConfirmedItemAsync(cid, Guid.NewGuid(), overrideId);
+
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        var stored = await Db.ManagerOverrides.AsNoTracking().SingleAsync(o => o.Id == overrideId);
+        stored.ConsumedAt.Should().BeNull("a failed attempt must not burn the approval");
+        stored.ConsumedFor.Should().BeNull();
+    }
+
     [Fact]
     public async Task Cancel_WithOverrideForAnotherAction_IsRejected()
     {

@@ -1,16 +1,23 @@
 using System;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Security;
 using Presentation.Desktop.Services;
+using Presentation.Server;
 
 namespace Presentation.Desktop.ViewModels;
 
 public partial class MainViewModel : ObservableObject
 {
     private readonly AuthorizationSettings _authSettings;
+    private readonly ServerSettings _serverSettings;
+    private readonly LoqzenServer _server;
+    private readonly LanServerStatus _serverStatus;
+    private readonly DispatcherTimer? _lanChipTimer;
+    private readonly DispatcherTimer _copiedTimer;
 
     [ObservableProperty] private CheckoutViewModel _checkout;
     [ObservableProperty] private KdsViewModel _kds;
@@ -51,6 +58,41 @@ public partial class MainViewModel : ObservableObject
     public string AppTitle => "Loqzen POS Standalone - Volcora Edition";
     public Action? RequestOpenCustomerDisplayWindow { get; set; }
 
+    /// <summary>Set by MainWindow: copies the given text to the OS clipboard (needs a TopLevel).</summary>
+    public Action<string>? RequestCopyKdsUrl { get; set; }
+
+    // ── LAN server chip (browser KDS URL + connected tablets) ────────────────
+    [ObservableProperty] private string _lanChipText = "🌐 Iniciando servidor LAN…";
+    [ObservableProperty] private string _lanChipTooltip = string.Empty;
+
+    /// <summary>Chip hidden when the server is disabled in config; cashier+ only.</summary>
+    public bool IsLanChipVisible => _serverSettings.Enabled && Session.CanAccessCashShift;
+
+    // ── Compact nav bar (window narrower than 1200 px; set by MainWindow.SizeChanged) ───
+    // Tabs get short labels and the right-hand tools become icon-only so nothing overlaps.
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(CheckoutTabLabel), nameof(ComandasTabLabel), nameof(KdsTabLabel),
+        nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(ScanLabel), nameof(CustomerDisplayLabel),
+        nameof(LogoutLabel), nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip), nameof(IsWide))]
+    private bool _isCompact;
+    public bool IsWide => !IsCompact;
+
+    public string CheckoutTabLabel  => IsCompact ? "🛒 Venta"   : "🛒 Punto de Venta";
+    public string ComandasTabLabel  => IsCompact ? "🍽️ Mesas"   : "🍽️ Mesas / Comandas";
+    public string KdsTabLabel       => IsCompact ? "👨‍🍳 KDS"     : "👨‍🍳 KDS Cocina";
+    public string CashShiftTabLabel => IsCompact ? "💼 Caja"    : "💼 Turno de Caja";
+    public string MastersTabLabel   => "🗂️ Maestros";
+    public string ScanLabel            => IsCompact ? "⚡"  : "⚡ Scan";
+    public string CustomerDisplayLabel => IsCompact ? "🖥️" : "🖥️ Visor Cliente";
+    public string LogoutLabel          => IsCompact ? "🔄" : "🔄 Cambiar usuario";
+
+    /// <summary>Compact: only the leading icon (🌐 / ✅); the full text moves to the tooltip.</summary>
+    public string LanChipDisplayText => IsCompact ? LanChipText.Split(' ')[0] : LanChipText;
+    public string LanChipDisplayTooltip => IsCompact ? $"{LanChipText}\n{LanChipTooltip}" : LanChipTooltip;
+
+    partial void OnLanChipTextChanged(string value) => OnPropertyChanged(nameof(LanChipDisplayText));
+    partial void OnLanChipTooltipChanged(string value) => OnPropertyChanged(nameof(LanChipDisplayTooltip));
+
     public MainViewModel(
         CheckoutViewModel checkout,
         KdsViewModel kds,
@@ -61,7 +103,10 @@ public partial class MainViewModel : ObservableObject
         UserSession session,
         LoginViewModel login,
         ManagerAuthPromptViewModel authPrompt,
-        AuthorizationSettings authSettings)
+        AuthorizationSettings authSettings,
+        ServerSettings serverSettings,
+        LoqzenServer server,
+        LanServerStatus serverStatus)
     {
         _checkout = checkout;
         _kds = kds;
@@ -73,9 +118,57 @@ public partial class MainViewModel : ObservableObject
         Login = login;
         AuthPrompt = authPrompt;
         _authSettings = authSettings;
+        _serverSettings = serverSettings;
+        _server = server;
+        _serverStatus = serverStatus;
 
         Checkout.CustomerDisplay = CustomerDisplay;
         Session.Changed += OnSessionChanged;
+
+        // "URL copiada" confirmation reverts after 2 s.
+        _copiedTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(2) };
+        _copiedTimer.Tick += (_, _) => { _copiedTimer.Stop(); UpdateLanChip(); };
+
+        if (_serverSettings.Enabled)
+        {
+            _serverStatus.Changed += UpdateLanChip;
+            UpdateLanChip();
+            // Cheap property reads (IsRunning / ConnectedClients) every 5 s.
+            _lanChipTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(5) };
+            _lanChipTimer.Tick += (_, _) => { if (!_copiedTimer.IsEnabled) UpdateLanChip(); };
+            _lanChipTimer.Start();
+        }
+    }
+
+    private void UpdateLanChip()
+    {
+        if (_serverStatus.HasFailed)
+        {
+            LanChipText = $"🌐 Servidor LAN no disponible (puerto {_serverSettings.Port} en uso)";
+            LanChipTooltip = _serverStatus.Error ?? LanChipText;
+        }
+        else if (!_server.IsRunning)
+        {
+            LanChipText = "🌐 Iniciando servidor LAN…";
+            LanChipTooltip = LanChipText;
+        }
+        else
+        {
+            var n = _server.ConnectedClients;
+            LanChipText = $"🌐 KDS web: {_server.KdsUrl} · {n} {(n == 1 ? "conectado" : "conectados")}";
+            LanChipTooltip = $"{_server.KdsUrl}\nToca para copiar la URL (ábrela en la tablet de cocina)";
+        }
+    }
+
+    /// <summary>Tap on the chip: copy the browser-KDS URL and confirm in place for 2 s.</summary>
+    [RelayCommand]
+    public void CopyKdsUrl()
+    {
+        if (!_server.IsRunning || RequestCopyKdsUrl == null) return;
+        RequestCopyKdsUrl(_server.KdsUrl);
+        LanChipText = "✅ URL copiada";
+        _copiedTimer.Stop();
+        _copiedTimer.Start();
     }
 
     [RelayCommand] public void ShowCheckout()  => ActiveViewIndex = 0;
@@ -130,6 +223,7 @@ public partial class MainViewModel : ObservableObject
     private void OnSessionChanged()
     {
         OnPropertyChanged(nameof(IsLoginVisible));
+        OnPropertyChanged(nameof(IsLanChipVisible));
         if (!Session.IsLoggedIn) return;
 
         // Land on a screen the role may use, and (re)load it so it reflects the new user.

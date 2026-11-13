@@ -1,0 +1,617 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="dark">
+<title>Loqzen Comandera</title>
+<style>
+  :root {
+    --bg: #0F172A; --card: #1E293B; --card-2: #273449; --line: #334155;
+    --accent: #2563EB; --text: #F1F5F9; --muted: #94A3B8;
+    --green: #22C55E; --amber: #F59E0B; --red: #EF4444; --grey: #475569;
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; height: 100%; background: var(--bg); color: var(--text);
+    font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; font-size: 16px; }
+  body { display: flex; flex-direction: column; min-height: 100vh; -webkit-user-select: none; user-select: none; }
+  button { font: inherit; color: inherit; border: 0; cursor: pointer; border-radius: 12px; min-height: 56px; }
+  button:active { filter: brightness(1.15); }
+  button:disabled { opacity: .45; cursor: default; filter: none; }
+  input, textarea { font: inherit; color: var(--text); background: var(--bg); border: 1px solid var(--line); border-radius: 10px; padding: 12px 14px; }
+  input:focus, textarea:focus { outline: 2px solid var(--accent); }
+  [hidden] { display: none !important; }
+
+  /* ─── Header ─────────────────────────────────────────────────────────── */
+  header {
+    position: sticky; top: 0; z-index: 10; background: var(--card); border-bottom: 1px solid var(--line);
+    padding: calc(8px + env(safe-area-inset-top, 0px)) 12px 8px;
+    display: flex; align-items: center; gap: 12px; min-height: 72px;
+  }
+  .back { width: 56px; min-width: 56px; background: var(--card-2); font-size: 26px; }
+  .title { flex: 1; min-width: 0; }
+  .title h1 { margin: 0; font-size: 20px; font-weight: 700; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .title small { color: var(--muted); font-size: 14px; display: block; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .waiter-btn { background: var(--card-2); padding: 0 16px; font-weight: 600; max-width: 40vw; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  #connection { display: flex; align-items: center; gap: 8px; color: var(--muted); font-size: 13px; white-space: nowrap; }
+  #dot { width: 12px; height: 12px; border-radius: 50%; background: var(--red); box-shadow: 0 0 0 3px rgba(239,68,68,.25); }
+  #dot.online { background: var(--green); box-shadow: 0 0 0 3px rgba(34,197,94,.25); }
+
+  main { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+  .screen { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+
+  /* ─── Mesas ──────────────────────────────────────────────────────────── */
+  #tables { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 14px; padding: 16px; }
+  .tile {
+    min-height: 110px; border-radius: 16px; background: var(--card); border: 3px solid var(--green);
+    display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 6px; padding: 10px; text-align: center;
+  }
+  .tile b { font-size: 22px; }
+  .tile span { font-size: 14px; color: var(--muted); }
+  .tile.busy { border-color: var(--amber); background: rgba(245,158,11,.10); }
+  .tile.busy span { color: #FCD34D; }
+  .tile.ready { border-color: var(--accent); background: rgba(37,99,235,.12); }
+  .tile.ready span { color: #93C5FD; }
+  .tile.new { border-style: dashed; border-color: var(--line); color: var(--muted); }
+  .empty-note { padding: 40px 16px; text-align: center; color: var(--muted); font-size: 18px; }
+
+  /* ─── Comanda ────────────────────────────────────────────────────────── */
+  #comanda-body { flex: 1; display: grid; grid-template-columns: 3fr 2fr; grid-template-rows: minmax(0, 1fr); min-height: 0; }
+  #catalog { display: flex; flex-direction: column; min-height: 0; border-right: 1px solid var(--line); }
+  #categories { display: flex; gap: 8px; padding: 12px; overflow-x: auto; flex: none; border-bottom: 1px solid var(--line); }
+  .cat { background: var(--card-2); padding: 0 18px; font-weight: 600; white-space: nowrap; border: 2px solid transparent; }
+  .cat.active { background: var(--accent); border-color: #60A5FA; }
+  #products { flex: 1; overflow-y: auto; display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; padding: 12px; align-content: start; }
+  .prod { min-height: 84px; background: var(--card); border: 1px solid var(--line); display: flex; flex-direction: column; justify-content: center; align-items: center; gap: 4px; padding: 8px; text-align: center; }
+  .prod b { font-size: 16px; line-height: 1.2; }
+  .prod span { font-size: 14px; color: var(--muted); }
+  .prod.weighed span::after { content: " ⚖️ /kg"; }
+  .prod.flash { background: rgba(37,99,235,.35); }
+
+  #order { display: flex; flex-direction: column; min-height: 0; background: var(--card); }
+  #banner { padding: 12px 14px; background: rgba(37,99,235,.2); color: #93C5FD; font-weight: 600; text-align: center; border-bottom: 1px solid var(--line); }
+  #items { flex: 1; overflow-y: auto; list-style: none; margin: 0; padding: 0; }
+  .line { display: grid; grid-template-columns: 1fr auto; gap: 6px 10px; padding: 10px 14px; border-bottom: 1px solid var(--line); align-items: center; }
+  .line .name { font-size: 17px; font-weight: 600; }
+  .line .name small { color: var(--muted); font-weight: 500; }
+  .line .price { font-variant-numeric: tabular-nums; color: var(--muted); }
+  .line .note { grid-column: 1 / -1; color: #FCD34D; font-size: 14px; }
+  .line .note:empty { display: none; }
+  .line .row { grid-column: 1 / -1; display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+  .line.cancelled .name, .line.cancelled .price { text-decoration: line-through; color: var(--grey); }
+  .pill { font-size: 12px; font-weight: 700; text-transform: uppercase; letter-spacing: .05em; padding: 6px 10px; border-radius: 999px; background: var(--card-2); color: var(--muted); flex: 1; min-height: 32px; display: inline-flex; align-items: center; }
+  .pill.Pending { background: rgba(251,191,36,.18); color: #FBBF24; }
+  .pill.Confirmed { background: rgba(34,197,94,.18); color: var(--green); }
+  .pill.Cancelled { background: rgba(148,163,184,.18); color: var(--muted); }
+  .pill.Hold { background: rgba(96,165,250,.18); color: #60A5FA; }
+  .mini { min-height: 56px; min-width: 56px; padding: 0 14px; background: var(--card-2); font-weight: 600; font-size: 16px; }
+  .mini.danger { background: rgba(239,68,68,.2); color: #FCA5A5; }
+  .mini.danger.confirm { background: var(--red); color: #fff; }
+  #order-foot { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; padding: 12px; border-top: 1px solid var(--line); background: var(--card); padding-bottom: calc(12px + env(safe-area-inset-bottom, 0px)); }
+  .big { min-height: 64px; font-size: 18px; font-weight: 800; }
+  .big.send { background: #15803D; color: #fff; }
+  .big.pay { background: var(--accent); color: #fff; }
+
+  /* ─── Modal ──────────────────────────────────────────────────────────── */
+  .modal { position: fixed; inset: 0; background: rgba(0,0,0,.6); display: flex; align-items: center; justify-content: center; padding: 16px; z-index: 20; }
+  .sheet { background: var(--card); border-radius: 18px; padding: 18px; width: 100%; max-width: 520px; display: flex; flex-direction: column; gap: 14px; max-height: calc(100vh - 32px); overflow-y: auto; }
+  .sheet h2 { margin: 0; font-size: 20px; }
+  .sheet p { margin: 0; color: var(--muted); }
+  .sheet input, .sheet textarea { width: 100%; font-size: 18px; }
+  .sheet textarea { min-height: 100px; resize: vertical; }
+  .chips { display: flex; flex-wrap: wrap; gap: 8px; }
+  .chip { background: var(--card-2); padding: 0 14px; font-size: 15px; }
+  .chip.on { background: var(--accent); }
+  .sheet-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .sheet-actions.three { grid-template-columns: 1fr 1fr 1fr; }
+  .btn { background: var(--card-2); font-weight: 700; }
+  .btn.primary { background: var(--accent); color: #fff; }
+  .btn.danger { background: rgba(239,68,68,.25); color: #FCA5A5; }
+  .counter-note { font-size: 13px; color: var(--muted); text-align: right; }
+
+  #toast { position: fixed; left: 50%; bottom: calc(90px + env(safe-area-inset-bottom, 0px)); transform: translateX(-50%); background: var(--red); color: #fff; padding: 14px 20px; border-radius: 12px; font-weight: 600; max-width: calc(100vw - 32px); box-shadow: 0 8px 24px rgba(0,0,0,.4); opacity: 0; pointer-events: none; transition: opacity .2s; z-index: 30; }
+  #toast.show { opacity: 1; }
+  #toast.ok { background: #15803D; }
+
+  @media (max-width: 760px) {
+    #comanda-body { grid-template-columns: 1fr; grid-template-rows: minmax(0, 1fr) minmax(0, 1fr); }
+    #catalog { border-right: 0; border-bottom: 1px solid var(--line); }
+    .waiter-btn { max-width: 30vw; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <button class="back" id="btnBack" type="button" aria-label="Volver">‹</button>
+  <div class="title"><h1 id="hTitle">Mesas</h1><small id="hSub"></small></div>
+  <button class="waiter-btn" id="btnWaiter" type="button">👤</button>
+  <div id="connection"><span id="dot"></span><span id="connText">conectando…</span></div>
+</header>
+
+<main>
+  <section class="screen" id="screen-tables">
+    <div id="tables"></div>
+    <div class="empty-note" id="tablesEmpty" hidden>Sin mesas configuradas. Toca "➕ Mesa" para abrir una comanda.</div>
+  </section>
+
+  <section class="screen" id="screen-comanda" hidden>
+    <div id="comanda-body">
+      <div id="catalog">
+        <div id="categories"></div>
+        <div id="products"></div>
+      </div>
+      <div id="order">
+        <div id="banner" hidden>💳 Lista para pagar · cobrar en el POS</div>
+        <ul id="items"></ul>
+        <div id="order-foot">
+          <button class="big send" id="btnSend" type="button">🍳 Enviar ya</button>
+          <button class="big pay" id="btnReady" type="button">💳 Lista para pagar</button>
+        </div>
+      </div>
+    </div>
+  </section>
+</main>
+
+<div class="modal" id="modal" hidden>
+  <div class="sheet" id="sheet"></div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+(function () {
+  'use strict';
+
+  // ─── State ───────────────────────────────────────────────────────────────
+  var WAITER_KEY = 'comandera.waiter';
+  var waiter = '';
+  try { waiter = localStorage.getItem(WAITER_KEY) || ''; } catch (e) { waiter = ''; }
+
+  var settings = { confirmationDelaySeconds: 30, quickNotes: [], maxNotesLength: 200 };
+  var tables = [], comandas = [], categories = [], products = [];
+  var currentId = null, current = null, currentCategory = '';
+  var screen = 'tables';
+  var clockOffsetMs = 0;
+  var ws = null, wsBackoff = 1000, reconnectTimer = null, reloadTimer = null;
+  var pendingCancel = null, pendingCancelTimer = null;
+
+  var $ = function (id) { return document.getElementById(id); };
+  var tablesEl = $('tables'), itemsEl = $('items'), productsEl = $('products'), categoriesEl = $('categories');
+  var modal = $('modal'), sheet = $('sheet'), toastEl = $('toast');
+
+  var ITEM_STATUS = { Pending: 'Pendiente', Confirmed: 'En cocina', Cancelled: 'Anulado' };
+
+  // ─── Helpers ─────────────────────────────────────────────────────────────
+  function esc(s) {
+    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+  }
+  function parseUtc(s) {
+    if (!s) return null;
+    if (!/([zZ]|[+-]\d\d:?\d\d)$/.test(s)) s += 'Z';
+    var t = Date.parse(s);
+    return isNaN(t) ? null : t;
+  }
+  function now() { return Date.now() + clockOffsetMs; }
+  var nf = new Intl.NumberFormat('es', { minimumFractionDigits: 0, maximumFractionDigits: 2 });
+  function money(v) { return '$' + nf.format(Number(v) || 0); }
+  function fmtQty(q) {
+    var n = Number(q);
+    if (!isFinite(n)) return String(q);
+    return Math.round(n) === n ? String(n) : n.toFixed(3).replace(/0+$/, '').replace(/\.$/, '');
+  }
+  var toastTimer = null;
+  function toast(msg, ok) {
+    toastEl.textContent = msg;
+    toastEl.className = 'show' + (ok ? ' ok' : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.className = ''; }, 3200);
+  }
+  function api(method, path, body) {
+    var opts = { method: method, headers: { 'Accept': 'application/json' }, cache: 'no-store' };
+    if (body !== undefined) { opts.headers['Content-Type'] = 'application/json'; opts.body = JSON.stringify(body); }
+    return fetch(path, opts).then(function (res) {
+      return res.text().then(function (txt) {
+        var data = null;
+        if (txt) { try { data = JSON.parse(txt); } catch (e) { data = null; } }
+        if (!res.ok) {
+          var err = new Error((data && (data.error || data.title)) || ('Error ' + res.status));
+          err.status = res.status;
+          throw err;
+        }
+        return data;
+      });
+    });
+  }
+  function showError(err) { toast((err && err.message) || 'Error de conexión'); }
+
+  // ─── Modal ───────────────────────────────────────────────────────────────
+  function openModal(html) { sheet.innerHTML = html; modal.hidden = false; }
+  function closeModal() { modal.hidden = true; sheet.innerHTML = ''; }
+  modal.addEventListener('click', function (ev) { if (ev.target === modal) closeModal(); });
+
+  function askWaiter(forceAsk) {
+    if (waiter && !forceAsk) return;
+    openModal(
+      '<h2>👤 ¿Quién atiende?</h2><p>Tu nombre aparece en la comanda y en cocina.</p>' +
+      '<input id="inWaiter" type="text" maxlength="60" placeholder="Nombre del mesero" value="' + esc(waiter) + '" autocomplete="off">' +
+      '<div class="sheet-actions"><button class="btn" id="mCancel" type="button">Cancelar</button><button class="btn primary" id="mOk" type="button">Guardar</button></div>');
+    var input = $('inWaiter');
+    $('mCancel').onclick = function () { if (waiter) closeModal(); };
+    $('mOk').onclick = function () {
+      var v = input.value.trim();
+      if (!v) { input.focus(); return; }
+      waiter = v;
+      try { localStorage.setItem(WAITER_KEY, waiter); } catch (e) { /* private mode */ }
+      renderHeader();
+      closeModal();
+    };
+    input.onkeydown = function (ev) { if (ev.key === 'Enter') $('mOk').click(); };
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function askTableName() {
+    openModal(
+      '<h2>➕ Nueva mesa</h2><p>Nombre o número de la mesa.</p>' +
+      '<input id="inTable" type="text" maxlength="40" placeholder="Mesa 7" autocomplete="off">' +
+      '<div class="sheet-actions"><button class="btn" id="mCancel" type="button">Cancelar</button><button class="btn primary" id="mOk" type="button">Abrir</button></div>');
+    var input = $('inTable');
+    $('mCancel').onclick = closeModal;
+    $('mOk').onclick = function () {
+      var v = input.value.trim();
+      if (!v) { input.focus(); return; }
+      closeModal();
+      openComanda(v, null);
+    };
+    input.onkeydown = function (ev) { if (ev.key === 'Enter') $('mOk').click(); };
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function askWeight(product) {
+    openModal(
+      '<h2>⚖️ ' + esc(product.name) + '</h2><p>' + money(product.price) + ' por kg</p>' +
+      '<input id="inKg" type="number" inputmode="decimal" step="0.001" min="0.001" placeholder="Peso en kg" autocomplete="off">' +
+      '<div class="sheet-actions"><button class="btn" id="mCancel" type="button">Cancelar</button><button class="btn primary" id="mOk" type="button">Agregar</button></div>');
+    var input = $('inKg');
+    $('mCancel').onclick = closeModal;
+    $('mOk').onclick = function () {
+      var kg = parseFloat(String(input.value).replace(',', '.'));
+      if (!isFinite(kg)) { input.focus(); return; }
+      closeModal();
+      addItem(product, kg);
+    };
+    input.onkeydown = function (ev) { if (ev.key === 'Enter') $('mOk').click(); };
+    setTimeout(function () { input.focus(); }, 50);
+  }
+
+  function editNotes(item) {
+    var chips = (settings.quickNotes || []).map(function (q, i) {
+      return '<button class="chip" type="button" data-i="' + i + '">' + esc(q) + '</button>';
+    }).join('');
+    openModal(
+      '<h2>📝 Nota · ' + esc(item.productName) + '</h2>' +
+      (chips ? '<div class="chips">' + chips + '</div>' : '') +
+      '<textarea id="inNotes" maxlength="' + settings.maxNotesLength + '" placeholder="Sin cebolla, término medio…">' + esc(item.notes || '') + '</textarea>' +
+      '<div class="counter-note"><span id="nCount">0</span>/' + settings.maxNotesLength + '</div>' +
+      '<div class="sheet-actions three"><button class="btn" id="mCancel" type="button">Cancelar</button>' +
+      '<button class="btn danger" id="mClear" type="button">Quitar nota</button>' +
+      '<button class="btn primary" id="mOk" type="button">Guardar</button></div>');
+    var ta = $('inNotes'), count = $('nCount');
+    var updateCount = function () { count.textContent = ta.value.length; };
+    updateCount();
+    ta.oninput = updateCount;
+    Array.prototype.forEach.call(sheet.querySelectorAll('.chip'), function (chip) {
+      chip.onclick = function () {
+        var text = settings.quickNotes[Number(chip.getAttribute('data-i'))] || '';
+        var parts = ta.value.split(',').map(function (p) { return p.trim(); }).filter(Boolean);
+        var idx = parts.indexOf(text);
+        if (idx >= 0) parts.splice(idx, 1); else parts.push(text);
+        ta.value = parts.join(', ').slice(0, settings.maxNotesLength);
+        chip.classList.toggle('on', idx < 0);
+        updateCount();
+      };
+      if ((item.notes || '').indexOf(chip.textContent) >= 0) chip.classList.add('on');
+    });
+    $('mCancel').onclick = closeModal;
+    $('mClear').onclick = function () { closeModal(); saveNotes(item, ''); };
+    $('mOk').onclick = function () { var v = ta.value.trim(); closeModal(); saveNotes(item, v); };
+    setTimeout(function () { ta.focus(); }, 50);
+  }
+
+  // ─── Navigation ──────────────────────────────────────────────────────────
+  function show(name) {
+    screen = name;
+    $('screen-tables').hidden = name !== 'tables';
+    $('screen-comanda').hidden = name !== 'comanda';
+    renderHeader();
+    reloadCurrent();
+  }
+  function goTables() { currentId = null; current = null; pendingCancel = null; show('tables'); }
+  function goComanda(id) { currentId = id; current = null; itemsEl.innerHTML = ''; show('comanda'); }
+
+  $('btnBack').onclick = function () { if (screen === 'comanda') goTables(); else askWaiter(true); };
+  $('btnWaiter').onclick = function () { askWaiter(true); };
+
+  function renderHeader() {
+    $('btnWaiter').textContent = '👤 ' + (waiter || '¿Mesero?');
+    if (screen === 'tables') {
+      $('hTitle').textContent = 'Mesas';
+      $('hSub').textContent = comandas.length ? comandas.length + ' comanda(s) activa(s)' : 'Toca una mesa libre para abrir comanda';
+    } else if (current) {
+      $('hTitle').textContent = current.tableName + ' · #' + current.number + ' · ' + money(current.total);
+      var st = current.status === 'ReadyToPay' ? 'Lista para pagar' : current.status === 'Open' ? 'Abierta' : current.status;
+      $('hSub').textContent = st + ' · ' + (current.waiterName || '') + ' · ' + (current.items || []).filter(function (i) { return i.status !== 'Cancelled'; }).length + ' producto(s)';
+    } else {
+      $('hTitle').textContent = 'Comanda';
+      $('hSub').textContent = 'cargando…';
+    }
+  }
+
+  // ─── Mesas ───────────────────────────────────────────────────────────────
+  function loadTables() {
+    return Promise.all([api('GET', '/api/tables'), api('GET', '/api/comandas')]).then(function (r) {
+      tables = Array.isArray(r[0]) ? r[0] : [];
+      comandas = Array.isArray(r[1]) ? r[1] : [];
+      renderTables();
+      renderHeader();
+    }).catch(showError);
+  }
+
+  function renderTables() {
+    var byId = {}, byName = {};
+    comandas.forEach(function (c) { byId[c.id] = c; byName[(c.tableName || '').toLowerCase()] = c; });
+    var html = '', seen = {};
+    tables.forEach(function (t) {
+      var c = (t.openComandaId && byId[t.openComandaId]) || byName[(t.name || '').toLowerCase()] || null;
+      if (c) seen[c.id] = true;
+      html += tileHtml(t.name, c, t.id);
+    });
+    // Comandas on tables that are not configured (opened by name from a tablet) still show up.
+    comandas.forEach(function (c) { if (!seen[c.id]) html += tileHtml(c.tableName, c, null); });
+    html += '<button class="tile new" type="button" data-new="1"><b>➕ Mesa</b><span>abrir por nombre</span></button>';
+    tablesEl.innerHTML = html;
+    $('tablesEmpty').hidden = !(tables.length === 0 && comandas.length === 0);
+  }
+
+  function tileHtml(name, c, tableId) {
+    var cls = 'tile' + (c ? (c.status === 'ReadyToPay' ? ' ready' : ' busy') : '');
+    var sub = c ? ('Comanda #' + c.number + (c.status === 'ReadyToPay' ? ' · por pagar' : '') + ' · ' + money(c.total)) : 'libre';
+    return '<button class="' + cls + '" type="button" data-name="' + esc(name) + '"' +
+      (c ? ' data-comanda="' + esc(c.id) + '"' : '') + (tableId ? ' data-table="' + esc(tableId) + '"' : '') + '>' +
+      '<b>' + esc(name) + '</b><span>' + esc(sub) + '</span></button>';
+  }
+
+  tablesEl.addEventListener('click', function (ev) {
+    var tile = ev.target.closest('.tile');
+    if (!tile) return;
+    if (tile.getAttribute('data-new')) { askTableName(); return; }
+    var cid = tile.getAttribute('data-comanda');
+    if (cid) { goComanda(cid); return; }
+    openComanda(tile.getAttribute('data-name'), tile.getAttribute('data-table'));
+  });
+
+  function openComanda(tableName, tableId) {
+    if (!waiter) { askWaiter(true); return; }
+    api('POST', '/api/comandas', { tableName: tableName, waiterName: waiter, diningTableId: tableId || null })
+      .then(function (c) { if (c && c.id) goComanda(c.id); })
+      .catch(showError);
+  }
+
+  // ─── Catálogo ────────────────────────────────────────────────────────────
+  function loadCatalog() {
+    return Promise.all([api('GET', '/api/catalog/categories'), api('GET', '/api/catalog/products')]).then(function (r) {
+      categories = Array.isArray(r[0]) ? r[0] : [];
+      products = Array.isArray(r[1]) ? r[1] : [];
+      renderCategories();
+      renderProducts();
+    }).catch(showError);
+  }
+
+  function renderCategories() {
+    var list = [{ id: '', name: 'Todos' }].concat(categories);
+    categoriesEl.innerHTML = list.map(function (c) {
+      return '<button class="cat' + (String(c.id || '') === currentCategory ? ' active' : '') + '" type="button" data-id="' + esc(c.id || '') + '">' + esc(c.name) + '</button>';
+    }).join('');
+  }
+  categoriesEl.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.cat');
+    if (!b) return;
+    currentCategory = b.getAttribute('data-id') || '';
+    renderCategories();
+    renderProducts();
+  });
+
+  function renderProducts() {
+    var list = products.filter(function (p) { return !currentCategory || String(p.categoryId || '') === currentCategory; });
+    productsEl.innerHTML = list.map(function (p) {
+      return '<button class="prod' + (p.isWeighed ? ' weighed' : '') + '" type="button" data-id="' + esc(p.id) + '">' +
+        '<b>' + esc(p.name) + '</b><span>' + money(p.price) + '</span></button>';
+    }).join('') || '<div class="empty-note">Sin productos en esta categoría</div>';
+  }
+  productsEl.addEventListener('click', function (ev) {
+    var b = ev.target.closest('.prod');
+    if (!b || !current) return;
+    var p = products.find(function (x) { return x.id === b.getAttribute('data-id'); });
+    if (!p) return;
+    if (p.isWeighed) { askWeight(p); return; }
+    b.classList.add('flash');
+    setTimeout(function () { b.classList.remove('flash'); }, 250);
+    addItem(p, null);
+  });
+
+  // ─── Comanda ─────────────────────────────────────────────────────────────
+  function loadComanda() {
+    if (!currentId) return Promise.resolve();
+    var id = currentId;
+    return api('GET', '/api/comandas/' + encodeURIComponent(id)).then(function (c) {
+      if (id !== currentId) return;
+      current = c;
+      renderComanda();
+    }).catch(function (err) {
+      if (err && err.status === 404) { toast('La comanda ya no está activa'); goTables(); return; }
+      showError(err);
+    });
+  }
+
+  function applyComanda(c) {
+    if (c && c.id === currentId) { current = c; renderComanda(); }
+  }
+
+  function renderComanda() {
+    if (!current) return;
+    renderHeader();
+    var open = current.status === 'Open';
+    $('banner').hidden = open;
+    $('btnSend').disabled = !open || !(current.pendingCount > 0);
+    $('btnReady').disabled = !open;
+    var items = (current.items || []).slice();
+    itemsEl.innerHTML = items.map(lineHtml).join('') || '<div class="empty-note">Toca un producto para agregarlo</div>';
+    tick();
+  }
+
+  function lineHtml(i) {
+    var qty = i.weightKg != null ? fmtQty(i.weightKg) + ' kg' : fmtQty(i.quantity) + '×';
+    var pending = i.status === 'Pending';
+    var actions = pending && current.status === 'Open'
+      ? '<button class="mini" type="button" data-act="note" data-id="' + esc(i.id) + '">📝 Nota</button>' +
+        '<button class="mini danger' + (pendingCancel === i.id ? ' confirm' : '') + '" type="button" data-act="cancel" data-id="' + esc(i.id) + '">' + (pendingCancel === i.id ? '¿Anular?' : '✕') + '</button>'
+      : '';
+    return '<li class="line ' + esc(i.status) + (i.status === 'Cancelled' ? ' cancelled' : '') + '" data-id="' + esc(i.id) + '" data-added="' + esc(i.addedAt || '') + '">' +
+      '<div class="name">' + esc(qty) + ' ' + esc(i.productName) + (i.station ? ' <small>· ' + esc(i.station) + '</small>' : '') + '</div>' +
+      '<div class="price">' + money(i.total) + '</div>' +
+      '<div class="note">' + esc(i.notes || '') + '</div>' +
+      '<div class="row"><span class="pill ' + esc(i.isOnHold && pending ? 'Hold' : i.status) + '">' + esc(i.isOnHold && pending ? 'En espera' : (ITEM_STATUS[i.status] || i.status)) + '</span>' + actions + '</div>' +
+      '</li>';
+  }
+
+  // Pending countdown: addedAt + confirmationDelaySeconds (the server does the actual confirm).
+  function tick() {
+    if (screen !== 'comanda' || !current) return;
+    var lines = itemsEl.querySelectorAll('.line.Pending');
+    Array.prototype.forEach.call(lines, function (li) {
+      var pill = li.querySelector('.pill');
+      if (!pill || pill.classList.contains('Hold')) return;
+      var added = parseUtc(li.getAttribute('data-added'));
+      if (!added) return;
+      var left = Math.ceil((added + settings.confirmationDelaySeconds * 1000 - now()) / 1000);
+      pill.textContent = left > 0 ? 'Pendiente · ' + left + ' s' : 'Enviando a cocina…';
+    });
+  }
+
+  itemsEl.addEventListener('click', function (ev) {
+    var b = ev.target.closest('button[data-act]');
+    if (!b || !current) return;
+    var id = b.getAttribute('data-id');
+    var item = (current.items || []).find(function (x) { return x.id === id; });
+    if (!item) return;
+    if (b.getAttribute('data-act') === 'note') { editNotes(item); return; }
+    // Two-tap cancel: first tap arms the button for 3 s, second tap sends.
+    if (pendingCancel !== id) {
+      pendingCancel = id;
+      clearTimeout(pendingCancelTimer);
+      pendingCancelTimer = setTimeout(function () { pendingCancel = null; renderComanda(); }, 3000);
+      renderComanda();
+      return;
+    }
+    clearTimeout(pendingCancelTimer);
+    pendingCancel = null;
+    api('POST', '/api/comandas/' + encodeURIComponent(current.id) + '/items/' + encodeURIComponent(id) + '/cancel')
+      .then(applyComanda).catch(function (err) { showError(err); scheduleReload(); });
+  });
+
+  function addItem(product, kg) {
+    if (!current) return;
+    var body = { productId: product.id, quantity: 1 };
+    if (kg != null) body.weightKg = kg;
+    api('POST', '/api/comandas/' + encodeURIComponent(current.id) + '/items', body)
+      .then(applyComanda).catch(function (err) { showError(err); scheduleReload(); });
+  }
+
+  function saveNotes(item, notes) {
+    if (!current) return;
+    api('POST', '/api/comandas/' + encodeURIComponent(current.id) + '/items/' + encodeURIComponent(item.id) + '/notes', { notes: notes })
+      .then(applyComanda).catch(function (err) { showError(err); scheduleReload(); });
+  }
+
+  $('btnSend').onclick = function () {
+    if (!current) return;
+    $('btnSend').disabled = true;
+    api('POST', '/api/comandas/' + encodeURIComponent(current.id) + '/send')
+      .then(function (c) { applyComanda(c); toast('Enviado a cocina', true); })
+      .catch(function (err) { showError(err); scheduleReload(); });
+  };
+  $('btnReady').onclick = function () {
+    if (!current) return;
+    $('btnReady').disabled = true;
+    api('POST', '/api/comandas/' + encodeURIComponent(current.id) + '/ready')
+      .then(function (c) { applyComanda(c); toast('Lista para pagar · cobrar en el POS', true); })
+      .catch(function (err) { showError(err); scheduleReload(); });
+  };
+
+  // ─── Refresh (5 s + WebSocket) ───────────────────────────────────────────
+  function reloadCurrent() { return screen === 'comanda' ? loadComanda() : loadTables(); }
+  function scheduleReload() { clearTimeout(reloadTimer); reloadTimer = setTimeout(reloadCurrent, 300); }
+
+  function setOnline(on) {
+    $('dot').className = on ? 'online' : '';
+    $('connText').textContent = on ? 'en línea' : 'reconectando…';
+  }
+  function connect(force) {
+    clearTimeout(reconnectTimer);
+    if (ws) { var old = ws; ws = null; old.manualClose = true; try { old.close(); } catch (e) { /* ignore */ } }
+    if (force) wsBackoff = 1000;
+    var url = (location.protocol === 'https:' ? 'wss://' : 'ws://') + location.host + '/ws/kds';
+    var socket;
+    try { socket = new WebSocket(url); } catch (e) { scheduleReconnect(); return; }
+    ws = socket;
+    socket.onopen = function () { if (ws !== socket) return; wsBackoff = 1000; setOnline(true); scheduleReload(); };
+    socket.onmessage = function (ev) {
+      if (ws !== socket) return;
+      if (typeof ev.data === 'string' && ev.data.trim() === 'pong') return;
+      scheduleReload();
+    };
+    socket.onerror = function () { /* onclose follows */ };
+    socket.onclose = function () {
+      if (socket.manualClose) return;
+      if (ws === socket) ws = null;
+      setOnline(false);
+      scheduleReconnect();
+    };
+  }
+  function scheduleReconnect() {
+    clearTimeout(reconnectTimer);
+    reconnectTimer = setTimeout(function () { connect(false); }, wsBackoff);
+    wsBackoff = Math.min(wsBackoff * 2, 10000);
+  }
+  function ping() { if (ws && ws.readyState === 1) { try { ws.send('ping'); } catch (e) { /* onclose follows */ } } }
+
+  function syncClock() {
+    var sent = Date.now();
+    return api('GET', '/health').then(function (h) {
+      var serverMs = h && parseUtc(h.utcNow);
+      if (serverMs) clockOffsetMs = serverMs + (Date.now() - sent) / 2 - Date.now();
+    }).catch(function () { /* keep previous offset */ });
+  }
+  function loadSettings() {
+    return api('GET', '/api/comandas/settings').then(function (s) {
+      if (!s) return;
+      settings.confirmationDelaySeconds = Number(s.confirmationDelaySeconds) || settings.confirmationDelaySeconds;
+      settings.quickNotes = Array.isArray(s.quickNotes) ? s.quickNotes : [];
+      settings.maxNotesLength = Number(s.maxNotesLength) || settings.maxNotesLength;
+    }).catch(function () { /* defaults */ });
+  }
+
+  // ─── Boot ────────────────────────────────────────────────────────────────
+  setOnline(false);
+  renderHeader();
+  syncClock().then(loadSettings).then(loadCatalog).then(loadTables).then(function () { askWaiter(false); });
+  connect(true);
+  setInterval(tick, 1000);
+  setInterval(function () { reloadCurrent(); }, 5000);
+  setInterval(function () { syncClock(); loadCatalog(); }, 300000);
+  setInterval(ping, 25000);
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') { reloadCurrent(); if (!ws || ws.readyState > 1) connect(true); }
+  });
+})();
+</script>
+</body>
+</html>

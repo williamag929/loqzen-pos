@@ -84,6 +84,7 @@ public class KitchenService : IKitchenService
         if (ko.Status == KitchenOrderStatus.Delivered) ko.DeliveredAt = UtcNow;
         ko.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        Publish(KitchenEventType.StatusChanged, ko);
         return ko;
     }
 
@@ -95,6 +96,7 @@ public class KitchenService : IKitchenService
             ko.PrintedAt = UtcNow;
             ko.UpdatedAt = UtcNow;
             await _db.SaveChangesAsync(ct);
+            Publish(KitchenEventType.Printed, ko);
         }
         return ko;
     }
@@ -108,6 +110,7 @@ public class KitchenService : IKitchenService
         ko.DeliveredAt = null;
         ko.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        Publish(KitchenEventType.Undone, ko);
         return ko;
     }
 

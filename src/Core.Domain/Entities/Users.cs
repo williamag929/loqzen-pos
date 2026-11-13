@@ -41,4 +41,13 @@ public class ManagerOverride : BaseEntity
     public string? Reference { get; set; }
 
     public DateTime AuthorizedAt { get; set; } = DateTime.UtcNow;
+
+    /// <summary>
+    /// An override is single-use: it is consumed by the FIRST sensitive operation that verifies it
+    /// (set in the same SaveChanges as that operation). Null = still available.
+    /// </summary>
+    public DateTime? ConsumedAt { get; set; }
+
+    /// <summary>What consumed it, free text (max 200), e.g. "ComandaItem &lt;id&gt;".</summary>
+    public string? ConsumedFor { get; set; }
 }

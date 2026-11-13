@@ -78,5 +78,6 @@ public partial class ComandaViewModel
         Items.Clear();
         ReceiptPreview.Clear();
         PanelIndex = 0;
+        PushToCustomerDisplay(); // Current == null → checkout cart if it has items, otherwise welcome screen
     }
 }

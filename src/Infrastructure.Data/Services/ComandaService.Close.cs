@@ -24,7 +24,7 @@ public partial class ComandaService
         ConfirmItems(comanda, comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList());
         comanda.Status = ComandaStatus.ReadyToPay;
         comanda.UpdatedAt = UtcNow;
-        await _db.SaveChangesAsync(ct);
+        await SaveAndPublishTicketsAsync(ct);
         return MapToDto(comanda);
     }
 
@@ -93,7 +93,7 @@ public partial class ComandaService
             UpdatedAt = UtcNow
         });
 
-        await _db.SaveChangesAsync(ct);
+        await SaveAndPublishTicketsAsync(ct);
         return PaymentResultDto.Successful(order.Id, order.OrderNumber, change);
     }
 

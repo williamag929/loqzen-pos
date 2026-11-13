@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Hardware;
+using Core.Application.Kitchen;
 using Core.Application.Receipts;
 using Core.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
@@ -30,11 +31,14 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     private readonly TimeProvider _clock;
     private readonly IManagerAuthPrompt _authPrompt;
     private readonly IUserSession _session;
+    private readonly CustomerDisplayViewModel _display;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _eventDebounce;
+    private readonly IDisposable _eventSubscription;
     private bool _tickRunning;
 
     public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock,
-        IManagerAuthPrompt authPrompt, IUserSession session)
+        IManagerAuthPrompt authPrompt, IUserSession session, IKitchenEventBus events, CustomerDisplayViewModel display)
     {
         _scopes = scopes;
         _printer = printer;
@@ -42,6 +46,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         _clock = clock;
         _authPrompt = authPrompt;
         _session = session;
+        _display = display;
 
         // The waiter is whoever signed in on this terminal (falls back to the generic label).
         ApplySessionWaiter();
@@ -53,6 +58,21 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += async (_, _) => await TickAsync();
         _timer.Start();
+
+        // A comandera tablet (REST) may add items / open comandas: new kitchen tickets mean the list
+        // and the current comanda are stale. Created events within 150 ms coalesce into one refresh.
+        _eventDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _eventDebounce.Tick += async (_, _) =>
+        {
+            _eventDebounce.Stop();
+            try { await RefreshAsync(); }
+            catch (Exception ex) { StatusMessage = $"❌ Error actualizando: {ex.Message}"; }
+        };
+        _eventSubscription = events.Subscribe(e =>
+        {
+            if (e.Type != KitchenEventType.Created) return;
+            Dispatcher.UIThread.Post(() => { _eventDebounce.Stop(); _eventDebounce.Start(); });
+        });
     }
 
     // ── Navigation (0 = comandas, 1 = comanda actual, 2 = cierre/pago) ──────
@@ -130,7 +150,12 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         await RefreshAsync();
     }
 
-    public void Dispose() => _timer.Stop();
+    public void Dispose()
+    {
+        _timer.Stop();
+        _eventDebounce.Stop();
+        _eventSubscription.Dispose();
+    }
 
     private async Task TickAsync()
     {

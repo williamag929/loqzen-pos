@@ -34,7 +34,11 @@
             <!-- LEFT PANEL: TICKET DETAIL -->
             <Border Grid.Column="0" Background="#1C2541" CornerRadius="12" Padding="20" Margin="0,0,14,0" BorderBrush="#3A506B" BorderThickness="1">
                 <Grid RowDefinitions="Auto, *, Auto">
-                    <TextBlock Grid.Row="0" Text="📋 Detalle de su Compra" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,16"/>
+                    <!-- "Su compra" for quick sale, "Mesa 4 · Comanda #12" when fed by the comanda screen -->
+                    <StackPanel Grid.Row="0" Orientation="Horizontal" Spacing="8" Margin="0,0,0,16">
+                        <TextBlock Text="📋" Foreground="White" FontSize="20" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding ContextTitle}" Foreground="White" FontSize="20" FontWeight="Bold" TextTrimming="CharacterEllipsis"/>
+                    </StackPanel>
 
                     <!-- Scrollable items list -->
                     <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">

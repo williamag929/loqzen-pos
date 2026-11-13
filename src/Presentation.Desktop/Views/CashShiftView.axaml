@@ -11,7 +11,7 @@
 
         <!-- ── HEADER ──────────────────────────────────────────────────── -->
         <Border Grid.Row="0" Background="#020617" Padding="24,16" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
-            <Grid ColumnDefinitions="*, Auto, Auto">
+            <Grid ColumnDefinitions="*, Auto, Auto, Auto">
                 <!-- Shift Status -->
                 <Border Grid.Column="0" BorderBrush="{Binding ShiftStatusColor}" BorderThickness="0,0,0,2" Padding="0,0,0,4">
                     <TextBlock Text="{Binding ShiftStatusText}"
@@ -19,8 +19,22 @@
                                FontSize="16" FontWeight="Bold" VerticalAlignment="Center"/>
                 </Border>
 
+                <!-- Outbox sync (ERP webhook): counts + retry of Failed messages. Always visible. -->
+                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" Margin="10,0" VerticalAlignment="Center">
+                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,0" Height="48">
+                        <TextBlock Text="{Binding SyncStatusText}" Foreground="#94A3B8" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    </Border>
+                    <Button Height="48" Padding="14,0"
+                            Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8"
+                            Foreground="#F59E0B" FontSize="13" FontWeight="Bold"
+                            Content="🔁 Reintentar fallidos"
+                            IsVisible="{Binding HasFailedSync}"
+                            IsEnabled="{Binding !IsRetryingSync}"
+                            Command="{Binding RetryFailedSyncCommand}"/>
+                </StackPanel>
+
                 <!-- Open Button -->
-                <Button Grid.Column="1"
+                <Button Grid.Column="2"
                         Height="52" Padding="22,0" Margin="10,0"
                         Background="#2563EB" Foreground="White"
                         FontSize="15" FontWeight="Bold" CornerRadius="8"
@@ -29,7 +43,7 @@
                         Command="{Binding ShowOpenDialogCommand}"/>
 
                 <!-- Close Button -->
-                <Button Grid.Column="2"
+                <Button Grid.Column="3"
                         Height="52" Padding="22,0"
                         Background="#DC2626" Foreground="White"
                         FontSize="15" FontWeight="Bold" CornerRadius="8"

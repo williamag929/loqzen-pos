@@ -28,6 +28,7 @@
     <ProjectReference Include="..\..\src\Core.Domain\Core.Domain.csproj" />
     <ProjectReference Include="..\..\src\Core.Application\Core.Application.csproj" />
     <ProjectReference Include="..\..\src\Infrastructure.Data\Infrastructure.Data.csproj" />
+    <ProjectReference Include="..\..\src\Presentation.Server\Presentation.Server.csproj" />
   </ItemGroup>
 
 </Project>

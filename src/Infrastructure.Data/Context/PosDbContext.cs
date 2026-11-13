@@ -255,6 +255,7 @@ public class PosDbContext : DbContext
             entity.Property(m => m.ManagerName).IsRequired().HasMaxLength(100);
             entity.Property(m => m.RequestedByName).HasMaxLength(100);
             entity.Property(m => m.Reference).HasMaxLength(200);
+            entity.Property(m => m.ConsumedFor).HasMaxLength(200);
             entity.Property(m => m.Amount).HasPrecision(18, 2);
             entity.HasIndex(m => m.AuthorizedAt);
             entity.HasIndex(m => m.Action);

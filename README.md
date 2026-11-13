@@ -6,7 +6,7 @@
 [![.NET](https://img.shields.io/badge/.NET-8.0-512BD4?logo=dotnet&logoColor=white)](#-stack)
 [![Avalonia UI](https://img.shields.io/badge/Avalonia%20UI-11.2-blueviolet)](#-stack)
 [![SQLite](https://img.shields.io/badge/SQLite-Offline--First-003B57?logo=sqlite&logoColor=white)](#-stack)
-[![Tests](https://img.shields.io/badge/tests-201%20passing-success)](#-tests)
+[![Tests](https://img.shields.io/badge/tests-340%20passing-success)](#-tests)
 
 👉 **¿Vas a colaborar? Lee primero [`CONTRIBUTING.md`](CONTRIBUTING.md).**
 
@@ -43,10 +43,13 @@
 | Maestros (productos, categorías, impuestos, clientes) | ✅ |
 | Impresión ESC/POS por TCP 9100 + respaldo TXT si falla + pulso de cajón | ✅ |
 | Visor de cliente (segunda pantalla) | ✅ venta rápida · ⚠️ no muestra comandas |
-| Servidor Kestrel (REST + WebSocket para KDS/comanderas) | ⚠️ proceso **separado**, no embebido |
+| **Servidor LAN embebido** (Kestrel dentro del escritorio): REST + WebSocket, **KDS web** y **comandera web** para tablets/celulares en `http://<ip>:5055/kds` y `/comandera` | ✅ |
+| KDS de escritorio **en tiempo real** (eventos, sin esperar la encuesta) | ✅ |
+| **Sincronización Outbox → ERP/webhook** con reintentos y estado en Turno de Caja (`Sync:Enabled`) | ✅ |
+| Bloqueo tras 5 PIN fallidos (30 s) · autorizaciones de gerente de un solo uso | ✅ |
 | **Usuarios con PIN** (4–6 dígitos), roles Cocina/Mesero/Cajero/Gerente/Admin, pestañas según rol | ✅ |
 | **Autorización de gerente** (PIN) para devoluciones, descuentos y anular productos ya en cocina, con auditoría (`ManagerOverrides`) | ✅ |
-| Android, ZPL, mDNS, sincronización con ERP | ❌ pendiente (diseñado, no implementado) |
+| Segunda caja (modo satélite), datáfono, ZPL, mDNS, app Android nativa | ❌ pendiente |
 
 Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
 
@@ -109,6 +112,12 @@ Apertura con fondo inicial; cierre con conteo por denominación (100.000 … 50)
 PIN de 4–6 dígitos en pantalla táctil (sin usuario, el PIN identifica a la persona; se guarda con hash PBKDF2 y no puede repetirse entre usuarios activos). Roles ordenados por privilegio: **Cocina** (solo KDS) → **Mesero** (+Comandas) → **Cajero** (+Punto de Venta, Turno) → **Gerente** (+Maestros, autoriza) → **Admin** (+crea otros Admin). Las pestañas se muestran según el rol y el chip 👤 permite **Cambiar usuario**.
 Devolver un producto, aplicar descuento o **anular un producto que ya está en cocina** abre el modal de PIN de gerente (si quien está conectado ya es gerente, se registra sin preguntar). Cada aprobación queda en `ManagerOverrides` (quién autorizó, a quién, monto, referencia, hora). En el KDS el producto anulado aparece tachado con etiqueta **ANULADO**; si no queda nada por cocinar la orden se cancela.
 
+### Pantallas en red (🌐 KDS web y comandera web)
+El escritorio arranca un servidor Kestrel en el puerto 5055 (chip 🌐 en la barra superior; tocarlo copia la URL). Cualquier tablet o celular en la misma red abre:
+- `http://<ip>:5055/kds` — KDS de cocina en el navegador: filtro por estación, colores por tiempo, PREPARAR → LISTO → ENTREGAR con deshacer, impresión, productos anulados tachados. Se actualiza por WebSocket al instante y reconecta solo.
+- `http://<ip>:5055/comandera` — comandera para meseros: mesas libres/ocupadas, categorías → productos, notas rápidas, anular pendientes, "Enviar ya" y "Lista para pagar". El cobro sigue en la caja.
+Todo pasa por los mismos servicios que el escritorio (mismas reglas, misma base de datos). API REST documentada en `src/Presentation.Server/Endpoints/`.
+
 ## 🛠 Stack
 
 | Capa | Tecnología |
@@ -117,7 +126,7 @@ Devolver un producto, aplicar descuento o **anular un producto que ya está en c
 | UI | Avalonia UI 11.2 + Fluent, MVVM con **CommunityToolkit.Mvvm 8.3** |
 | Persistencia | SQLite + EF Core 8.0.11, **migraciones** (`dotnet-ef` herramienta local) |
 | DI / config | Microsoft.Extensions.DependencyInjection + `appsettings.json` |
-| Servidor LAN | ASP.NET Core minimal API + WebSockets (`Presentation.Server`, proceso aparte) |
+| Servidor LAN | ASP.NET Core minimal API + WebSockets (`Presentation.Server`, **biblioteca embebida** en el escritorio) |
 | Hardware | TCP raw (ESC/POS), `System.IO.Ports` (balanza CAS), USB HID (escáner) |
 | Tests | xUnit, FluentAssertions, Moq, EF InMemory + SQLite real |
 | Emuladores | Docker Compose + Python |
@@ -136,7 +145,7 @@ loqzen-pos/
 │   ├── Infrastructure.Data/      # PosDbContext, Migrations/, Seed/DbInitializer, Services/
 │   ├── Infrastructure.Hardware/  # Impresora ESC/POS (+EscPosRenderer), balanza, escáner (reales y mock)
 │   ├── Presentation.Desktop/     # App Avalonia: Views/, ViewModels/, Controls/, Converters/
-│   └── Presentation.Server/      # Kestrel: REST KDS/catálogo + WebSocket /ws/kds
+│   └── Presentation.Server/      # Biblioteca Kestrel embebida: REST, WebSocket /ws/kds, wwwroot/kds.html + comandera.html
 ├── tests/Loqzen.Tests/           # Domain/, Services/, Integration/ (SQLite real), Receipts/, Ui/
 ├── docker/                       # docker-compose.yml + emulator/{printer,scale,webhook}
 ├── Docs/                         # Especificaciones, handoff.md (estado y pendientes)
@@ -160,6 +169,9 @@ loqzen-pos/
 | | `QuickNotes` | 12 notas | Botones de notas rápidas ("Sin cebolla"…) |
 | `Authorization` | `RequireLogin` | `true` | `false` = terminal abierto sin pantalla de PIN (p. ej. KDS de cocina) |
 | | `ManagerRequiredFor` | `ReturnItem`, `ApplyDiscount`, `CancelKitchenItem` | Acciones que piden PIN de gerente (también `OpenCashDrawer`, `CloseShift`); `[]` = ninguna |
+| `Server` | `Enabled` / `Port` / `BindAddress` | `true` / `5055` / `0.0.0.0` | Servidor LAN embebido (KDS web, comandera web, REST, WebSocket). `127.0.0.1` = solo este equipo |
+| `Sync` | `Enabled` / `WebhookUrl` / `ApiKey` | `false` / `http://localhost:5000/webhook` / — | Envío del Outbox a un ERP o webhook (POST JSON, `Authorization: Bearer`) |
+| | `IntervalSeconds` / `BatchSize` / `MaxRetries` / `TimeoutSeconds` | `15` / `50` / `10` / `10` | Reintentos con espera exponencial (1 s … 5 min); tras `MaxRetries` queda *fallido* y se reintenta desde Caja |
 | `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
 | | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
 | | `PollSeconds` | `3` | Cada cuánto el KDS revisa órdenes nuevas |
@@ -236,10 +248,15 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] Fase 2 – ESC/POS, cajón, balanza, escáner, emuladores Docker
 - [x] Fase 3 (parcial) – visor de cliente, comandas multi-mesa, KDS
 - [x] Usuarios/PIN y autorización de gerente (devoluciones, descuentos, anular en cocina)
-- [ ] Kestrel embebido en el escritorio + KDS/comanderas en red en tiempo real (WebSocket)
-- [ ] Visor de cliente para comandas
+- [x] Kestrel embebido en el escritorio + KDS web y comandera web en tiempo real (WebSocket)
+- [x] Visor de cliente para comandas
+- [x] Despachador del Outbox hacia ERP/webhook
+- [ ] **Pago de recibos / recaudos en caja** (servicios públicos, recargas, convenios): módulo con comisión, su propio comprobante y **entrada al cuadre de caja** como movimiento aparte de las ventas
+- [ ] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
+- [ ] **Segunda caja** (modo maestro/satélite: `TerminalId` en ventas y turnos, varios turnos abiertos, servicios del escritorio sobre HTTP)
 - [ ] Datáfono semi-integrado (`IPaymentTerminalService`: el POS envía el monto, el datáfono cobra chip/NFC/Apple Pay/Google Pay y responde aprobado → pago con tarjeta se confirma solo) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
-- [ ] ZPL, mDNS, Android, sincronización del Outbox con ERP
+- [ ] **Pago en la mesa**: una sola caja y varios datáfonos inalámbricos (Wi-Fi/4G) asignados a meseros. Desde la comandera web el mesero toca "Cobrar en mesa" → el POS envía el monto al datáfono del mesero → el cliente paga en la mesa (tap, chip, Apple Pay / Google Pay) sin acercarse a la caja ni entregar la tarjeta → el datáfono responde aprobado → la comanda se cierra y factura sola en la caja. Requiere el `IPaymentTerminalService` anterior con soporte multi-terminal (un datáfono por mesero/mesa) y el endpoint de cierre en `Presentation.Server`.
+- [ ] ZPL, mDNS, app Android nativa
 
 ---
 

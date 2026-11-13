@@ -4,6 +4,7 @@ using System.Linq;
 using System.Threading;
 using System.Threading.Tasks;
 using Core.Application.DTOs;
+using Core.Application.Kitchen;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
@@ -23,12 +24,15 @@ public partial class ComandaService : IComandaService
     private readonly PosDbContext _db;
     private readonly ComandaSettings _settings;
     private readonly TimeProvider _clock;
+    private readonly IKitchenEventBus? _events;
 
-    public ComandaService(PosDbContext db, ComandaSettings settings, TimeProvider clock)
+    /// <param name="events">Optional: when provided, every KitchenOrder created/changed here publishes a KitchenEvent after SaveChanges.</param>
+    public ComandaService(PosDbContext db, ComandaSettings settings, TimeProvider clock, IKitchenEventBus? events = null)
     {
         _db = db;
         _settings = settings;
         _clock = clock;
+        _events = events;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;

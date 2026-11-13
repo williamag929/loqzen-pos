@@ -16,19 +16,25 @@ namespace Infrastructure.Data.Services;
 /// <summary>
 /// Staff users with PIN login. PINs are stored as PBKDF2 hashes (<see cref="PinHasher"/>) and must be
 /// unique among active users so PIN-only sign in is unambiguous.
+/// Login attempts go through an optional <see cref="IPinAttemptLimiter"/> (scope "login"): per terminal and
+/// in-memory, so restarting the app clears it. Good enough for a touch POS; the goal is to stop casual PIN guessing.
 /// </summary>
 public class UserService : IUserService
 {
     private const int MaxNameLength = 100;
     private const string PinInUseMessage = "Ese PIN ya está en uso por otro usuario.";
+    private const string LoginScope = "login";
 
     private readonly PosDbContext _db;
     private readonly TimeProvider _clock;
+    private readonly IPinAttemptLimiter? _limiter;
 
-    public UserService(PosDbContext db, TimeProvider clock)
+    /// <param name="limiter">Optional: locks PIN login after repeated failures (see <see cref="PinAttemptLimiter"/>).</param>
+    public UserService(PosDbContext db, TimeProvider clock, IPinAttemptLimiter? limiter = null)
     {
         _db = db;
         _clock = clock;
+        _limiter = limiter;
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
@@ -106,16 +112,31 @@ public class UserService : IUserService
         await _db.SaveChangesAsync(ct);
     }
 
+    /// <summary>
+    /// PIN-only sign in. Throws <see cref="PinLockedException"/> while the terminal is locked after too many
+    /// failures (even for the right PIN). A malformed PIN counts as a failed attempt.
+    /// </summary>
     public async Task<UserDto?> AuthenticateByPinAsync(string pin, CancellationToken ct = default)
     {
-        if (!PinHasher.IsValidPin(pin)) return null;
+        _limiter?.EnsureNotLocked(LoginScope);
+
+        if (!PinHasher.IsValidPin(pin))
+        {
+            _limiter?.RegisterFailure(LoginScope);
+            return null;
+        }
 
         var active = await _db.Users.Where(u => u.IsActive).ToListAsync(ct);
         var user = active.FirstOrDefault(u => PinHasher.Verify(pin, u.PinHash));
-        if (user == null) return null;
+        if (user == null)
+        {
+            _limiter?.RegisterFailure(LoginScope);
+            return null;
+        }
 
         user.LastLoginAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        _limiter?.RegisterSuccess(LoginScope);
         return MapToDto(user);
     }
 

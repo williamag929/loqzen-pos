@@ -1,11 +1,13 @@
 using System;
 using System.Linq;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -13,6 +15,7 @@ public partial class CashShiftViewModel : ObservableObject
 {
     private readonly ICashShiftService _service;
     private readonly IUserSession _session;
+    private readonly OutboxSyncWorker _sync;
 
     // ── Current Shift State ──────────────────────────────────────────────────
     [ObservableProperty] private CashShift? _currentShift;
@@ -39,11 +42,55 @@ public partial class CashShiftViewModel : ObservableObject
 
     [ObservableProperty] private string _notification = string.Empty;
 
-    public CashShiftViewModel(ICashShiftService cashShiftService, IUserSession session)
+    // ── Outbox sync indicator (header) ───────────────────────────────────────
+    [ObservableProperty] private string _syncStatusText = "☁️ Sincronización: desactivada";
+    [ObservableProperty] private bool _hasFailedSync;
+    [ObservableProperty] private bool _isRetryingSync;
+
+    public CashShiftViewModel(ICashShiftService cashShiftService, IUserSession session, OutboxSyncWorker sync)
     {
         _service = cashShiftService;
         _session = session;
+        _sync = sync;
+        _sync.Changed += () => Dispatcher.UIThread.Post(UpdateSyncStatus); // worker already posts, this is belt and braces
+        UpdateSyncStatus();
         _ = LoadCurrentShiftAsync();
+    }
+
+    private void UpdateSyncStatus()
+    {
+        if (!_sync.IsEnabled)
+        {
+            SyncStatusText = "☁️ Sincronización: desactivada";
+            HasFailedSync = false;
+            return;
+        }
+
+        var (pending, failed, _) = _sync.Counts;
+        var last = _sync.LastRunAt is { } t ? t.ToLocalTime().ToString("HH:mm") : "—";
+        var text = $"☁️ {pending} pendientes · {failed} {(failed == 1 ? "fallido" : "fallidos")} · última: {last}";
+        if (_sync.LastError != null) text += " · ⚠️ error de envío";
+        SyncStatusText = text;
+        HasFailedSync = failed > 0;
+    }
+
+    /// <summary>"🔁 Reintentar fallidos": Failed → Pending so the next pass sends them again.</summary>
+    [RelayCommand]
+    private async Task RetryFailedSyncAsync()
+    {
+        if (IsRetryingSync) return;
+        IsRetryingSync = true;
+        try
+        {
+            var reset = await _sync.RetryFailedAsync();
+            Notification = reset > 0 ? $"🔁 {reset} mensaje(s) vuelven a la cola de envío" : "No hay mensajes fallidos";
+            if (reset > 0) _ = _sync.RunOnceAsync(); // don't wait for the next tick
+        }
+        finally
+        {
+            IsRetryingSync = false;
+            UpdateSyncStatus();
+        }
     }
 
     public async Task LoadCurrentShiftAsync()

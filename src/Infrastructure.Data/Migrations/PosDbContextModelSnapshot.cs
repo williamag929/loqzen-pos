@@ -448,6 +448,13 @@ namespace Infrastructure.Data.Migrations
                     b.Property<DateTime>("AuthorizedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<DateTime?>("ConsumedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ConsumedFor")
+                        .HasMaxLength(200)
+                        .HasColumnType("TEXT");
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 

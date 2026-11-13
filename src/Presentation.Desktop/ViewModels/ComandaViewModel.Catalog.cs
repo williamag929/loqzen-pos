@@ -174,6 +174,7 @@ public partial class ComandaViewModel
             Items.Add(new ComandaItemRowViewModel(i, _settings.ConfirmationDelaySeconds, UtcNow, CancelItem, OpenNotes));
         RebuildPreview();
         OnPropertyChanged(nameof(PanelTitle));
+        PushToCustomerDisplay();
     }
 
     private void RebuildPreview()

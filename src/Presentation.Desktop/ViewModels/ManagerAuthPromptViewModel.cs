@@ -1,5 +1,6 @@
 using System;
 using System.Threading.Tasks;
+using Avalonia.Threading;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
@@ -19,15 +20,48 @@ namespace Presentation.Desktop.ViewModels;
 /// </summary>
 public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuthPrompt
 {
+    private const string LockScope = "manager";
+
     private readonly IServiceScopeFactory _scopes;
     private readonly IUserSession _session;
+    private readonly IPinAttemptLimiter _limiter;
+    private readonly DispatcherTimer _lockTimer;
     private TaskCompletionSource<AuthorizationOutcome>? _pending;
     private AuthorizationRequest? _request;
 
-    public ManagerAuthPromptViewModel(IServiceScopeFactory scopes, IUserSession session)
+    public ManagerAuthPromptViewModel(IServiceScopeFactory scopes, IUserSession session, IPinAttemptLimiter limiter)
     {
         _scopes = scopes;
         _session = session;
+        _limiter = limiter;
+
+        // 1 s countdown while approvals are locked (independent from the login lock: own scope).
+        _lockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
+        _lockTimer.Tick += (_, _) => UpdateLockout();
+    }
+
+    /// <summary>Too many wrong manager PINs: numpad and "Autorizar" are disabled until the countdown ends ("Cancelar" stays).</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsInputEnabled))]
+    private bool _isLocked;
+    public bool IsInputEnabled => !IsLocked;
+
+    private void UpdateLockout()
+    {
+        var left = _limiter.SecondsLocked(LockScope);
+        if (left > 0)
+        {
+            IsLocked = true;
+            Pin = string.Empty;
+            ErrorMessage = $"🔒 Demasiados intentos. Espere {left} s";
+            if (!_lockTimer.IsEnabled) _lockTimer.Start();
+        }
+        else if (IsLocked)
+        {
+            _lockTimer.Stop();
+            IsLocked = false;
+            if (IsOpen) ErrorMessage = string.Empty;
+        }
     }
 
     public string Title => "🔐 Autorización de gerente";
@@ -88,13 +122,14 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         IsBusy = false;
         _pending = new TaskCompletionSource<AuthorizationOutcome>(TaskCreationOptions.RunContinuationsAsynchronously);
         IsOpen = true;
+        UpdateLockout(); // a lock from an earlier dialog is still running: show the countdown right away
         return await _pending.Task;
     }
 
     [RelayCommand]
     private void AppendDigit(string digit)
     {
-        if (IsBusy || string.IsNullOrEmpty(digit)) return;
+        if (IsBusy || IsLocked || string.IsNullOrEmpty(digit)) return;
         ErrorMessage = string.Empty;
         foreach (var ch in digit)
         {
@@ -113,7 +148,7 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
     [RelayCommand]
     private async Task ConfirmAsync()
     {
-        if (IsBusy || _request == null || _pending == null) return;
+        if (IsBusy || IsLocked || _request == null || _pending == null) return;
         if (!PinHasher.IsValidPin(Pin))
         {
             ErrorMessage = $"El PIN debe tener entre {PinHasher.MinLength} y {PinHasher.MaxLength} dígitos.";
@@ -130,10 +165,15 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
 
             Complete(new AuthorizationOutcome(true, result));
         }
+        catch (PinLockedException)
+        {
+            UpdateLockout();
+        }
         catch (UnauthorizedAccessException ex)
         {
             ErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "PIN incorrecto o sin permiso para autorizar." : ex.Message;
             Pin = string.Empty;
+            UpdateLockout(); // the failing attempt may have been the one that triggered the lock
         }
         catch (Exception ex)
         {
@@ -157,6 +197,7 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         IsOpen = false;
         Pin = string.Empty;
         ErrorMessage = string.Empty;
+        _lockTimer.Stop(); // countdown resumes (from the limiter's clock) when the dialog opens again
         tcs?.TrySetResult(outcome);
     }
 }

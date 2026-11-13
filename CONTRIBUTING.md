@@ -38,6 +38,8 @@ Luego lee, en este orden:
 | Pedir PIN de gerente desde una pantalla | Inyecta `IManagerAuthPrompt` (`Presentation.Desktop/Services`) y llama `RequestAsync(AuthorizedAction, descripción, monto, referencia)`; nunca abras el modal a mano |
 | Saber quién está conectado / qué puede ver | `IUserSession` (`UserSession` singleton) + `Core.Application/Security/UserPermissions.cs` |
 | Datos demo | `Infrastructure.Data/Seed/DbInitializer.cs` |
+| Endpoint o página para tablets | `Presentation.Server/Endpoints/*.cs` (+ `wwwroot/*.html` embebido). Usa `WithScopedAsync<TService>` y `MapError`; nunca `PosDbContext` directo |
+| Reaccionar a cambios de cocina en una pantalla | Suscríbete a `IKitchenEventBus` y vuelve al hilo UI con `Dispatcher.UIThread.Post` (con *debounce*, ver `KdsViewModel`) |
 
 ### Servicios principales
 
@@ -48,6 +50,9 @@ Luego lee, en este orden:
 | `IKitchenService` | KDS: órdenes activas, avanzar estado, impresa, entregar/deshacer |
 | `ICashShiftService` | Abrir turno, resumen por medio de pago, cierre con conteo por denominación |
 | `IReportService` | Reportes diarios / Z |
+| `IKitchenEventBus` | Pub/sub en proceso: los servicios publican `KitchenEvent` tras guardar; el KDS de escritorio y el hub WebSocket se refrescan al instante |
+| `IOutboxDispatcher` / `IOutboxSink` | Envía `OutboxMessages` pendientes al webhook (`Sync`), reintentos exponenciales, `RetryFailedAsync` |
+| `LoqzenServer` (`Presentation.Server`) | Kestrel embebido: `/kds`, `/comandera`, `/api/*`, `/ws/kds`; una `IServiceScope` por petición |
 | `IUserService` | Usuarios con PIN (hash, unicidad entre activos, login por PIN) |
 | `IManagerAuthorizationService` | PIN de gerente → registra `ManagerOverride` (auditoría); `RequiresAuthorization` lee `Authorization:ManagerRequiredFor` |
 | `IProductService`, `ICategoryService`, `ITaxService`, `ICustomerService` | Maestros |
@@ -102,6 +107,7 @@ Luego lee, en este orden:
 | `SUM` de decimales falla en SQLite | EF Core no traduce `Sum` de `decimal` en SQLite | Trae los valores (`Select(...).ToListAsync()`) y suma en memoria |
 | Test pasa con InMemory pero falla en producción | El proveedor InMemory no valida traducción SQL | Para flujos nuevos agrega un test en `Integration/` con SQLite `:memory:` real |
 | Cifra grande recortada en un `Grid` `*, Auto` | La columna `Auto` del monto no crecía al cambiar el texto | Etiqueta en `Auto`, monto en `*` con `TextAlignment="Right"` (modal de cobro) |
+| Encabezado con 3 `StackPanel` en un `Grid` se encima en ventanas angostas | `StackPanel` no recorta ni envuelve | Usa `WrapPanel` para barras de herramientas (KDS, barra superior) |
 | `DataTemplate` con 2 hijos no compila (AVLN3000) | Un template solo admite un hijo | Envuelve en `<Panel>` |
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
 

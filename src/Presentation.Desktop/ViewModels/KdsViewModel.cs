@@ -27,8 +27,11 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     private readonly KdsSettings _settings;
     private readonly TimeProvider _clock;
     private readonly DispatcherTimer _timer;
+    private readonly DispatcherTimer _eventDebounce;
+    private readonly IDisposable _eventSubscription;
     private int _ticksSincePoll;
     private bool _loading;
+    private bool _reloadRequested;
 
     [ObservableProperty] private string _selectedStation = "Todas";
     [ObservableProperty] private int _pendingCount;
@@ -37,16 +40,33 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _kdsTitle = "KDS - Sistema de Pantallas de Cocina";
     [ObservableProperty] private string _statusMessage = string.Empty;
 
+    /// <summary>True while subscribed to the kitchen event bus: cards update instantly, the poll is only a fallback.</summary>
+    [ObservableProperty] private bool _isLive;
+
     public ObservableCollection<string> Stations { get; } = new() { "Todas", "Cocina Caliente", "Barra", "Parrilla" };
     public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
     private readonly List<KitchenOrderCardViewModel> _allOrders = new();
 
-    public KdsViewModel(IServiceScopeFactory scopes, IPrinterService printerService, KdsSettings settings, TimeProvider clock)
+    public KdsViewModel(IServiceScopeFactory scopes, IPrinterService printerService, KdsSettings settings, TimeProvider clock,
+        IKitchenEventBus events)
     {
         _scopes = scopes;
         _printerService = printerService;
         _settings = settings;
         _clock = clock;
+
+        // Events arriving within 150 ms (a ticket with several stations, a burst from the tablets)
+        // coalesce into ONE reload: the one-shot timer restarts on every event.
+        _eventDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
+        _eventDebounce.Tick += (_, _) =>
+        {
+            _eventDebounce.Stop();
+            _ticksSincePoll = 0; // the poll is a fallback; no need to re-read right after an event
+            _ = LoadOrdersAsync();
+        };
+        // Handlers run on the publisher's thread (sale, timer, Kestrel request): marshal to the UI.
+        _eventSubscription = events.Subscribe(_ => Dispatcher.UIThread.Post(RestartDebounce));
+        IsLive = true;
 
         _ = LoadOrdersAsync();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -54,9 +74,21 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         _timer.Start();
     }
 
+    private void RestartDebounce()
+    {
+        _eventDebounce.Stop();
+        _eventDebounce.Start();
+    }
+
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
-    public void Dispose() => _timer.Stop();
+    public void Dispose()
+    {
+        _timer.Stop();
+        _eventDebounce.Stop();
+        _eventSubscription.Dispose();
+        IsLive = false;
+    }
 
     private async Task TickAsync()
     {
@@ -78,7 +110,11 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     /// <summary>Merge DB state into the card list without recreating existing cards.</summary>
     public async Task LoadOrdersAsync()
     {
-        if (_loading) return;
+        if (_loading)
+        {
+            _reloadRequested = true; // an event landed mid-read: read again when this one finishes
+            return;
+        }
         _loading = true;
         try
         {
@@ -124,6 +160,12 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         finally
         {
             _loading = false;
+        }
+
+        if (_reloadRequested)
+        {
+            _reloadRequested = false;
+            await LoadOrdersAsync();
         }
     }
 

@@ -28,14 +28,16 @@
                 <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="15" FontWeight="Bold"
                            TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
 
+                <!-- Disabled while the PIN limiter has this terminal locked (countdown in ErrorMessage) -->
                 <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
                               ClearCommand="{Binding ClearCommand}"
                               ExactCommand="{Binding LoginCommand}"
-                              ExactLabel="Entrar"/>
+                              ExactLabel="Entrar"
+                              IsEnabled="{Binding IsInputEnabled}"/>
 
                 <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Content="🔓 Entrar" Command="{Binding LoginCommand}"/>
+                        Content="🔓 Entrar" Command="{Binding LoginCommand}" IsEnabled="{Binding IsInputEnabled}"/>
 
                 <TextBlock Text="{Binding DefaultPinHint}" Foreground="#64748B" FontSize="12" TextWrapping="Wrap"
                            HorizontalAlignment="Center" IsVisible="{Binding ShowDefaultPinHint}"/>

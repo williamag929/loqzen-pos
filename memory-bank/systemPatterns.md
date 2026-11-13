@@ -22,7 +22,7 @@ docker/                    -> docker-compose.yml + emulator/{printer,scale,webho
 
 ## Persistence
 - `PosDbContext` default path: `$LocalApplicationData/LoqzenPos/pos.db` (Linux: `~/.local/share/LoqzenPos/pos.db`).
-- Schema is created via `DbInitializer.InitializeAsync` → `EnsureCreatedAsync()` + seed. **No EF migrations yet** (spec asks for migrations).
+- Schema via EF migrations (`DbInitializer.InitializeAsync` → `MigrateAsync` + seed; legacy EnsureCreated DBs are renamed `*.legacy-*.bak`).
 
 ## Hardware layer
 | Interface | Real impl | Mock impl |
@@ -32,15 +32,14 @@ docker/                    -> docker-compose.yml + emulator/{printer,scale,webho
 | IBarcodeScannerService | `UsbHidBarcodeScannerService` | `MockBarcodeScannerService` |
 | ICashDrawerService | (none yet — drawer is via `IPrinterService.OpenCashDrawerAsync`) | — |
 
-## Embedded server (Presentation.Server/Program.cs)
-- `GET /health`, `GET /api/catalog/products`, `GET /api/kds/orders`,
-  `POST /api/orders/comandera` (creates KitchenOrder + OutboxMessage, broadcasts `KitchenOrderCreated`),
-  `PUT /api/kds/orders/{id}/status` (broadcasts `KitchenOrderStatusChanged`), `WS /ws/kds`.
-- Sockets kept in a `ConcurrentBag<WebSocket>` (never removed → leak). CORS allow-any.
-- Runs as a **separate process** today; spec says it should be embedded in the desktop host.
+## Embedded server (Presentation.Server — class library, 2026-11-13)
+- `LoqzenServer(IServiceProvider appServices, ServerSettings)` started by `App.axaml.cs` (`Server:Enabled`, port 5055). One `IServiceScope` of the desktop container per request; config sources cleared (does not read the desktop appsettings "Kestrel").
+- Routes: `GET /health`, `/kds`, `/comandera` (embedded wwwroot HTML), `/api/kds/settings|orders[?station]|orders/{id}`, `POST /api/kds/orders/{id}/advance|printed|undo`, `/api/catalog/products|categories`, `/api/tables`, `/api/comandas` (+ `{id}`, `/items`, `/items/{itemId}/cancel|notes`, `/send`, `/ready`), `WS /ws/kds?station=`.
+- Realtime: services publish `KitchenEvent` on `IKitchenEventBus` after SaveChanges → `KdsSocketHub` fans out `{type:"kitchen", event, kitchenOrderId, station, ...}` (per-socket semaphore, removal on close) and the desktop `KdsViewModel`/`ComandaViewModel` reload (debounced). Errors: ArgumentException→400, not found→404, InvalidOperationException→409, else 500 `{error}`.
+- Outbox: `OutboxDispatcher` (Infrastructure.Data/Outbox) + `HttpOutboxSink`, run by `OutboxSyncWorker` (desktop timer) when `Sync:Enabled`.
 
 ## Desktop UI (MVVM)
-- `MainViewModel` hosts tabs by `ActiveViewIndex`: 0 Checkout, 1 KDS, 2 CashShift, 3 Masters; opens `CustomerDisplayWindow`.
+- `MainViewModel` hosts tabs by `ActiveViewIndex`: 0 Checkout, 1 KDS, 2 CashShift, 3 Masters, 4 Comandas; tabs filtered by `UserSession` role; PIN login overlay + shared `ManagerAuthDialog`; opens `CustomerDisplayWindow`.
 - ViewModels: Checkout, Kds, CashShift, Masters, CustomerDisplay (all `ObservableObject` + `[ObservableProperty]`/`[RelayCommand]`).
 - UI text is in **Spanish**; code identifiers in English. Dark slate palette (`#0F172A`, accent `#2563EB`).
 

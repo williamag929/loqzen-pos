@@ -13,9 +13,10 @@
     <Grid RowDefinitions="Auto, *, Auto">
         <!-- TOP TOOLBAR: STATIONS & STATS -->
         <Border Grid.Row="0" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="20,14">
-            <Grid ColumnDefinitions="Auto, *, Auto">
+            <!-- WrapPanel: on narrow windows the counters and the live/refresh group drop to a second row instead of overlapping -->
+            <WrapPanel Orientation="Horizontal" ItemHeight="54">
                 <!-- Title & Station Selector -->
-                <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="16">
+                <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,16,0" VerticalAlignment="Center">
                     <TextBlock Text="👨‍🍳 KDS COCINA" Foreground="#38BDF8" FontSize="20" FontWeight="Black" VerticalAlignment="Center"/>
                     
                     <ItemsControl ItemsSource="{Binding Stations}">
@@ -41,7 +42,7 @@
                 </StackPanel>
 
                 <!-- Status Summary Badges -->
-                <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="12" HorizontalAlignment="Center">
+                <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,16,0" VerticalAlignment="Center">
                     <Border Background="#1E293B" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="8" Padding="12,6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
                             <TextBlock Text="Pendientes:" Foreground="#94A3B8" FontSize="13"/>
@@ -62,17 +63,22 @@
                     </Border>
                 </StackPanel>
 
-                <!-- Refresh Button -->
-                <Button Grid.Column="2" 
-                        Height="42" 
-                        Padding="16,0" 
-                        Background="#334155" 
-                        Foreground="White" 
-                        CornerRadius="8" 
-                        FontWeight="Bold"
-                        Content="🔄 Actualizar"
-                        Command="{Binding RefreshCommand}"/>
-            </Grid>
+                <!-- Live indicator (event bus subscribed) + Refresh Button -->
+                <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
+                    <Border Background="#1E293B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8" Padding="10,0"
+                            Height="42" IsVisible="{Binding IsLive}">
+                        <TextBlock Text="🟢 En vivo" Foreground="#10B981" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </Border>
+                    <Button Height="42" 
+                            Padding="16,0" 
+                            Background="#334155" 
+                            Foreground="White" 
+                            CornerRadius="8" 
+                            FontWeight="Bold"
+                            Content="🔄 Actualizar"
+                            Command="{Binding RefreshCommand}"/>
+                </StackPanel>
+            </WrapPanel>
         </Border>
 
         <!-- KITCHEN ORDER CARDS WRAP PANEL -->

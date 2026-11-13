@@ -2,7 +2,9 @@ using System;
 using System.IO;
 using Core.Application.Hardware;
 using Core.Application.Services;
+using Core.Application.Sync;
 using Infrastructure.Data.Context;
+using Infrastructure.Data.Outbox;
 using Infrastructure.Data.Services;
 using Infrastructure.Hardware.Printers;
 using Infrastructure.Hardware.Scales;
@@ -12,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Presentation.Desktop.Services;
 using Presentation.Desktop.ViewModels;
+using Presentation.Server;
 
 namespace Presentation.Desktop;
 
@@ -36,6 +39,13 @@ public static class ServiceCollectionExtensions
                            ?? new Core.Application.DTOs.AuthorizationSettings();
         services.AddSingleton(authSettings);
 
+        var syncSettings = configuration.GetSection("Sync").Get<SyncSettings>() ?? new SyncSettings();
+        services.AddSingleton(syncSettings);
+
+        var serverSettings = configuration.GetSection("Server").Get<Core.Application.DTOs.ServerSettings>()
+                             ?? new Core.Application.DTOs.ServerSettings();
+        services.AddSingleton(serverSettings);
+
         // ── Database ─────────────────────────────────────────────────────────────
         services.AddDbContext<PosDbContext>(options =>
         {
@@ -59,9 +69,26 @@ public static class ServiceCollectionExtensions
         services.AddTransient<IComandaService, ComandaService>();
         services.AddTransient<IKitchenService, KitchenService>();
 
+        // ── Kitchen events + embedded LAN server (browser KDS, comandera REST, WebSocket) ──
+        // KitchenService/ComandaService publish on the bus after SaveChanges; the desktop KDS and
+        // the Kestrel hub subscribe. The server resolves app services from this same container.
+        services.AddSingleton<Core.Application.Kitchen.IKitchenEventBus, Core.Application.Kitchen.KitchenEventBus>();
+        services.AddSingleton<LanServerStatus>();
+        services.AddSingleton(sp => new LoqzenServer(sp, sp.GetRequiredService<Core.Application.DTOs.ServerSettings>()));
+
+        // ── Outbox sync (ERP webhook). Disabled by default: messages stay Pending, nothing leaves the store. ──
+        services.AddSingleton(new System.Net.Http.HttpClient());
+        if (syncSettings.Enabled)
+            services.AddSingleton<IOutboxSink, HttpOutboxSink>();
+        else
+            services.AddSingleton<IOutboxSink, NullOutboxSink>();
+        services.AddTransient<IOutboxDispatcher, OutboxDispatcher>(); // owns a DbContext: resolve per tick in a scope
+        services.AddSingleton<OutboxSyncWorker>();
+
         // ── Users / authorization ────────────────────────────────────────────────
         services.AddTransient<IUserService, UserService>();
         services.AddTransient<IManagerAuthorizationService, ManagerAuthorizationService>();
+        services.AddSingleton<Core.Application.Security.IPinAttemptLimiter, Core.Application.Security.PinAttemptLimiter>(); // shared lockout state
         services.AddSingleton<UserSession>();                       // one terminal = one session
         services.AddSingleton<IUserSession>(sp => sp.GetRequiredService<UserSession>());
         services.AddSingleton<ManagerAuthPromptViewModel>();        // single modal shared by every screen

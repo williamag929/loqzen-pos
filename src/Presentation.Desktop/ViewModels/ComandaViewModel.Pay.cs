@@ -28,6 +28,19 @@ public partial class ComandaViewModel
     public string TenderedText => ReceiptFormatter.Cop(Tendered);
     public string ChangeText => ReceiptFormatter.Cop(Math.Max(0, Tendered - (Current?.Total ?? 0)));
 
+    // ── Customer display (second screen) ─────────────────────────────────────
+    // The display shows whichever screen (checkout or comanda) updated it LAST — see CustomerDisplayViewModel.
+    partial void OnTenderedChanged(decimal value) => PushToCustomerDisplay();
+    partial void OnPayMethodChanged(PaymentMethod value) => PushToCustomerDisplay();
+    partial void OnPanelIndexChanged(int value) => PushToCustomerDisplay();
+
+    private void PushToCustomerDisplay()
+    {
+        var total = Current?.Total ?? 0;
+        var change = PayMethod == PaymentMethod.Cash ? Math.Max(0, Tendered - total) : 0;
+        _display.UpdateFromComanda(Current, IsPayPanel, Tendered, change, PayMethod.ToString());
+    }
+
     [RelayCommand]
     private void SelectPayMethod(string method)
     {
@@ -127,6 +140,7 @@ public partial class ComandaViewModel
         }
 
         ClearCurrent();
+        _display.NotifySaleCompleted(result.OrderNumber, comanda.Total, result.ChangeAmount); // after ClearCurrent: "Completed" wins
         await RefreshListOnlyAsync();
         StatusMessage = $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · Cambio {ReceiptFormatter.Cop(result.ChangeAmount)}";
         LastSale = new SaleSummaryViewModel(result.OrderNumber, comanda.Total,
