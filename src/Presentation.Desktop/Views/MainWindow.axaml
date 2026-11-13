@@ -2,6 +2,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:vm="using:Presentation.Desktop.ViewModels"
         xmlns:views="using:Presentation.Desktop.Views"
+        xmlns:converters="using:Presentation.Desktop.Converters"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -11,6 +12,10 @@
         Title="Loqzen POS Standalone - Volcora Edition"
         WindowState="Maximized"
         Background="#0F172A">
+
+    <Window.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColor"/>
+    </Window.Resources>
 
     <Grid RowDefinitions="Auto, *">
 
@@ -33,22 +38,22 @@
                 <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="8" HorizontalAlignment="Center">
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="🛒 Punto de Venta"
-                            Background="{Binding IsCheckoutActive, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsCheckoutActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCheckoutCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="👨‍🍳 KDS Cocina"
-                            Background="{Binding IsKdsActive, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowKdsAsyncCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="💼 Turno de Caja"
-                            Background="{Binding IsCashShiftActive, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsCashShiftActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCashShiftAsyncCommand}"/>
 
                     <Button Height="44" Padding="18,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="🗂️ Maestros"
-                            Background="{Binding IsMastersActive, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowMastersAsyncCommand}"/>
                 </StackPanel>
 

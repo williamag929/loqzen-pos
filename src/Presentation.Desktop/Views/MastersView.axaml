@@ -2,11 +2,16 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:entities="using:Core.Domain.Entities"
+             xmlns:converters="using:Presentation.Desktop.Converters"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
              x:Class="Presentation.Desktop.Views.MastersView"
              x:DataType="vm:MastersViewModel">
+
+    <UserControl.Resources>
+        <converters:BoolToColorConverter x:Key="BoolToColor"/>
+    </UserControl.Resources>
 
     <Grid RowDefinitions="Auto, *">
 
@@ -16,19 +21,19 @@
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10">
                     <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="📦 Productos"
-                            Background="{Binding IsProductsTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsProductsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowProductsCommand}"/>
                     <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="🏷️ Categorías"
-                            Background="{Binding IsCategoriesTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsCategoriesTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCategoriesCommand}"/>
                     <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="📋 Impuestos"
-                            Background="{Binding IsTaxesTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsTaxesTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowTaxesCommand}"/>
                     <Button Height="48" Padding="22,0" CornerRadius="8" FontWeight="Bold" FontSize="14"
                             Content="👥 Clientes"
-                            Background="{Binding IsCustomersTab, Converter={x:Static ObjectConverters.Equal}, ConverterParameter={x:True}, FallbackValue='#1E293B'}"
+                            Background="{Binding IsCustomersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
                             Foreground="White" Command="{Binding ShowCustomersCommand}"/>
                 </StackPanel>
                 <!-- Notification -->
