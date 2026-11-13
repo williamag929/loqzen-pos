@@ -31,6 +31,9 @@ public partial class CustomerDisplayViewModel : ObservableObject
     private decimal _taxTotal = 0m;
 
     [ObservableProperty]
+    private decimal _discountTotal = 0m;
+
+    [ObservableProperty]
     private decimal _total = 0m;
 
     [ObservableProperty]
@@ -58,7 +61,8 @@ public partial class CustomerDisplayViewModel : ObservableObject
         bool isPaymentOpen, 
         decimal tendered, 
         decimal change, 
-        string paymentMethod)
+        string paymentMethod,
+        decimal discountTotal = 0m)
     {
         Items.Clear();
         foreach (var item in cartItems)
@@ -68,6 +72,7 @@ public partial class CustomerDisplayViewModel : ObservableObject
 
         Subtotal = subtotal;
         TaxTotal = taxTotal;
+        DiscountTotal = discountTotal;
         Total = total;
         ItemCount = cartItems.Count;
         TenderedAmount = tendered;

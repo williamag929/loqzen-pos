@@ -62,12 +62,15 @@
 
                     <!-- Breakdown at bottom -->
                     <Border Grid.Row="2" Background="#0B132B" CornerRadius="8" Padding="14" Margin="0,14,0,0">
-                        <Grid RowDefinitions="Auto, Auto" ColumnDefinitions="*, Auto">
+                        <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="*, Auto">
                             <TextBlock Grid.Row="0" Grid.Column="0" Text="Subtotal:" Foreground="#94A3B8" FontSize="14"/>
                             <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Subtotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
 
-                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Impuestos incluidos:" Foreground="#94A3B8" FontSize="14" Margin="0,4,0,0"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" Text="Descuento:" Foreground="#F59E0B" FontSize="14" Margin="0,4,0,0" IsVisible="{Binding DiscountTotal, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding DiscountTotal, StringFormat='-${0:N0}'}" Foreground="#F59E0B" FontSize="14" Margin="0,4,0,0" IsVisible="{Binding DiscountTotal, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}"/>
+
+                            <TextBlock Grid.Row="2" Grid.Column="0" Text="Impuestos incluidos:" Foreground="#94A3B8" FontSize="14" Margin="0,4,0,0"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14" Margin="0,4,0,0"/>
                         </Grid>
                     </Border>
                 </Grid>

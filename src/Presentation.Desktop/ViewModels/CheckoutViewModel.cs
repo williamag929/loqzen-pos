@@ -566,6 +566,7 @@ public partial class CheckoutViewModel : ObservableObject
             IsPaymentModalOpen,
             TenderedAmount,
             ChangeAmount,
-            SelectedPaymentMethod.ToString());
+            SelectedPaymentMethod.ToString(),
+            DiscountTotal);
     }
 }
