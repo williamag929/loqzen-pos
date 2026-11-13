@@ -14,19 +14,24 @@ namespace Infrastructure.Data.Services;
 public partial class ComandaService
 {
     /// <summary>
-    /// Marks items Confirmed and groups them into ONE KitchenOrder (+ Outbox "KitchenOrderCreated").
+    /// Marks items Confirmed and creates ONE KitchenOrder per station (+ Outbox "KitchenOrderCreated"),
+    /// so drinks go to the bar screen and food to the kitchen screen.
     /// Caller is responsible for SaveChanges so everything commits atomically.
     /// </summary>
     private void ConfirmItems(Comanda comanda, IReadOnlyList<ComandaItem> items)
     {
-        if (items.Count == 0) return;
+        foreach (var station in items.GroupBy(i => i.Station))
+            ConfirmStationBatch(comanda, station.Key, station.ToList());
+    }
 
+    private void ConfirmStationBatch(Comanda comanda, string station, IReadOnlyList<ComandaItem> items)
+    {
         var ko = new KitchenOrder
         {
             OrderNumber = $"CMD-{comanda.Number}",
             TableNumber = comanda.TableName,
             WaiterName = comanda.WaiterName,
-            Station = items.GroupBy(i => i.Station).OrderByDescending(g => g.Count()).First().Key,
+            Station = station,
             Status = KitchenOrderStatus.Pending,
             CreatedAt = UtcNow,
             UpdatedAt = UtcNow

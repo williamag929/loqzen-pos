@@ -79,6 +79,20 @@ public class ComandaLifecycleTests : ComandaTestBase
     }
 
     [Fact]
+    public async Task Confirm_MixedStations_CreatesOneKitchenOrderPerStation()
+    {
+        var c = await Service.OpenComandaAsync("Mesa 1", "Ana");
+        await Service.AddItemAsync(c.Id, Burger.Id);
+        await Service.AddItemAsync(c.Id, Soda.Id);
+
+        await Service.ConfirmPendingNowAsync(c.Id);
+
+        var kos = await Db.KitchenOrders.Include(k => k.Items).ToListAsync();
+        kos.Select(k => k.Station).Should().BeEquivalentTo(new[] { "Cocina Caliente", "Barra" });
+        kos.Single(k => k.Station == "Barra").Items.Single().ProductName.Should().Be("Gaseosa");
+    }
+
+    [Fact]
     public async Task CancelPending_Works_ButConfirmedItemCannotBeCancelled()
     {
         var c = await Service.OpenComandaAsync("Mesa 1", "Ana");

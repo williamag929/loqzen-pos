@@ -336,9 +336,11 @@ public partial class CheckoutViewModel : ObservableObject
             Sku = item.Sku,
             Name = item.Name,
             UnitPrice = item.UnitPrice,
-            Quantity = item.IsWeighed ? -1m : -1m,
+            Quantity = -1m,
             IsWeighed = item.IsWeighed,
-            WeightKg = item.IsWeighed ? (item.WeightKg ?? 1m) : null,
+            // Weighed lines are priced by WeightKg, so the weight itself must be negative
+            // (previously positive -> the "return" was CHARGED instead of credited).
+            WeightKg = item.IsWeighed ? -Math.Abs(item.WeightKg ?? 1m) : null,
             TaxRate = item.TaxRate,
             IsReturn = true
         };
@@ -530,7 +532,7 @@ public partial class CheckoutViewModel : ObservableObject
                 CreatedAt = DateTime.UtcNow
             };
 
-            foreach (var item in CartItems)
+            foreach (var item in CartItems.Where(i => !i.IsReturn)) // returns never go to the kitchen
             {
                 kitchenOrder.Items.Add(new KitchenOrderItem
                 {
