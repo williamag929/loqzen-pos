@@ -1,0 +1,90 @@
+using System;
+using System.Linq;
+using System.Threading;
+using System.Threading.Tasks;
+using Core.Application.DTOs;
+using Core.Domain.Entities;
+using Core.Domain.Enums;
+using Microsoft.EntityFrameworkCore;
+
+namespace Infrastructure.Data.Services;
+
+public partial class ComandaService
+{
+    public async Task<ComandaDto> AddItemAsync(Guid comandaId, Guid productId, decimal quantity = 1, decimal? weightKg = null, string? notes = null, CancellationToken ct = default)
+    {
+        if (quantity <= 0) throw new ArgumentOutOfRangeException(nameof(quantity), "La cantidad debe ser positiva.");
+        if (weightKg is <= 0) throw new ArgumentOutOfRangeException(nameof(weightKg), "El peso debe ser positivo.");
+
+        var comanda = await RequireAsync(comandaId, ct);
+        if (comanda.Status != ComandaStatus.Open)
+            throw new InvalidOperationException("Solo se pueden agregar productos a una comanda abierta.");
+
+        var product = await _db.Products.Include(p => p.Tax).Include(p => p.Category)
+            .FirstOrDefaultAsync(p => p.Id == productId && p.IsActive, ct)
+            ?? throw new InvalidOperationException("Producto no encontrado o inactivo.");
+
+        var item = new ComandaItem
+        {
+            ComandaId = comanda.Id,
+            ProductId = product.Id,
+            ProductName = product.Name,
+            UnitPrice = product.Price,
+            TaxRate = product.Tax?.Rate ?? 0m,
+            Quantity = quantity,
+            WeightKg = product.IsWeighed ? (weightKg ?? quantity) : null,
+            Notes = string.IsNullOrWhiteSpace(notes) ? null : notes.Trim(),
+            Station = StationFor(product),
+            Status = ComandaItemStatus.Pending,
+            AddedAt = UtcNow,
+            UpdatedAt = UtcNow
+        };
+        comanda.Items.Add(item);
+        _db.ComandaItems.Add(item);
+        comanda.UpdatedAt = UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    public async Task<ComandaDto> CancelPendingItemAsync(Guid comandaId, Guid itemId, CancellationToken ct = default)
+    {
+        var comanda = await RequireAsync(comandaId, ct);
+        var item = comanda.Items.FirstOrDefault(i => i.Id == itemId)
+            ?? throw new InvalidOperationException("Item no encontrado en la comanda.");
+        if (item.Status != ComandaItemStatus.Pending)
+            throw new InvalidOperationException("El item ya fue enviado a cocina; no se puede anular desde aquí.");
+
+        item.Status = ComandaItemStatus.Cancelled;
+        item.UpdatedAt = UtcNow;
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    public async Task<ComandaDto> ConfirmPendingNowAsync(Guid comandaId, CancellationToken ct = default)
+    {
+        var comanda = await RequireAsync(comandaId, ct);
+        ConfirmItems(comanda, comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList());
+        await _db.SaveChangesAsync(ct);
+        return MapToDto(comanda);
+    }
+
+    public async Task<int> ConfirmDueItemsAsync(CancellationToken ct = default)
+    {
+        var cutoff = UtcNow.AddSeconds(-Math.Max(0, _settings.ConfirmationDelaySeconds));
+        var comandas = await _db.Comandas.Include(c => c.Items)
+            .Where(c => ActiveStatuses.Contains(c.Status))
+            .Where(c => c.Items.Any(i => i.Status == ComandaItemStatus.Pending && i.AddedAt <= cutoff))
+            .ToListAsync(ct);
+
+        var count = 0;
+        foreach (var c in comandas)
+        {
+            var due = c.Items.Where(i => i.Status == ComandaItemStatus.Pending && i.AddedAt <= cutoff).ToList();
+            ConfirmItems(c, due);
+            count += due.Count;
+        }
+
+        if (count > 0) await _db.SaveChangesAsync(ct);
+        return count;
+    }
+}

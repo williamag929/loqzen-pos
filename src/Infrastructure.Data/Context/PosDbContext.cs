@@ -19,6 +19,10 @@ public class PosDbContext : DbContext
     public DbSet<KitchenOrder> KitchenOrders => Set<KitchenOrder>();
     public DbSet<KitchenOrderItem> KitchenOrderItems => Set<KitchenOrderItem>();
     public DbSet<StoreConfiguration> StoreConfigurations => Set<StoreConfiguration>();
+    public DbSet<DiningTable> DiningTables => Set<DiningTable>();
+    public DbSet<Comanda> Comandas => Set<Comanda>();
+    public DbSet<ComandaItem> ComandaItems => Set<ComandaItem>();
+    public DbSet<CashCountLine> CashCountLines => Set<CashCountLine>();
 
     public PosDbContext()
     {
@@ -180,6 +184,55 @@ public class PosDbContext : DbContext
             entity.Property(s => s.TaxRegime).HasMaxLength(100);
             entity.Property(s => s.Currency).HasMaxLength(3);
             entity.Property(s => s.CultureCode).HasMaxLength(10);
+        });
+
+        // DiningTable
+        modelBuilder.Entity<DiningTable>(entity =>
+        {
+            entity.HasKey(t => t.Id);
+            entity.Property(t => t.Name).IsRequired().HasMaxLength(50);
+            entity.HasIndex(t => t.Name).IsUnique();
+        });
+
+        // Comanda
+        modelBuilder.Entity<Comanda>(entity =>
+        {
+            entity.HasKey(c => c.Id);
+            entity.Property(c => c.TableName).IsRequired().HasMaxLength(50);
+            entity.Property(c => c.WaiterName).HasMaxLength(100);
+            entity.HasIndex(c => c.Status);
+            entity.HasIndex(c => c.Number);
+            entity.HasOne(c => c.DiningTable).WithMany().HasForeignKey(c => c.DiningTableId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasOne(c => c.Order).WithMany().HasForeignKey(c => c.OrderId).OnDelete(DeleteBehavior.SetNull);
+            entity.HasMany(c => c.Items)
+                  .WithOne(i => i.Comanda)
+                  .HasForeignKey(i => i.ComandaId)
+                  .OnDelete(DeleteBehavior.Cascade);
+        });
+
+        // ComandaItem
+        modelBuilder.Entity<ComandaItem>(entity =>
+        {
+            entity.HasKey(i => i.Id);
+            entity.Property(i => i.ProductName).IsRequired().HasMaxLength(200);
+            entity.Property(i => i.Station).HasMaxLength(100);
+            entity.Property(i => i.UnitPrice).HasPrecision(18, 2);
+            entity.Property(i => i.TaxRate).HasPrecision(6, 4);
+            entity.Property(i => i.Quantity).HasPrecision(18, 3);
+            entity.Property(i => i.WeightKg).HasPrecision(18, 3);
+            entity.HasIndex(i => new { i.Status, i.AddedAt });
+        });
+
+        // CashCountLine (arqueo)
+        modelBuilder.Entity<CashCountLine>(entity =>
+        {
+            entity.HasKey(l => l.Id);
+            entity.Property(l => l.Denomination).HasPrecision(18, 2);
+            entity.Ignore(l => l.Total);
+            entity.HasOne(l => l.CashShift)
+                  .WithMany(s => s.CountLines)
+                  .HasForeignKey(l => l.CashShiftId)
+                  .OnDelete(DeleteBehavior.Cascade);
         });
     }
 }

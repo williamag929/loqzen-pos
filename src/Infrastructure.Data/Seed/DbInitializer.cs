@@ -13,6 +13,16 @@ public static class DbInitializer
     {
         await context.Database.EnsureCreatedAsync();
 
+        // Tables are seeded independently so existing DBs also get them.
+        if (!await context.DiningTables.AnyAsync())
+        {
+            for (var i = 1; i <= 12; i++)
+                context.DiningTables.Add(new DiningTable { Name = $"Mesa {i}", SortOrder = i });
+            context.DiningTables.Add(new DiningTable { Name = "Barra", SortOrder = 100 });
+            context.DiningTables.Add(new DiningTable { Name = "Para llevar", SortOrder = 101 });
+            await context.SaveChangesAsync();
+        }
+
         if (await context.Categories.AnyAsync())
         {
             return; // DB has already been seeded

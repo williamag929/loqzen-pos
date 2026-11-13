@@ -23,4 +23,13 @@ public interface ICashShiftService
 
     /// <summary>Returns the total cash collected (PaymentMethod.Cash) for the given shift.</summary>
     Task<decimal> GetCashTotalForShiftAsync(Guid shiftId, CancellationToken ct = default);
+
+    /// <summary>Cuadre de caja: sales by payment method + expected cash for the open shift.</summary>
+    Task<Core.Application.DTOs.CashCloseSummaryDto> GetCloseSummaryAsync(CancellationToken ct = default);
+
+    /// <summary>
+    /// Closes the open shift from a denomination count (arqueo). ClosingAmount = sum of lines.
+    /// Count lines are persisted with the shift. Throws if any comanda is still active.
+    /// </summary>
+    Task<CashShift> CloseShiftWithCountAsync(System.Collections.Generic.IEnumerable<Core.Application.DTOs.CashCountLineDto> countLines, string? notes = null, CancellationToken ct = default);
 }

@@ -22,6 +22,7 @@ public class CashShift : BaseEntity
     public string? Notes { get; set; }
 
     public ICollection<Order> Orders { get; set; } = new List<Order>();
+    public ICollection<CashCountLine> CountLines { get; set; } = new List<CashCountLine>();
 }
 
 public class OutboxMessage : BaseEntity

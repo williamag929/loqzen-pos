@@ -22,6 +22,11 @@ public static class ServiceCollectionExtensions
         var hwSettings = configuration.GetSection("Hardware").Get<HardwareSettings>() ?? new HardwareSettings();
         services.AddSingleton(hwSettings);
 
+        var comandaSettings = configuration.GetSection("Comanda").Get<Core.Application.DTOs.ComandaSettings>()
+                              ?? new Core.Application.DTOs.ComandaSettings();
+        services.AddSingleton(comandaSettings);
+        services.AddSingleton(TimeProvider.System);
+
         // ── Database ─────────────────────────────────────────────────────────────
         services.AddDbContext<PosDbContext>(options =>
         {
@@ -42,6 +47,7 @@ public static class ServiceCollectionExtensions
         // ── Sales Services ───────────────────────────────────────────────────────
         services.AddTransient<ISalesService, SalesService>();
         services.AddTransient<IReportService, ReportService>();
+        services.AddTransient<IComandaService, ComandaService>();
 
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────
         if (hwSettings.UseMockPrinter)
