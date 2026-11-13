@@ -1,6 +1,9 @@
 using System;
+using System.Data.Common;
+using System.IO;
 using System.Linq;
 using System.Threading.Tasks;
+using Microsoft.Data.Sqlite;
 using Core.Domain.Entities;
 using Infrastructure.Data.Context;
 using Microsoft.EntityFrameworkCore;
@@ -11,7 +14,16 @@ public static class DbInitializer
 {
     public static async Task InitializeAsync(PosDbContext context)
     {
-        await context.Database.EnsureCreatedAsync();
+        if (context.Database.IsSqlite())
+        {
+            await BackupLegacyDatabaseIfNeededAsync(context);
+            await context.Database.MigrateAsync();
+        }
+        else
+        {
+            // Non-relational providers (EF InMemory in tests) cannot run migrations.
+            await context.Database.EnsureCreatedAsync();
+        }
 
         // Tables are seeded independently so existing DBs also get them.
         if (!await context.DiningTables.AnyAsync())
@@ -238,5 +250,47 @@ public static class DbInitializer
         });
 
         await context.SaveChangesAsync();
+    }
+
+    /// <summary>
+    /// DBs created before migrations existed (via EnsureCreated) have tables but no
+    /// __EFMigrationsHistory, so Migrate() would fail with "table already exists". They also lack
+    /// newer tables, so they cannot simply be baselined. Rename the file (kept as backup, never
+    /// deleted) and let Migrate() create a fresh schema.
+    /// </summary>
+    private static async Task BackupLegacyDatabaseIfNeededAsync(PosDbContext context)
+    {
+        var conn = context.Database.GetDbConnection();
+        var path = conn.DataSource;
+        if (string.IsNullOrEmpty(path) || path == ":memory:" || !File.Exists(path)) return;
+
+        bool hasProducts, hasHistory;
+        await conn.OpenAsync();
+        try
+        {
+            hasProducts = await TableExistsAsync(conn, "Products");
+            hasHistory = await TableExistsAsync(conn, "__EFMigrationsHistory");
+        }
+        finally
+        {
+            await conn.CloseAsync();
+        }
+        if (!hasProducts || hasHistory) return;
+
+        SqliteConnection.ClearAllPools();
+        var backup = $"{path}.legacy-{DateTime.Now:yyyyMMddHHmmss}.bak";
+        File.Move(path, backup);
+        Console.WriteLine($"[DB] Base sin historial de migraciones respaldada en: {backup}");
+    }
+
+    private static async Task<bool> TableExistsAsync(DbConnection conn, string table)
+    {
+        await using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT COUNT(*) FROM sqlite_master WHERE type='table' AND name=$n";
+        var p = cmd.CreateParameter();
+        p.ParameterName = "$n";
+        p.Value = table;
+        cmd.Parameters.Add(p);
+        return Convert.ToInt64(await cmd.ExecuteScalarAsync()) > 0;
     }
 }
