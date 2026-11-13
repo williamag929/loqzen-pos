@@ -41,6 +41,7 @@ public static class ServiceCollectionExtensions
 
         // ── Sales Services ───────────────────────────────────────────────────────
         services.AddTransient<ISalesService, SalesService>();
+        services.AddTransient<IReportService, ReportService>();
 
         // ── Hardware Services (Mock vs Real based on config) ─────────────────────
         if (hwSettings.UseMockPrinter)
