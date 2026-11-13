@@ -61,6 +61,15 @@ public interface ISalesService
     Task<OrderDto> ApplyDiscountAsync(Guid orderId, decimal discountAmount, CancellationToken ct = default);
 
     /// <summary>
+    /// Applies a discount to the order using DiscountDto (percentage or fixed amount).
+    /// </summary>
+    /// <param name="orderId">The order ID.</param>
+    /// <param name="discount">The discount information.</param>
+    /// <param name="ct">Cancellation token.</param>
+    /// <returns>The updated order DTO.</returns>
+    Task<OrderDto> ApplyDiscountAsync(Guid orderId, DiscountDto discount, CancellationToken ct = default);
+
+    /// <summary>
     /// Processes payment for an order. Updates order status, creates payment record, 
     /// and writes OutboxMessage in the same transaction.
     /// </summary>

@@ -67,3 +67,33 @@ public class PaymentResultDto
         ErrorMessage = errorMessage
     };
 }
+
+/// <summary>
+/// Discount type enumeration
+/// </summary>
+public enum DiscountType
+{
+    Percentage,  // e.g. 10% off
+    FixedAmount  // e.g. $5000 off
+}
+
+/// <summary>
+/// Discount information for an order or line item
+/// </summary>
+public class DiscountDto
+{
+    public DiscountType Type { get; set; }
+    public decimal Value { get; set; }
+    public string? Reason { get; set; }
+    public string? AuthorizedBy { get; set; }
+    
+    public decimal CalculateDiscount(decimal subtotal)
+    {
+        return Type switch
+        {
+            DiscountType.Percentage => subtotal * (Value / 100m),
+            DiscountType.FixedAmount => Math.Min(Value, subtotal), // Can't discount more than subtotal
+            _ => 0m
+        };
+    }
+}

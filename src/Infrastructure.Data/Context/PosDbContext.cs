@@ -18,6 +18,7 @@ public class PosDbContext : DbContext
     public DbSet<OutboxMessage> OutboxMessages => Set<OutboxMessage>();
     public DbSet<KitchenOrder> KitchenOrders => Set<KitchenOrder>();
     public DbSet<KitchenOrderItem> KitchenOrderItems => Set<KitchenOrderItem>();
+    public DbSet<StoreConfiguration> StoreConfigurations => Set<StoreConfiguration>();
 
     public PosDbContext()
     {
@@ -164,6 +165,21 @@ public class PosDbContext : DbContext
             entity.HasKey(ki => ki.Id);
             entity.Property(ki => ki.ProductName).IsRequired().HasMaxLength(200);
             entity.Property(ki => ki.Quantity).HasPrecision(18, 3);
+        });
+
+        // StoreConfiguration
+        modelBuilder.Entity<StoreConfiguration>(entity =>
+        {
+            entity.HasKey(s => s.Id);
+            entity.Property(s => s.StoreName).IsRequired().HasMaxLength(200);
+            entity.Property(s => s.Address).HasMaxLength(300);
+            entity.Property(s => s.City).HasMaxLength(100);
+            entity.Property(s => s.Phone).HasMaxLength(50);
+            entity.Property(s => s.Email).HasMaxLength(100);
+            entity.Property(s => s.TaxId).HasMaxLength(50);
+            entity.Property(s => s.TaxRegime).HasMaxLength(100);
+            entity.Property(s => s.Currency).HasMaxLength(3);
+            entity.Property(s => s.CultureCode).HasMaxLength(10);
         });
     }
 }

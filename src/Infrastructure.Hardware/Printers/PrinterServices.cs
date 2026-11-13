@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.Linq;
 using System.Net.Sockets;
 using System.Text;
 using System.Threading;
@@ -36,10 +37,16 @@ public class EscPosNetworkPrinterService : IPrinterService
 
             // Center align: ESC a 1
             writer.Write(new byte[] { 0x1B, 0x61, 0x01 });
+            
+            // ESC E 1 (Bold on)
+            writer.Write(new byte[] { 0x1B, 0x45, 0x01 });
             writer.Write(Encoding.ASCII.GetBytes($"*** {receipt.StoreName} ***\n"));
+            // ESC E 0 (Bold off)
+            writer.Write(new byte[] { 0x1B, 0x45, 0x00 });
+            
             writer.Write(Encoding.ASCII.GetBytes($"{receipt.StoreAddress}\n"));
             writer.Write(Encoding.ASCII.GetBytes($"{receipt.StoreTaxId}\n"));
-            writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
+            writer.Write(Encoding.ASCII.GetBytes("================================\n"));
 
             // Left align: ESC a 0
             writer.Write(new byte[] { 0x1B, 0x61, 0x00 });
@@ -48,10 +55,15 @@ public class EscPosNetworkPrinterService : IPrinterService
             writer.Write(Encoding.ASCII.GetBytes($"Cajero: {receipt.CashierName}\n"));
             if (!string.IsNullOrEmpty(receipt.CustomerName))
             {
-                writer.Write(Encoding.ASCII.GetBytes($"Cliente:{receipt.CustomerName} ({receipt.CustomerDocument})\n"));
+                writer.Write(Encoding.ASCII.GetBytes($"Cliente: {receipt.CustomerName}\n"));
+                writer.Write(Encoding.ASCII.GetBytes($"CC/NIT:  {receipt.CustomerDocument}\n"));
             }
-            writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
+            writer.Write(Encoding.ASCII.GetBytes("================================\n"));
+            
+            // ESC E 1 (Bold on for header)
+            writer.Write(new byte[] { 0x1B, 0x45, 0x01 });
             writer.Write(Encoding.ASCII.GetBytes("Cant Descripcion           Total\n"));
+            writer.Write(new byte[] { 0x1B, 0x45, 0x00 });
             writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
 
             foreach (var item in receipt.Items)
@@ -60,20 +72,47 @@ public class EscPosNetworkPrinterService : IPrinterService
                 var qty = $"{item.Quantity,4:0.##}";
                 var total = $"{item.Total,8:N0}";
                 writer.Write(Encoding.ASCII.GetBytes($"{qty} {name} {total}\n"));
+                
+                if (!string.IsNullOrEmpty(item.Notes))
+                {
+                    var notes = item.Notes.Length > 30 ? item.Notes[..30] : item.Notes;
+                    writer.Write(Encoding.ASCII.GetBytes($"     ({notes})\n"));
+                }
             }
 
-            writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
+            writer.Write(Encoding.ASCII.GetBytes("================================\n"));
             writer.Write(Encoding.ASCII.GetBytes($"Subtotal:       ${receipt.Subtotal,14:N0}\n"));
-            writer.Write(Encoding.ASCII.GetBytes($"Impuestos:      ${receipt.TaxTotal,14:N0}\n"));
-            writer.Write(Encoding.ASCII.GetBytes($"TOTAL:          ${receipt.Total,14:N0}\n"));
-            writer.Write(Encoding.ASCII.GetBytes($"Medio: {receipt.PaymentMethodName}\n"));
-            writer.Write(Encoding.ASCII.GetBytes($"Recibido:       ${receipt.TenderedAmount,14:N0}\n"));
-            writer.Write(Encoding.ASCII.GetBytes($"Cambio:         ${receipt.ChangeAmount,14:N0}\n"));
-            writer.Write(Encoding.ASCII.GetBytes("--------------------------------\n"));
             
-            // Center align: ESC a 1
+            if (receipt.DiscountTotal > 0)
+            {
+                writer.Write(Encoding.ASCII.GetBytes($"Descuento:     -${receipt.DiscountTotal,14:N0}\n"));
+            }
+            
+            writer.Write(Encoding.ASCII.GetBytes($"Impuestos:      ${receipt.TaxTotal,14:N0}\n"));
+            
+            writer.Write(new byte[] { 0x1B, 0x45, 0x01 });
+            writer.Write(new byte[] { 0x1D, 0x21, 0x11 });
+            writer.Write(Encoding.ASCII.GetBytes($"TOTAL: ${receipt.Total,12:N0}\n"));
+            writer.Write(new byte[] { 0x1D, 0x21, 0x00 });
+            writer.Write(new byte[] { 0x1B, 0x45, 0x00 });
+            
+            writer.Write(Encoding.ASCII.GetBytes("================================\n"));
+            writer.Write(Encoding.ASCII.GetBytes($"Medio: {receipt.PaymentMethodName}\n"));
+            
+            if (receipt.TenderedAmount > 0)
+            {
+                writer.Write(Encoding.ASCII.GetBytes($"Recibido:       ${receipt.TenderedAmount,14:N0}\n"));
+                writer.Write(Encoding.ASCII.GetBytes($"Cambio:         ${receipt.ChangeAmount,14:N0}\n"));
+            }
+            
+            writer.Write(Encoding.ASCII.GetBytes("================================\n\n"));
+            
             writer.Write(new byte[] { 0x1B, 0x61, 0x01 });
-            writer.Write(Encoding.ASCII.GetBytes("Gracias por su compra!\n\n\n\n"));
+            writer.Write(Encoding.ASCII.GetBytes("Gracias por su compra!\n"));
+            writer.Write(Encoding.ASCII.GetBytes("Vuelva pronto\n\n"));
+            writer.Write(Encoding.ASCII.GetBytes($"Factura valida como\n"));
+            writer.Write(Encoding.ASCII.GetBytes($"documento equivalente\n"));
+            writer.Write(Encoding.ASCII.GetBytes($"Resolucion DIAN 12345\n\n\n"));
 
             // Cut paper: GS V 66 0
             writer.Write(new byte[] { 0x1D, 0x56, 0x42, 0x00 });
@@ -86,7 +125,53 @@ public class EscPosNetworkPrinterService : IPrinterService
         catch (Exception ex)
         {
             Console.WriteLine($"[ESC/POS Network Printer Error]: {ex.Message}");
+            await SaveReceiptToFileAsync(receipt);
             return false;
+        }
+    }
+
+    private async Task SaveReceiptToFileAsync(ReceiptDto receipt)
+    {
+        try
+        {
+            var fallbackDir = Path.Combine(
+                Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData),
+                "LoqzenPos", "FailedReceipts");
+            Directory.CreateDirectory(fallbackDir);
+            
+            var filename = $"Receipt_{receipt.OrderNumber}_{DateTime.Now:yyyyMMdd_HHmmss}.txt";
+            var filepath = Path.Combine(fallbackDir, filename);
+            
+            var items = string.Join("\n", receipt.Items.Select(i => 
+                $"{i.Quantity,4:0.##}  {i.Name,-20} ${i.Total,8:N0}"));
+            
+            var content = $@"
+=======================================
+    {receipt.StoreName}
+    {receipt.StoreAddress}
+    {receipt.StoreTaxId}
+=======================================
+Ticket: {receipt.OrderNumber}
+Fecha:  {receipt.Date:yyyy-MM-dd HH:mm:ss}
+Cajero: {receipt.CashierName}
+{(string.IsNullOrEmpty(receipt.CustomerName) ? "" : $"Cliente: {receipt.CustomerName} ({receipt.CustomerDocument})\n")}=======================================
+{items}
+=======================================
+Subtotal:       ${receipt.Subtotal,14:N0}
+{(receipt.DiscountTotal > 0 ? $"Descuento:     -${receipt.DiscountTotal,14:N0}\n" : "")}Impuestos:      ${receipt.TaxTotal,14:N0}
+TOTAL:          ${receipt.Total,14:N0}
+=======================================
+Medio: {receipt.PaymentMethodName}
+{(receipt.TenderedAmount > 0 ? $"Recibido:       ${receipt.TenderedAmount,14:N0}\nCambio:         ${receipt.ChangeAmount,14:N0}\n" : "")}=======================================
+Gracias por su compra!
+";
+            
+            await File.WriteAllTextAsync(filepath, content);
+            Console.WriteLine($"[PRINTER FALLBACK] Receipt saved to: {filepath}");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[PRINTER FALLBACK ERROR]: {ex.Message}");
         }
     }
 

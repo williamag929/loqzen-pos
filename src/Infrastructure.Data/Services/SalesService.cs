@@ -154,6 +154,22 @@ public class SalesService : ISalesService
         return MapToDto(order);
     }
 
+    public async Task<OrderDto> ApplyDiscountAsync(Guid orderId, DiscountDto discount, CancellationToken ct = default)
+    {
+        var order = await GetOrderWithItemsAsync(orderId, ct)
+            ?? throw new InvalidOperationException($"Order {orderId} not found.");
+
+        var discountAmount = discount.CalculateDiscount(order.Subtotal);
+        
+        // Ensure discount doesn't exceed subtotal
+        order.DiscountTotal = Math.Min(discountAmount, order.Subtotal);
+        RecalculateOrderTotals(order);
+        order.UpdatedAt = DateTime.UtcNow;
+
+        await _dbContext.SaveChangesAsync(ct);
+        return MapToDto(order);
+    }
+
     public async Task<PaymentResultDto> ProcessPaymentAsync(
         Guid orderId, PaymentMethod method, decimal amount, decimal tenderedAmount, CancellationToken ct = default)
     {

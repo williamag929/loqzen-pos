@@ -199,6 +199,34 @@ public static class DbInitializer
 
         context.KitchenOrders.AddRange(order1, order2, order3);
 
+        // 6. Default Store Configuration
+        context.StoreConfigurations.Add(new StoreConfiguration
+        {
+            StoreName = "LOQZEN POS - Restaurante Demo",
+            Address = "Calle 123 #45-67, Centro Comercial Plaza Mayor, Local 203",
+            City = "Bogotá D.C., Colombia",
+            Phone = "+57 601 234 5678",
+            Email = "info@loqzenpos.com",
+            TaxId = "NIT 900.123.456-7",
+            TaxRegime = "Responsable de IVA - Régimen Común",
+            ReceiptFooterMessage = "¡Gracias por su visita! Esperamos volver a verle pronto.",
+            ReceiptLogoAscii = @"
+   _    ___  ___  _______ _   _ 
+  | |  / _ \/ _ \|___  / | | | |
+  | |_| | | | | |  / /| |_| | |
+  |  _| |_| | |_| / /_|  _  | |
+  |_|  \___/ \__\_/____|_| |_|_|
+     P O S   S Y S T E M
+",
+            Currency = "COP",
+            CultureCode = "es-CO",
+            ReceiptWidth = 32,
+            PrintCustomerCopy = true,
+            PrintMerchantCopy = false,
+            EnableElectronicInvoicing = false,
+            IsActive = true
+        });
+
         await context.SaveChangesAsync();
     }
 }
