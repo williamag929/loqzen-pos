@@ -30,6 +30,20 @@ public static class EndpointSupport
         }
     }
 
+    /// <summary>Same as <see cref="WithScopedAsync{TService}"/> but hands over the whole scope (several services / DbContext in one request).</summary>
+    public static async Task<IResult> WithScopeAsync(this IServiceProvider appServices, Func<IServiceProvider, Task<IResult>> action)
+    {
+        using var scope = appServices.CreateScope();
+        try
+        {
+            return await action(scope.ServiceProvider).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            return MapError(ex);
+        }
+    }
+
     /// <summary>
     /// 400 for argument problems, 404 for a missing key, 409 for a business-rule violation.
     /// Anything else is a 500 with a generic message (details go to the error logger).
@@ -51,7 +65,8 @@ public static class EndpointSupport
     public static IResult Unauthorized() => Error(StatusCodes.Status401Unauthorized, "No autorizado.");
 
     /// <summary>
-    /// Master/satellite routes (/api/sync/*, /api/terminals/*, /api/catalog/snapshot, /api/reports/*) require
+    /// Master/satellite routes (/api/sync/*, /api/terminals/*, /api/catalog/snapshot, /api/reports/*, and the register-only
+    /// comanda routes cancel-confirmed / payment-lock / payment-unlock / close-remote) require
     /// <c>Authorization: Bearer &lt;TerminalSettings.ApiKey&gt;</c> when an ApiKey is configured; with no key they
     /// stay open like the KDS/comandera routes. Per-endpoint filter on purpose: no global middleware.
     /// </summary>

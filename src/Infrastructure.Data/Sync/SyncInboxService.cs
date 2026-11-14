@@ -37,12 +37,18 @@ public class SyncInboxService : ISyncInboxService
     private readonly PosDbContext _db;
     private readonly TimeProvider _clock;
     private readonly ITerminalContext? _terminal;
+    private readonly IComandaService _comandas;
 
-    public SyncInboxService(PosDbContext db, TimeProvider? clock = null, ITerminalContext? terminal = null)
+    /// <param name="comandas">
+    /// Applies ComandaClosedRemotely. When null, a plain <see cref="Infrastructure.Data.Services.ComandaService"/> on the
+    /// same DbContext is used (same rules, no kitchen event bus).
+    /// </param>
+    public SyncInboxService(PosDbContext db, TimeProvider? clock = null, ITerminalContext? terminal = null, IComandaService? comandas = null)
     {
         _db = db;
         _clock = clock ?? TimeProvider.System;
         _terminal = terminal;
+        _comandas = comandas ?? new Infrastructure.Data.Services.ComandaService(db, new ComandaSettings(), _clock, null, terminal);
     }
 
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
@@ -215,6 +221,9 @@ public class SyncInboxService : ISyncInboxService
             case SyncEventTypes.BillPaymentRecorded:
             case SyncEventTypes.BillPaymentVoided:
                 await ApplyBillPaymentAsync(Section<BillPaymentPayload>(envelope.Payload, "billPayment"), sender, envelope, now, ct);
+                break;
+            case SyncEventTypes.ComandaClosedRemotely:
+                await ApplyComandaClosedAsync(Section<ComandaRemoteCloseRequest>(envelope.Payload, "comanda"), sender, envelope, now, ct);
                 break;
             default:
                 throw new InvalidPayloadException($"Tipo de evento no soportado: {envelope.EventType}.");
@@ -460,6 +469,39 @@ public class SyncInboxService : ISyncInboxService
         b.VoidReason = string.IsNullOrWhiteSpace(p.VoidReason) ? null : Truncate(p.VoidReason, 200);
         if (envelope.EventType == SyncEventTypes.BillPaymentVoided && b.Status != BillPaymentStatus.Voided)
             b.Status = BillPaymentStatus.Voided;
+    }
+
+    // ── Comanda closed on a satellite ────────────────────────────────────────
+
+    /// <summary>
+    /// The satellite invoiced a master comanda on its own database: close it here through the same rules as the
+    /// HTTP route (IComandaService.CloseRemotelyAsync). Idempotent: already closed by the same register → Applied;
+    /// unknown comanda or closed by another register → Rejected (business errors never throw out of the inbox).
+    /// Note: the comanda service saves in its own SaveChanges; a receipt failure afterwards is harmless because the
+    /// retry hits the idempotent path.
+    /// </summary>
+    private async Task ApplyComandaClosedAsync(ComandaRemoteCloseRequest p, Terminal sender, SyncEnvelopeDto envelope, DateTime now, CancellationToken ct)
+    {
+        var comandaId = p.ComandaId != Guid.Empty ? p.ComandaId
+            : envelope.AggregateId != Guid.Empty ? envelope.AggregateId
+            : throw new InvalidPayloadException("comanda.comandaId es obligatorio.");
+        if (p.OrderId == Guid.Empty) throw new InvalidPayloadException("comanda.orderId es obligatorio.");
+        if (string.IsNullOrWhiteSpace(p.OrderNumber)) throw new InvalidPayloadException("comanda.orderNumber es obligatorio.");
+
+        // The payload must speak for the sender: a message from CAJA-02 cannot close a table "as CAJA-03".
+        var code = string.IsNullOrWhiteSpace(p.TerminalCode) ? sender.Code : TerminalSettings.NormalizeCode(p.TerminalCode);
+        if (!string.Equals(code, sender.Code, StringComparison.Ordinal))
+            throw new InvalidPayloadException($"comanda.terminalCode ({code}) no coincide con la caja de origen ({sender.Code}).");
+
+        var closedAt = p.ClosedAt == default ? (Utc(envelope.OccurredAt) ?? now) : Utc(p.ClosedAt)!.Value;
+        var request = p with { ComandaId = comandaId, TerminalCode = code, ClosedAt = closedAt };
+        try
+        {
+            await _comandas.CloseRemotelyAsync(request, ct);
+        }
+        catch (InvalidOperationException ex) { throw new InvalidPayloadException(ex.Message); }
+        catch (ArgumentException ex) { throw new InvalidPayloadException(ex.Message); }
+        catch (KeyNotFoundException ex) { throw new InvalidPayloadException(ex.Message); }
     }
 
     // ── shift placeholder ────────────────────────────────────────────────────

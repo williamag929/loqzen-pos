@@ -102,8 +102,22 @@ public static class ServiceCollectionExtensions
         // ── Sales Services ───────────────────────────────────────────────────────
         services.AddTransient<ISalesService, SalesService>();
         services.AddTransient<IReportService, ReportService>();
-        services.AddTransient<IComandaService, ComandaService>();
-        services.AddTransient<IKitchenService, KitchenService>();
+        if (terminalSettings.IsSatellite)
+        {
+            // Shared comandas / KDS: the master owns them. A satellite's Comandas and KDS screens talk to the master's
+            // HTTP API; invoicing (CloseAndPayAsync) still writes the Order + Payment on THIS database (ISalesService, own shift).
+            // Scoped: the remote comanda service carries a DbContext for the local invoice (resolved per operation, CONTRIBUTING §4.1).
+            services.AddScoped<IComandaService, Infrastructure.Data.Sync.RemoteComandaService>();
+            services.AddScoped<IKitchenService, Infrastructure.Data.Sync.RemoteKitchenService>();
+            // /ws/kds client: republishes the master's kitchen events on the local bus (desktop KDS + comanda list refresh).
+            // Started/stopped by SatelliteSyncWorker; its IsConnected feeds the 🖥️ chip ("cocina en vivo").
+            services.AddSingleton<Infrastructure.Data.Sync.MasterKitchenSocketClient>();
+        }
+        else
+        {
+            services.AddTransient<IComandaService, ComandaService>();
+            services.AddTransient<IKitchenService, KitchenService>();
+        }
 
         // ── Kitchen events + embedded LAN server (browser KDS, comandera REST, WebSocket) ──
         // KitchenService/ComandaService publish on the bus after SaveChanges; the desktop KDS and

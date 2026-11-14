@@ -4,6 +4,7 @@ using System.Threading.Tasks;
 using Avalonia.Threading;
 using Core.Application.DTOs;
 using Core.Application.Services;
+using Infrastructure.Data.Sync;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Presentation.Desktop.Services;
@@ -16,6 +17,8 @@ namespace Presentation.Desktop.Services;
 /// (CONTRIBUTING §4.1), one pass at a time. Errors never reach the UI as exceptions: they land in
 /// <see cref="LastError"/> and flip <see cref="IsMasterReachable"/>. Selling never waits on this worker.
 /// <see cref="Changed"/> and <see cref="CatalogChanged"/> are raised on the UI thread.
+/// Also owns the lifetime of the <see cref="MasterKitchenSocketClient"/> (master's /ws/kds → local kitchen bus) so the
+/// satellite's comanda list and KDS refresh live; its state is exposed through <see cref="IsKitchenLive"/> for the 🖥️ chip.
 /// </summary>
 public sealed class SatelliteSyncWorker : IDisposable
 {
@@ -23,16 +26,21 @@ public sealed class SatelliteSyncWorker : IDisposable
     private readonly TerminalSettings _settings;
     private readonly TimeProvider _clock;
     private readonly string? _appVersion;
+    private readonly MasterKitchenSocketClient? _kitchenSocket;
     private DispatcherTimer? _heartbeatTimer;
     private DispatcherTimer? _pullTimer;
     private int _running; // 0/1: one pass at a time (heartbeat or pull)
 
-    public SatelliteSyncWorker(IServiceScopeFactory scopes, TerminalSettings settings, TimeProvider clock)
+    /// <param name="kitchenSocket">Registered only on a satellite (null on the master: DI falls back to the default).</param>
+    public SatelliteSyncWorker(IServiceScopeFactory scopes, TerminalSettings settings, TimeProvider clock,
+        MasterKitchenSocketClient? kitchenSocket = null)
     {
         _scopes = scopes;
         _settings = settings;
         _clock = clock;
         _appVersion = App.AppVersion;
+        _kitchenSocket = kitchenSocket;
+        if (_kitchenSocket != null) _kitchenSocket.Changed += RaiseChanged; // socket events arrive on a worker thread
     }
 
     public bool IsEnabled => _settings.IsSatellite && !string.IsNullOrWhiteSpace(_settings.MasterUrl);
@@ -41,6 +49,15 @@ public sealed class SatelliteSyncWorker : IDisposable
     public DateTimeOffset? LastPullAt { get; private set; }
     public CatalogApplyResult? LastApply { get; private set; }
     public string? LastError { get; private set; }
+
+    /// <summary>Kitchen socket to the master (null on the master register).</summary>
+    public MasterKitchenSocketClient? KitchenSocket => _kitchenSocket;
+
+    /// <summary>True while the /ws/kds socket to the master is open: KDS and comanda list refresh instantly.</summary>
+    public bool IsKitchenLive => _kitchenSocket?.IsConnected == true;
+
+    /// <summary>Why the kitchen socket is down (null when connected or never started).</summary>
+    public string? KitchenSocketError => _kitchenSocket?.LastError;
 
     /// <summary>Any state change (UI thread).</summary>
     public event Action? Changed;
@@ -63,6 +80,10 @@ public sealed class SatelliteSyncWorker : IDisposable
 
         // First contact right away: heartbeat (so the master lists us) then the catalog.
         _ = StartupPassAsync();
+
+        // Kitchen events over WebSocket (reconnects on its own). A failure to start must never block selling.
+        try { _kitchenSocket?.Start(); }
+        catch (Exception ex) { Console.WriteLine($"[Satélite] No se pudo iniciar el canal de cocina: {ex.Message}"); }
     }
 
     private async Task StartupPassAsync()
@@ -163,5 +184,11 @@ public sealed class SatelliteSyncWorker : IDisposable
         _pullTimer?.Stop();
         _heartbeatTimer = null;
         _pullTimer = null;
+        if (_kitchenSocket != null)
+        {
+            _kitchenSocket.Changed -= RaiseChanged;
+            try { Task.Run(() => _kitchenSocket.StopAsync()).Wait(TimeSpan.FromSeconds(2)); } // bounded: never hang the exit
+            catch (Exception ex) { Console.WriteLine($"[Satélite] No se pudo cerrar el canal de cocina: {ex.Message}"); }
+        }
     }
 }

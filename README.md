@@ -130,6 +130,7 @@ Todo pasa por los mismos servicios que el escritorio (mismas reglas, misma base 
 Cada caja corre esta misma app con **su propia base SQLite**: si se cae la red o la caja principal, la satélite **sigue vendiendo** y sincroniza al volver.
 - **Principal** (`Terminal:Mode = Master`, la de siempre): dueña del catálogo, los usuarios y los reportes; recibe las ventas de las satélites en `POST /api/sync/inbox` (idempotente: un reintento nunca duplica una venta).
 - **Satélite** (`Terminal:Mode = Satellite` + `Terminal:MasterUrl`): baja productos, categorías, impuestos, convenios y usuarios (mismos PIN) de la principal cada `CatalogPullSeconds`, manda un latido cada `HeartbeatSeconds` y empuja su Outbox (ventas, turnos, movimientos, recaudos) a la principal. Solo muestra Venta, Caja y Recaudos (comandas y KDS viven en la principal; las tablets usan sus páginas web).
+- **Comandas y KDS compartidos** (parte 2): la satélite ve y atiende las mismas mesas y la misma cocina que la principal (sus pantallas Comandas y KDS hablan con la principal por HTTP y WebSocket). Al cobrar una mesa, la satélite **reserva** la comanda en la principal ("💳 Cobrando en CAJA-02" en las demás pantallas), factura en **su propia base y su propio turno**, y la principal cierra la comanda. Si la principal se cae, la satélite sigue vendiendo en Venta y Recaudos; las comandas vuelven cuando regresa la conexión.
 - Cada caja tiene **su propio turno y su propio cuadre**; los turnos, órdenes y recaudos llevan `TerminalCode` (`CAJA-02 · Turno #5`). En la principal, **Caja → 📊 Cierre del día** consolida todas las cajas (ventas por medio de pago, recaudos, diferencias) e imprime el reporte; **Maestros → 🖥️ Cajas** muestra cada caja (en línea, última sincronización, turno abierto) y los últimos sobres recibidos.
 - Configurar la segunda máquina: copia las claves de `appsettings.Satellite.example.json` (código `CAJA-02`, `MasterUrl = http://<ip de la principal>:5055`, `Server:Enabled=false`). Opcional `Terminal:ApiKey` igual en las dos para proteger la API de sincronización.
 
@@ -188,6 +189,7 @@ loqzen-pos/
 | | `PrinterHost`, `PrinterPort` | `127.0.0.1`, `9100` | Impresora ESC/POS por red (o el emulador Docker) |
 | | `ScalePortName`, `ScaleBaudRate` | `/dev/ttyUSB0`, `9600` | Balanza CAS SW-20RS por RS-232 |
 | `Comanda` | `ConfirmationDelaySeconds` | `30` | Espera (amarillo) antes de enviar a cocina |
+| | `PaymentLockMinutes` | `10` | Minutos que se respeta la reserva de una mesa que otra caja está cobrando |
 | | `QuickNotes` | 12 notas | Botones de notas rápidas ("Sin cebolla"…) |
 | `Authorization` | `RequireLogin` | `true` | `false` = terminal abierto sin pantalla de PIN (p. ej. KDS de cocina) |
 | | `ManagerRequiredFor` | `ReturnItem`, `ApplyDiscount`, `CancelKitchenItem` | Acciones que piden PIN de gerente (también `OpenCashDrawer`, `CloseShift`); `[]` = ninguna |
@@ -281,7 +283,8 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] **Pago de recibos / recaudos en caja** (servicios públicos, recargas, convenios): módulo con comisión, su propio comprobante y **entrada al cuadre de caja** como movimiento aparte de las ventas
 - [x] **Cuadre de caja de referencia** (meta: el más fácil y a prueba de errores de la industria, comparado con Toast y Square): movimientos de efectivo con motivo (entrada por recibo, gasto, retiro a bóveda, propinas) y PIN de gerente; **conteo a ciegas** (la cajera cuenta sin ver el esperado y solo después ve la diferencia); conteo por denominaciones con calculadora táctil (ya existe); diferencia grande → PIN de gerente + nota obligatoria; esperado por medio de pago vs lo reportado por el datáfono; arqueo parcial a mitad de turno y "dejar fondo" para el siguiente; reporte Z impreso y en pantalla; historial de cuadres por cajero
 - [x] **Segunda caja** (maestro/satélite): `Terminal` + `TerminalId/TerminalCode` en turnos, ventas y recaudos; la satélite vende con su propia base, baja el catálogo y empuja su Outbox a `POST /api/sync/inbox` (idempotente); turno y cuadre por caja; **cierre del día consolidado** en la principal
-- [ ] Segunda caja, parte 2: comandas y KDS compartidos entre cajas (hoy viven solo en la principal), clientes y auditoría de gerente replicados, descubrimiento de la principal por mDNS
+- [x] **Segunda caja, parte 2**: comandas y KDS compartidos (la satélite usa `RemoteComandaService`/`RemoteKitchenService` + WebSocket contra la principal; reserva de mesa para cobro, cierre remoto idempotente por Outbox, evento `ComandaChanged` para todas las pantallas)
+- [ ] Segunda caja, parte 3: clientes y auditoría de gerente replicados, descubrimiento de la principal por mDNS, datáfonos dados de alta desde la satélite
 - [x] **Datáfono semi-integrado**: `IPaymentTerminalDriver` (simulado + JSON/TCP + emulador Docker 9102) e `IPaymentTerminalService` (auditoría `TerminalPayments`, tiempo de espera, cancelación, ocupado); el pago con tarjeta se registra solo con la referencia de aprobación impresa
 - [ ] Drivers de proveedores reales (Redeban, Credibanco, Bold, Mercado Pago Point) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
 - [x] **Pago en la mesa**: datáfonos asignados a meseros, "💳 Cobrar en mesa" en la comandera web → `POST /api/comandas/{id}/pay-on-terminal` → la comanda se cierra y factura sola
@@ -301,6 +304,7 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 | [`Docs/Arquitectura_Docker_Emulacion_POS.md`](Docs/Arquitectura_Docker_Emulacion_POS.md) | Emuladores Docker |
 | [`Docs/Hardware_POS_Seleccionado.md`](Docs/Hardware_POS_Seleccionado.md) | Hardware de referencia |
 | [`Docs/in-cart-returns.md`](Docs/in-cart-returns.md) | Devoluciones en carrito |
+| [`Docs/erp-integration-hooks.md`](Docs/erp-integration-hooks.md) | **Diseño de la integración con ERP por hooks** (salida firmada, entrada push/polling, fases) |
 
 > Las especificaciones en `Docs/` describen la **visión** (incluye .NET 9, Android, ZPL, mDNS). La tabla [Estado actual](#-estado-actual) indica lo que realmente está implementado.
 

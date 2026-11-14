@@ -1,11 +1,30 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Datáfono semi-integrado + pago en mesa
+**Última sesión:** Segunda caja parte 2 — comandas y KDS compartidos
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-14: Segunda caja parte 2 — comandas y KDS compartidos entre cajas
+
+Contrato del arquitecto → backend, red y UI en paralelo → dos agentes de QA. 1079 tests, build 0/0. Probado en vivo con una principal y una satélite: una comanda abierta por la API de la principal aparece al instante en la pestaña Mesas de la satélite.
+
+**Diseño:** la principal es dueña de comandas y tickets de cocina. En una satélite, `IComandaService` e `IKitchenService` se sustituyen por `RemoteComandaService` y `RemoteKitchenService` (HTTP contra la principal) y `MasterKitchenSocketClient` (WebSocket `/ws/kds`) alimenta el bus local, así que sus pantallas Comandas y KDS se refrescan en vivo. El cobro de una mesa desde la satélite: **reserva** en la principal (`POST /api/comandas/{id}/payment-lock`) → orden + pago en la **base local** (turno de la satélite) → Outbox `ComandaClosedRemotely` → `close-remote` inmediato si hay red (si no, el Outbox lo entrega después). La principal rechaza cobrar o reabrir una mesa reservada por otra caja ("La mesa la está cobrando CAJA-02") durante `Comanda:PaymentLockMinutes`.
+
+**Hecho:**
+- Dominio/Datos: `Comanda.PaymentLockedByTerminalCode/At`, `PaidByTerminalCode`, `RemoteOrderNumber/Id` (migración `ComandaRemotePayment`); `IComandaService.LockForPaymentAsync/UnlockPaymentAsync/CloseRemotelyAsync`; evento `KitchenEventType.ComandaChanged` publicado en cada cambio de comanda (sustituye al evento sintético de la fase anterior); `SyncInboxService` aplica `ComandaClosedRemotely`; `KitchenOrderWire` (ticket completo por la API) y `KitchenSocketEnvelope` (forma del WebSocket) en `Core.Application/Kitchen`.
+- Servidor: rutas `reopen`, `items/{id}/hold`, `items/{id}/cancel-confirmed` (la principal crea y consume su propio `ManagerOverride` con el nombre del gerente de la satélite), `payment-lock`, `payment-unlock`, `close-remote` (las cuatro últimas con `Terminal:ApiKey`); `/ws/kds` difunde `ComandaChanged` a todas las pantallas aunque filtren por estación; comandera muestra "💳 Cobrando en CAJA-02" y bloquea sus botones de cobro.
+- Escritorio: en la satélite aparecen Comandas y KDS (Maestros sigue oculto); banner "💳 Cobrando en CAJA-02" / "🔒 Reservada para esta caja" y botones de cobro deshabilitados; etiqueta en la lista; mensajes ámbar "Sin conexión con la caja principal" sin tumbar la pantalla; chip 🖥️ añade "cocina en vivo / sin conexión"; el temporizador de confirmación no consulta a la principal cada segundo (la principal confirma).
+
+**⚠️ Para el usuario:** en la satélite, "Cerrar" una mesa la reserva para esa caja; si la dejas sin cobrar, la reserva se libera al salir del panel o vence a los 10 minutos. La principal también reserva al cerrar, así que dos cajas no pueden cobrar la misma mesa.
+
+**Limitaciones conocidas:** el pago local y el aviso de cierre van en dos guardados (un corte justo en medio deja la mesa reservada hasta vencer el plazo); la satélite re-precia con su catálogo local; la anulación en cocina desde la satélite queda en la principal con `ManagerUserId` vacío (solo nombre); sin red la satélite no puede abrir ni cobrar mesas (sí vender y recaudar). No probado con clics: cobro de mesa desde la satélite (lo cubre el test extremo a extremo), banner de reserva, KDS satélite con acciones.
+
+**Siguiente fase recomendada:** integración con ERP por hooks, fase A (ver `Docs/erp-integration-hooks.md`), o driver de datáfono real.
 
 ---
 

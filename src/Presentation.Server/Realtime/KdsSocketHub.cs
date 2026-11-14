@@ -8,8 +8,10 @@ using Presentation.Server.Dtos;
 namespace Presentation.Server.Realtime;
 
 /// <summary>
-/// WebSocket fan-out for the KDS tablets. Each connection carries an optional station filter;
-/// kitchen events are pushed to every socket whose filter is empty or matches (case-insensitive).
+/// WebSocket fan-out for the KDS tablets, the comandera and the satellite registers (MasterKitchenSocketClient).
+/// Each connection carries an optional station filter; kitchen events are pushed to every socket whose filter is
+/// empty or matches (case-insensitive). <c>ComandaChanged</c> events (empty station) reach every socket.
+/// Frames are <see cref="KitchenSocketEnvelope"/> JSON (camelCase, enums as names); "ping" text → "pong" text.
 /// Connections are removed on close or error (no leak), writes are serialized per socket, and a
 /// failure to deliver never propagates to the publisher of <see cref="IKitchenEventBus"/>.
 /// </summary>
@@ -76,8 +78,10 @@ public sealed class KdsSocketHub : IDisposable
         if (_disposed || _connections.IsEmpty) return;
         try
         {
-            var payload = JsonSerializer.SerializeToUtf8Bytes(e.ToSocketMessage(), ServerJson.Options);
-            _ = BroadcastAsync(payload, e.Station);
+            var payload = JsonSerializer.SerializeToUtf8Bytes(e.ToSocketEnvelope(), ServerJson.Options);
+            // ComandaChanged (and any event without a station) is for every register's comanda list, not one station.
+            var everyone = e.Type == KitchenEventType.ComandaChanged || string.IsNullOrWhiteSpace(e.Station);
+            _ = BroadcastAsync(payload, e.Station, everyone);
         }
         catch
         {
@@ -85,11 +89,11 @@ public sealed class KdsSocketHub : IDisposable
         }
     }
 
-    private async Task BroadcastAsync(byte[] payload, string station)
+    private async Task BroadcastAsync(byte[] payload, string station, bool everyone)
     {
         foreach (var (id, conn) in _connections)
         {
-            if (!conn.Accepts(station)) continue;
+            if (!everyone && !conn.Accepts(station)) continue;
             try
             {
                 await conn.SendAsync(payload, _shutdown.Token).ConfigureAwait(false);

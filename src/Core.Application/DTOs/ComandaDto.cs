@@ -25,6 +25,11 @@ public class ComandaDto
     public DateTime? ClosedAt { get; set; }
     public Guid? OrderId { get; set; }
     public string? OrderNumber { get; set; }
+    /// <summary>Register collecting the payment right now (null = free). See IComandaService.LockForPaymentAsync.</summary>
+    public string? PaymentLockedByTerminalCode { get; set; }
+    public DateTime? PaymentLockedAt { get; set; }
+    /// <summary>Register that invoiced it when the order lives in another database.</summary>
+    public string? PaidByTerminalCode { get; set; }
     public List<ComandaItemDto> Items { get; set; } = new();
 
     /// <summary>Billable lines = everything not cancelled.</summary>
@@ -34,6 +39,11 @@ public class ComandaDto
     public decimal Total => Subtotal + TaxTotal;
     public int PendingCount => Items.Count(i => i.Status == ComandaItemStatus.Pending);
 }
+
+/// <summary>Body of POST /api/comandas/{id}/close-remote and payload of the Outbox event ComandaClosedRemotely.</summary>
+public sealed record ComandaRemoteCloseRequest(
+    Guid ComandaId, string TerminalCode, Guid OrderId, string OrderNumber, PaymentMethod Method, decimal Total,
+    string? Reference, DateTime ClosedAt);
 
 public class ComandaItemDto
 {
@@ -67,6 +77,9 @@ public class ComandaSettings
     public List<string> QuickNotes { get; set; } = new();
 
     public const int MaxNotesLength = 200;
+
+    /// <summary>Minutes a payment lock (another register collecting the table) is honoured before it is considered stale.</summary>
+    public int PaymentLockMinutes { get; set; } = 10;
 }
 
 /// <summary>Cash close summary (cuadre de caja).</summary>

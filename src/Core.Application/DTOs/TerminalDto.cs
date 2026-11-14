@@ -145,9 +145,11 @@ public static class SyncEventTypes
     public const string CashMovementRecorded = "CashMovementRecorded";
     public const string BillPaymentRecorded = "BillPaymentRecorded";
     public const string BillPaymentVoided = "BillPaymentVoided";
+    /// <summary>Satellite closed a master comanda after invoicing locally. Payload: { comanda: ComandaRemoteCloseRequest }. Master applies via IComandaService.CloseRemotelyAsync (idempotent).</summary>
+    public const string ComandaClosedRemotely = "ComandaClosedRemotely";
 
     public static readonly IReadOnlyList<string> Replicated = new[]
-    { OrderCompleted, CashShiftOpened, CashShiftClosed, CashMovementRecorded, BillPaymentRecorded, BillPaymentVoided };
+    { OrderCompleted, CashShiftOpened, CashShiftClosed, CashMovementRecorded, BillPaymentRecorded, BillPaymentVoided, ComandaClosedRemotely };
 
     public static bool IsReplicated(string? eventType) =>
         eventType != null && Replicated.Contains(eventType, StringComparer.Ordinal);

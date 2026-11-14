@@ -22,27 +22,6 @@ public sealed record ErrorDto(string Error);
 
 public sealed record KdsSettingsDto(int WarningMinutes, int MaxPrepMinutes, int ArchiveDelaySeconds, IReadOnlyList<string> Stations);
 
-public sealed record KitchenOrderItemDto(
-    Guid Id,
-    string ProductName,
-    decimal Quantity,
-    string? Notes,
-    bool IsPrepared,
-    bool IsCancelled);
-
-public sealed record KitchenOrderDto(
-    Guid Id,
-    string OrderNumber,
-    string TableNumber,
-    string WaiterName,
-    string Station,
-    string? GeneralNotes,
-    KitchenOrderStatus Status,
-    DateTime CreatedAt,
-    DateTime? PrintedAt,
-    DateTime? DeliveredAt,
-    IReadOnlyList<KitchenOrderItemDto> Items);
-
 public sealed record ProductDto(
     Guid Id,
     string Sku,
@@ -60,16 +39,8 @@ public sealed record TableDto(Guid Id, string Name, Guid? OpenComandaId);
 /// <summary>What the comandera tablet needs from <c>ComandaSettings</c> to mirror the desktop's timing and note chips.</summary>
 public sealed record ComandaSettingsDto(int ConfirmationDelaySeconds, IReadOnlyList<string> QuickNotes, int MaxNotesLength);
 
-/// <summary>Pushed over /ws/kds for every <see cref="KitchenEvent"/>.</summary>
-public sealed record KitchenSocketMessage(
-    string Type,
-    KitchenEventType Event,
-    Guid KitchenOrderId,
-    string Station,
-    string OrderNumber,
-    string TableNumber,
-    KitchenOrderStatus Status,
-    DateTime OccurredAt);
+// /ws/kds frames are Core.Application.Kitchen.KitchenSocketEnvelope (Type "event"); KDS tickets travel as
+// Core.Application.Kitchen.KitchenOrderWire — both defined in the contract (KitchenEvents.cs), mapped below.
 
 // ─── Request bodies (comandera tablet) ───────────────────────────────────────
 
@@ -78,6 +49,21 @@ public sealed record OpenComandaRequest(string? TableName, string? WaiterName, G
 public sealed record AddComandaItemRequest(Guid ProductId, decimal? Quantity, decimal? WeightKg, string? Notes);
 
 public sealed record SetItemNotesRequest(string? Notes);
+
+/// <summary>Body of POST /api/comandas/{id}/items/{itemId}/hold.</summary>
+public sealed record SetItemHoldRequest(bool OnHold);
+
+// ─── Request bodies (satellite register → master) ────────────────────────────
+
+/// <summary>
+/// Body of POST /api/comandas/{id}/items/{itemId}/cancel-confirmed. The manager already approved on the satellite
+/// (PIN there); the master records its own single-use ManagerOverride (Action CancelKitchenItem, ManagerName,
+/// Description "Anulación desde {terminalCode}", RequestedByName = terminalCode, Reference = reason) and consumes it.
+/// </summary>
+public sealed record CancelConfirmedItemRequest(string? ManagerName, string? TerminalCode, string? Reason);
+
+/// <summary>Body of POST /api/comandas/{id}/payment-lock and /payment-unlock.</summary>
+public sealed record PaymentLockRequest(string? TerminalCode);
 
 // ─── Pay at table (datáfonos) ────────────────────────────────────────────────
 
@@ -122,21 +108,19 @@ public static class ServerJson
 
 public static class ServerMapping
 {
-    public static KitchenOrderDto ToDto(this KitchenOrder ko) => new(
-        ko.Id,
-        ko.OrderNumber,
-        ko.TableNumber,
-        ko.WaiterName,
-        ko.Station,
-        ko.GeneralNotes,
-        ko.Status,
-        AsUtc(ko.CreatedAt),
-        AsUtc(ko.PrintedAt),
-        AsUtc(ko.DeliveredAt),
-        ko.Items.Select(ToDto).ToList());
-
-    public static KitchenOrderItemDto ToDto(this KitchenOrderItem it) => new(
-        it.Id, it.ProductName, it.Quantity, it.Notes, it.IsPrepared, it.IsCancelled);
+    /// <summary>Full ticket for /api/kds/* (contract record), with every timestamp forced to UTC kind.</summary>
+    public static KitchenOrderWire ToWire(this KitchenOrder ko)
+    {
+        var wire = KitchenOrderWire.From(ko);
+        return wire with
+        {
+            CreatedAt = AsUtc(wire.CreatedAt),
+            UpdatedAt = AsUtc(wire.UpdatedAt),
+            PrintedAt = AsUtc(wire.PrintedAt),
+            DeliveredAt = AsUtc(wire.DeliveredAt),
+            Items = wire.Items.Select(i => i with { CreatedAt = AsUtc(i.CreatedAt) }).ToList()
+        };
+    }
 
     public static ProductDto ToDto(this Product p, string? categoryName) => new(
         p.Id, p.Sku, p.Barcode, p.Name, p.Price, p.IsWeighed, p.CategoryId, categoryName ?? p.Category?.Name);
@@ -148,8 +132,10 @@ public static class ServerMapping
     public static PaymentTerminalListDto ToDto(this PaymentTerminalDto t) => new(
         t.Id, t.Name, t.Provider, t.ProviderLabel, t.AssignedUserName, t.AssignmentLabel, t.LastPingOk, AsUtc(t.LastSeenAt));
 
-    public static KitchenSocketMessage ToSocketMessage(this KitchenEvent e) => new(
-        "kitchen", e.Type, e.KitchenOrderId, e.Station, e.OrderNumber, e.TableNumber, e.Status, AsUtc(e.OccurredAt));
+    /// <summary>One /ws/kds frame (contract record, Type "event").</summary>
+    public static KitchenSocketEnvelope ToSocketEnvelope(this KitchenEvent e) => new(
+        "event", e.Type, e.KitchenOrderId, e.Station ?? string.Empty, e.OrderNumber ?? string.Empty,
+        e.TableNumber ?? string.Empty, e.Status, AsUtc(e.OccurredAt));
 
     /// <summary>
     /// Timestamps are stored as UTC but come back from SQLite with Kind=Unspecified, which

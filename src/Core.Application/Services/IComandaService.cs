@@ -69,4 +69,29 @@ public interface IComandaService
 
     /// <summary>Same, storing a card/transfer reference and the terminal charge id on the Payment.</summary>
     Task<PaymentResultDto> CloseAndPayAsync(Guid comandaId, Guid cashShiftId, PaymentMethod method, decimal tenderedAmount, string? reference, Guid? terminalPaymentId, CancellationToken ct = default);
+
+    // ── Shared comandas between registers (2026-11-14) ────────────────────────
+    // The master owns every comanda. A satellite's Comandas/KDS screens talk to the master over HTTP
+    // (RemoteComandaService / RemoteKitchenService) and invoice on ITS OWN database:
+    //   lock on the master → local Order + Payment (satellite shift) + Outbox ComandaClosedRemotely → close-remote.
+
+    /// <summary>
+    /// Master: reserves the comanda for <paramref name="terminalCode"/> (Open → ReadyToPay as MarkReadyToPayAsync does).
+    /// Same code again just refreshes PaymentLockedAt. Another code holding a lock younger than
+    /// ComandaSettings.PaymentLockMinutes (default 10) → InvalidOperationException("La mesa la está cobrando CAJA-02.").
+    /// Closed/Cancelled → InvalidOperationException. Publishes ComandaChanged.
+    /// </summary>
+    Task<ComandaDto> LockForPaymentAsync(Guid comandaId, string terminalCode, CancellationToken ct = default);
+
+    /// <summary>Master: releases the lock held by <paramref name="terminalCode"/> (no-op if not the holder). Does not reopen.</summary>
+    Task<ComandaDto> UnlockPaymentAsync(Guid comandaId, string terminalCode, CancellationToken ct = default);
+
+    /// <summary>
+    /// Master: closes a comanda that was INVOICED ON ANOTHER REGISTER. Requires the lock to be held by request.TerminalCode
+    /// (or no lock at all). Confirms pending items (kitchen tickets + events, like CloseAndPayAsync), sets Status Closed,
+    /// PaidByTerminalCode/RemoteOrderNumber/RemoteOrderId, clears the lock, publishes ComandaChanged. Idempotent: already
+    /// Closed by the same terminal → returns the DTO; closed by another → InvalidOperationException. Writes NO Order here
+    /// (the satellite's OrderCompleted arrives through the sync inbox).
+    /// </summary>
+    Task<ComandaDto> CloseRemotelyAsync(ComandaRemoteCloseRequest request, CancellationToken ct = default);
 }

@@ -53,7 +53,8 @@
         <!-- Status bar -->
         <Border Grid.Row="2" Background="#1E293B" Padding="16,10">
             <Grid ColumnDefinitions="*, Auto">
-                <TextBlock Text="{Binding StatusMessage}" Foreground="#CBD5E1" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                <!-- Amber while the master does not answer (satellite); the screen stays usable -->
+                <TextBlock Text="{Binding StatusMessage}" Foreground="{Binding StatusBrush}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                 <TextBlock Grid.Column="1" Text="🔴 Sin turno de caja – no se puede cobrar" Foreground="#F87171" FontSize="14" FontWeight="Bold"
                            IsVisible="{Binding !IsShiftOpen}"/>
             </Grid>

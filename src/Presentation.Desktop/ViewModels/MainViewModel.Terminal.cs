@@ -12,8 +12,8 @@ using Presentation.Desktop.Services;
 namespace Presentation.Desktop.ViewModels;
 
 /// <summary>
-/// Multi-register part of the shell: the 🖥️ nav-bar chip (this register + master/satellite link state),
-/// the satellite tab rules (Comandas / KDS / Maestros live on the master) and the catalog-changed
+/// Multi-register part of the shell: the 🖥️ nav-bar chip (this register + master/satellite link state +
+/// kitchen socket), the satellite tab rules (only Maestros lives on the master) and the catalog-changed
 /// reload of the selling screens.
 /// </summary>
 public partial class MainViewModel
@@ -50,8 +50,8 @@ public partial class MainViewModel
     partial void OnTerminalChipTooltipChanged(string value) => OnPropertyChanged(nameof(TerminalChipDisplayTooltip));
 
     // ── Tab rules: role permission AND terminal rule ─────────────────────────
-    // A satellite only sells (Venta, Caja, Recaudos); comandas, KDS and masters belong to the master
-    // (tablets use the master's web pages).
+    // A satellite sells and ALSO works the shared comandas / KDS (through the master's API); only
+    // Maestros stays on the master (catalog, users and terminals are replicated from there).
     public bool IsCheckoutTabVisible     => CanShow(0);
     public bool IsComandasTabVisible     => CanShow(4);
     public bool IsKdsTabVisible          => CanShow(1);
@@ -59,7 +59,7 @@ public partial class MainViewModel
     public bool IsBillPaymentsTabVisible => CanShow(5);
     public bool IsMastersTabVisible      => CanShow(3);
 
-    private static bool AllowedOnSatellite(PosView view) => view is PosView.Checkout or PosView.CashShift or PosView.BillPayments;
+    private static bool AllowedOnSatellite(PosView view) => view != PosView.Masters;
 
     private bool CanShow(int index)
     {
@@ -145,22 +145,30 @@ public partial class MainViewModel
 
         var (pending, failed, _) = _outbox.Counts;
         var queued = pending + failed;
+        // Kitchen socket (/ws/kds): comandas and KDS refresh live only while it is open.
+        var kitchenLive = _satellite.IsKitchenLive;
+        var kitchen = kitchenLive ? "cocina en vivo" : "cocina sin conexión";
+        var kitchenTip = kitchenLive
+            ? "\nCocina: eventos en vivo desde la caja principal (comandas y KDS se actualizan al instante)."
+            : "\nCocina: sin canal en vivo" + (_satellite.KitchenSocketError is { } ke ? $" ({ke})" : string.Empty) +
+              "; comandas y KDS se actualizan por sondeo periódico.";
         if (_satellite.IsMasterReachable)
         {
             var since = _satellite.LastPullAt ?? _satellite.LastHeartbeatAt;
             var ago = since is { } t ? Ago(DateTimeOffset.UtcNow - t) : "—";
             var tail = queued > 0 ? $" · {queued} pendientes" : string.Empty;
-            TerminalChipText = $"🖥️ {code} · Satélite · sincronizado hace {ago}{tail}";
+            TerminalChipText = $"🖥️ {code} · Satélite · sincronizado hace {ago}{tail} · {kitchen}";
             TerminalChipTooltip = $"Caja principal: {_terminalSettings.MasterUrl}\nCatálogo: {Stamp(_satellite.LastPullAt)} · Latido: {Stamp(_satellite.LastHeartbeatAt)}" +
-                                  (_satellite.LastApply is { } a ? $"\nÚltima actualización: {a.Inserted} nuevos · {a.Updated} cambiados · {a.Deactivated} desactivados" : string.Empty);
-            TerminalChipColor = queued > 0 ? "#FBBF24" : "#34D399";
+                                  (_satellite.LastApply is { } a ? $"\nÚltima actualización: {a.Inserted} nuevos · {a.Updated} cambiados · {a.Deactivated} desactivados" : string.Empty) +
+                                  kitchenTip;
+            TerminalChipColor = queued > 0 || !kitchenLive ? "#FBBF24" : "#34D399";
         }
         else
         {
-            TerminalChipText = $"🖥️ {code} · Satélite · sin conexión con la caja principal · vendiendo sin conexión · {queued} pendientes";
+            TerminalChipText = $"🖥️ {code} · Satélite · sin conexión con la caja principal · vendiendo sin conexión · {queued} pendientes · {kitchen}";
             TerminalChipTooltip = $"No responde {_terminalSettings.MasterUrl}" +
                                   (_satellite.LastError is { } e ? $" ({e})" : string.Empty) +
-                                  "\nLas ventas se guardan aquí y se envían cuando la caja principal vuelva.";
+                                  "\nLas ventas se guardan aquí y se envían cuando la caja principal vuelva." + kitchenTip;
             TerminalChipColor = "#FBBF24";
         }
     }

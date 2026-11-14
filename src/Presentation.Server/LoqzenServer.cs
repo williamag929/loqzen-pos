@@ -20,8 +20,14 @@ namespace Presentation.Server;
 /// one DI scope per request, so it shares the desktop's SQLite DB and settings.
 /// <para>Routes:</para>
 /// <list type="bullet">
-/// <item><c>GET /health</c>, <c>GET /</c>, <c>/kds</c>, <c>/comandera</c> (embedded pages), <c>GET /ws/kds</c> (WebSocket)</item>
-/// <item><c>/api/kds/*</c> settings/orders/advance/printed/undo — <c>/api/catalog/products|categories</c> — <c>/api/tables</c>, <c>/api/comandas/*</c></item>
+/// <item><c>GET /health</c>, <c>GET /</c>, <c>/kds</c>, <c>/comandera</c> (embedded pages), <c>GET /ws/kds[?station=]</c> (WebSocket, always
+///   open — browsers cannot send headers on the handshake; frames are <c>KitchenSocketEnvelope</c> incl. <c>ComandaChanged</c> to every socket)</item>
+/// <item><c>/api/kds/settings</c>, <c>GET /api/kds/orders[?station=]</c>, <c>GET /api/kds/orders/{id}</c>, <c>POST .../advance|printed|undo</c>
+///   (tickets as <c>KitchenOrderWire</c>) — <c>/api/catalog/products|categories</c> — <c>GET /api/tables</c></item>
+/// <item>Comandera: <c>GET /api/comandas/settings</c>, <c>GET /api/comandas</c>, <c>GET|POST /api/comandas[/{id}]</c>, <c>POST /{id}/items</c>,
+///   <c>POST /{id}/items/{itemId}/cancel|notes|hold</c>, <c>POST /{id}/send|ready|reopen</c></item>
+/// <item>Shared comandas, register-only (Bearer <c>TerminalSettings.ApiKey</c> when set): <c>POST /api/comandas/{id}/items/{itemId}/cancel-confirmed</c>,
+///   <c>POST /{id}/payment-lock</c>, <c>POST /{id}/payment-unlock</c>, <c>POST /{id}/close-remote</c></item>
 /// <item>Pay at table (404 when <c>PaymentTerminalSettings.Enabled</c> is false): <c>GET /api/payment-terminals</c>,
 ///   <c>POST /api/payment-terminals/{id}/assign</c>, <c>POST /api/comandas/{id}/pay-on-terminal</c> (long request: waits for
 ///   the card up to ChargeTimeoutSeconds; Kestrel has no per-request timeout so no limit is raised here), <c>GET /api/payment-terminals/charges</c></item>

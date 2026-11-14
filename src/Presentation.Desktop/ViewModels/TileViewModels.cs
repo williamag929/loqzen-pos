@@ -76,13 +76,21 @@ public sealed class TableTileViewModel
 
 public sealed class ComandaCardViewModel
 {
-    public ComandaCardViewModel(ComandaDto dto, bool isCurrent, DateTime utcNow, Action<ComandaCardViewModel> onSelect)
+    /// <param name="ownTerminalCode">This register's code: a payment lock held by ANOTHER code shows the "💳 CAJA-02" tag.</param>
+    public ComandaCardViewModel(ComandaDto dto, bool isCurrent, DateTime utcNow, Action<ComandaCardViewModel> onSelect, string? ownTerminalCode = null)
     {
         Dto = dto;
         IsCurrent = isCurrent;
         Minutes = (int)Math.Max(0, (utcNow - dto.OpenedAt).TotalMinutes);
         SelectCommand = new RelayCommand(() => onSelect(this));
+        var locker = dto.PaymentLockedByTerminalCode?.Trim();
+        LockTag = !string.IsNullOrWhiteSpace(locker) && !string.Equals(locker, ownTerminalCode?.Trim(), StringComparison.OrdinalIgnoreCase)
+            ? $"💳 {locker}" : string.Empty;
     }
+
+    /// <summary>"💳 CAJA-02" when another register is collecting this table (empty otherwise).</summary>
+    public string LockTag { get; }
+    public bool HasLockTag => LockTag.Length > 0;
 
     public ComandaDto Dto { get; }
     public bool IsCurrent { get; }

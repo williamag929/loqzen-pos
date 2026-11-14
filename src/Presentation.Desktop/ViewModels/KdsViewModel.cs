@@ -19,6 +19,9 @@ namespace Presentation.Desktop.ViewModels;
 /// Kitchen Display. Cards are in ARRIVAL order. A 1s UI tick updates colours/countdowns; every
 /// PollSeconds it re-reads the DB and MERGES (adds new cards, updates existing in place, removes gone)
 /// so running animations don't restart. Each operation uses its own DI scope (fresh DbContext).
+/// On a SATELLITE IKitchenService is RemoteKitchenService (master's /api/kds) and the bus is fed by
+/// MasterKitchenSocketClient; the poll stays as fallback and a master that does not answer shows ONE
+/// "Sin conexión con la caja principal" line in the header while the last cards stay on screen.
 /// </summary>
 public partial class KdsViewModel : ObservableObject, IDisposable
 {
@@ -29,6 +32,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _eventDebounce;
     private readonly IDisposable _eventSubscription;
+    private readonly Infrastructure.Data.Sync.MasterKitchenSocketClient? _kitchenSocket;
     private int _ticksSincePoll;
     private bool _loading;
     private bool _reloadRequested;
@@ -40,20 +44,28 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     [ObservableProperty] private string _kdsTitle = "KDS - Sistema de Pantallas de Cocina";
     [ObservableProperty] private string _statusMessage = string.Empty;
 
-    /// <summary>True while subscribed to the kitchen event bus: cards update instantly, the poll is only a fallback.</summary>
+    /// <summary>True while subscribed to the kitchen event bus: cards update instantly, the poll is only a fallback.
+    /// On a satellite it follows the WebSocket to the master (MasterKitchenSocketClient.IsConnected).</summary>
     [ObservableProperty] private bool _isLive;
+
+    /// <summary>Satellite: the last read from the master failed; header shows "Sin conexión con la caja principal" once.</summary>
+    [ObservableProperty] private bool _isMasterOffline;
+
+    public const string MasterOfflineMessage = "Sin conexión con la caja principal";
 
     public ObservableCollection<string> Stations { get; } = new() { "Todas", "Cocina Caliente", "Barra", "Parrilla" };
     public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
     private readonly List<KitchenOrderCardViewModel> _allOrders = new();
 
+    /// <param name="kitchenSocket">Registered only on a satellite (null on the master: DI uses the default).</param>
     public KdsViewModel(IServiceScopeFactory scopes, IPrinterService printerService, KdsSettings settings, TimeProvider clock,
-        IKitchenEventBus events)
+        IKitchenEventBus events, Infrastructure.Data.Sync.MasterKitchenSocketClient? kitchenSocket = null)
     {
         _scopes = scopes;
         _printerService = printerService;
         _settings = settings;
         _clock = clock;
+        _kitchenSocket = kitchenSocket;
 
         // Events arriving within 150 ms (a ticket with several stations, a burst from the tablets)
         // coalesce into ONE reload: the one-shot timer restarts on every event.
@@ -66,7 +78,15 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         };
         // Handlers run on the publisher's thread (sale, timer, Kestrel request): marshal to the UI.
         _eventSubscription = events.Subscribe(_ => Dispatcher.UIThread.Post(RestartDebounce));
-        IsLive = true;
+        if (_kitchenSocket != null)
+        {
+            _kitchenSocket.Changed += OnKitchenSocketChanged; // worker thread
+            IsLive = _kitchenSocket.IsConnected;
+        }
+        else
+        {
+            IsLive = true;
+        }
 
         _ = LoadOrdersAsync();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
@@ -80,6 +100,18 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         _eventDebounce.Start();
     }
 
+    private void OnKitchenSocketChanged()
+    {
+        var socket = _kitchenSocket;
+        if (socket == null) return;
+        Dispatcher.UIThread.Post(() =>
+        {
+            var wasLive = IsLive;
+            IsLive = socket.IsConnected;
+            if (IsLive && !wasLive) RestartDebounce(); // back online: catch up on whatever happened meanwhile
+        });
+    }
+
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
     public void Dispose()
@@ -87,7 +119,30 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         _timer.Stop();
         _eventDebounce.Stop();
         _eventSubscription.Dispose();
+        if (_kitchenSocket != null) _kitchenSocket.Changed -= OnKitchenSocketChanged;
         IsLive = false;
+    }
+
+    private static bool IsConnectivityError(Exception ex) => ex switch
+    {
+        System.Net.Http.HttpRequestException or TimeoutException or System.Net.Sockets.SocketException => true,
+        TaskCanceledException => true, // HttpClient timeout
+        _ => ex.InnerException is { } inner && IsConnectivityError(inner)
+    };
+
+    /// <summary>Master unreachable → one header line, cards untouched (no exception, no log spam). Anything else → error line.</summary>
+    private void ReportReadError(Exception ex)
+    {
+        if (IsConnectivityError(ex))
+        {
+            if (!IsMasterOffline)
+            {
+                IsMasterOffline = true;
+                Console.WriteLine($"[KDS] {MasterOfflineMessage}: {ex.Message}");
+            }
+            return;
+        }
+        StatusMessage = $"❌ Error leyendo órdenes: {ex.Message}";
     }
 
     private async Task TickAsync()
@@ -121,6 +176,11 @@ public partial class KdsViewModel : ObservableObject, IDisposable
             IReadOnlyList<Core.Domain.Entities.KitchenOrder> active;
             using (var scope = _scopes.CreateScope())
                 active = await scope.ServiceProvider.GetRequiredService<IKitchenService>().GetActiveAsync();
+            if (IsMasterOffline)
+            {
+                IsMasterOffline = false;
+                Console.WriteLine("[KDS] Conexión con la caja principal restablecida");
+            }
 
             var byId = active.ToDictionary(k => k.Id);
             var changed = false;
@@ -155,7 +215,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ Error leyendo órdenes: {ex.Message}";
+            ReportReadError(ex);
         }
         finally
         {
@@ -244,6 +304,11 @@ public partial class KdsViewModel : ObservableObject, IDisposable
             card.Tick(UtcNow);
             RecalculateCounts();
             if (message(updated) is { } msg) StatusMessage = msg;
+        }
+        catch (Exception ex) when (IsConnectivityError(ex))
+        {
+            IsMasterOffline = true; // header line; the card keeps its state until the master answers again
+            StatusMessage = $"⚠️ {MasterOfflineMessage} · {card.TableNumber} no se actualizó, reintente";
         }
         catch (Exception ex)
         {

@@ -186,21 +186,34 @@ public partial class ComandaViewModel
             ReceiptPreview.Add(line);
     }
 
-    /// <summary>Runs a service call in its own scope and surfaces errors in the status bar.</summary>
-    private async Task RunAsync(Func<IComandaService, Task> action)
+    /// <summary>
+    /// Runs a service call in its own scope and surfaces errors in the status bar. Business rules
+    /// (InvalidOperationException, e.g. "La mesa la está cobrando CAJA-02.") show as a warning; a master that does
+    /// not answer (satellite) shows the amber "Sin conexión con la caja principal" and the screen stays usable.
+    /// Returns true when the action completed.
+    /// </summary>
+    private async Task<bool> RunAsync(Func<IComandaService, Task> action)
     {
         try
         {
             using var scope = _scopes.CreateScope();
             await action(scope.ServiceProvider.GetRequiredService<IComandaService>());
+            IsMasterOffline = false;
+            return true;
         }
-        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException)
+        catch (Exception ex) when (IsConnectivityError(ex))
         {
+            ReportError(ex, string.Empty);
+        }
+        catch (Exception ex) when (ex is InvalidOperationException or ArgumentException or System.Collections.Generic.KeyNotFoundException)
+        {
+            // Business rule or "already closed on the other register" (404 from the master): a warning, not a crash.
             StatusMessage = $"⚠️ {ex.Message}";
         }
         catch (Exception ex)
         {
             StatusMessage = $"❌ Error: {ex.Message}";
         }
+        return false;
     }
 }

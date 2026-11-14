@@ -16,6 +16,9 @@
   <ItemGroup>
     <ProjectReference Include="..\Core.Domain\Core.Domain.csproj" />
     <ProjectReference Include="..\Core.Application\Core.Application.csproj" />
+    <!-- PosDbContext only for the master-side ManagerOverride row of POST /api/comandas/{id}/items/{itemId}/cancel-confirmed
+         (IManagerAuthorizationService has no "already authorized elsewhere" method). -->
+    <ProjectReference Include="..\Infrastructure.Data\Infrastructure.Data.csproj" />
   </ItemGroup>
 
   <ItemGroup>

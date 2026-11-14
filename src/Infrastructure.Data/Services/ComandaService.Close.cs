@@ -25,7 +25,7 @@ public partial class ComandaService
         ConfirmItems(comanda, comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList());
         comanda.Status = ComandaStatus.ReadyToPay;
         comanda.UpdatedAt = UtcNow;
-        await SaveAndPublishTicketsAsync(ct);
+        await SaveAndPublishAsync(ct, comanda);
         return MapToDto(comanda);
     }
 
@@ -34,9 +34,12 @@ public partial class ComandaService
         var comanda = await RequireAsync(comandaId, ct);
         if (comanda.Status != ComandaStatus.ReadyToPay)
             throw new InvalidOperationException("Solo se puede reabrir una comanda lista para pago.");
+        // Another register is collecting this table right now: reopening would pull it from under them.
+        EnsureNotLockedByOther(comanda, LocalTerminalCode);
         comanda.Status = ComandaStatus.Open;
         comanda.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -48,6 +51,9 @@ public partial class ComandaService
         var comanda = await RequireAsync(comandaId, ct);
         if (comanda.Status is ComandaStatus.Closed or ComandaStatus.Cancelled)
             return PaymentResultDto.Failed(Guid.Empty, "La comanda ya está cerrada.");
+
+        // Another register reserved the table (LockForPaymentAsync) and its lock is still fresh → 409 for the UI.
+        EnsureNotLockedByOther(comanda, LocalTerminalCode);
 
         var shiftNumber = await _db.CashShifts
             .Where(s => s.Id == cashShiftId && s.Status == CashShiftStatus.Open)
@@ -87,6 +93,7 @@ public partial class ComandaService
         comanda.Status = ComandaStatus.Closed;
         comanda.ClosedAt = UtcNow;
         comanda.UpdatedAt = UtcNow;
+        ClearPaymentLock(comanda);
 
         _db.OutboxMessages.Add(new OutboxMessage
         {
@@ -99,7 +106,7 @@ public partial class ComandaService
             UpdatedAt = UtcNow
         });
 
-        await SaveAndPublishTicketsAsync(ct);
+        await SaveAndPublishAsync(ct, comanda);
         return PaymentResultDto.Successful(order.Id, order.OrderNumber, change);
     }
 

@@ -91,6 +91,26 @@ internal static class OutboxPayloads
         return System.Text.Encoding.UTF8.GetString(stream.ToArray());
     }
 
+    /// <summary>
+    /// <c>{ comanda: ComandaRemoteCloseRequest, comandaId, terminalCode, orderId, orderNumber, total, closedAt }</c>: a satellite
+    /// invoiced a master comanda locally. The master applies it through IComandaService.CloseRemotelyAsync (idempotent).
+    /// </summary>
+    public static string ComandaClosedRemotely(ComandaRemoteCloseRequest r)
+    {
+        ArgumentNullException.ThrowIfNull(r);
+        return Serialize(new
+        {
+            comanda = r,
+            comandaId = r.ComandaId,
+            terminalCode = r.TerminalCode,
+            orderId = r.OrderId,
+            orderNumber = r.OrderNumber,
+            paymentMethod = r.Method.ToString(),
+            total = r.Total,
+            closedAt = r.ClosedAt
+        });
+    }
+
     /// <summary><c>{ billPayment: {...} }</c> plus legacy flat keys.</summary>
     public static string BillPayment(BillPayment p, object? extra = null)
     {

@@ -26,9 +26,71 @@ public partial class ComandaViewModel
 
     /// <summary>A payment is being recorded (terminal dialog open or invoice being written): pay buttons disabled meanwhile.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(IsPayIdle))]
+    [NotifyPropertyChangedFor(nameof(IsPayIdle), nameof(CanPay))]
     private bool _isPaying;
     public bool IsPayIdle => !IsPaying;
+
+    // ── Payment lock between registers (master owns it; see IComandaService.LockForPaymentAsync) ──
+    /// <summary>Another register holds the payment lock: Cobrar is disabled and the banner names it.</summary>
+    public bool IsLockedByOtherRegister => Current?.PaymentLockedByTerminalCode is { } code && !string.IsNullOrWhiteSpace(code) && !IsOwnCode(code);
+    /// <summary>This register reserved the table when it opened the bill.</summary>
+    public bool IsLockedByThisRegister => IsOwnCode(Current?.PaymentLockedByTerminalCode);
+    public bool IsLockBannerVisible => IsCurrentReadyToPay && (IsLockedByOtherRegister || IsLockedByThisRegister);
+    public string LockBannerText => IsLockedByOtherRegister
+        ? $"💳 Cobrando en {Current!.PaymentLockedByTerminalCode!.Trim()}"
+        : IsLockedByThisRegister ? "🔒 Reservada para esta caja" : string.Empty;
+    public string LockBannerColor => IsLockedByOtherRegister ? "#B45309" : "#1D4ED8";
+    /// <summary>Pay buttons: idle AND not being collected on another register.</summary>
+    public bool CanPay => IsPayIdle && !IsLockedByOtherRegister;
+
+    private void NotifyLockChanged()
+    {
+        OnPropertyChanged(nameof(IsLockedByOtherRegister));
+        OnPropertyChanged(nameof(IsLockedByThisRegister));
+        OnPropertyChanged(nameof(IsLockBannerVisible));
+        OnPropertyChanged(nameof(LockBannerText));
+        OnPropertyChanged(nameof(LockBannerColor));
+        OnPropertyChanged(nameof(CanPay));
+    }
+
+    partial void OnCurrentChanged(ComandaDto? value) => NotifyLockChanged();
+
+    /// <summary>
+    /// Reserves the current comanda for this register (Open → ReadyToPay like MarkReadyToPayAsync). Another register
+    /// holding a fresh lock → "La mesa la está cobrando CAJA-02." in the status bar and the banner from the refreshed DTO.
+    /// </summary>
+    private async Task<bool> ReservePaymentAsync()
+    {
+        if (Current == null) return false;
+        var id = Current.Id;
+        var ok = await RunAsync(async svc => Apply(await svc.LockForPaymentAsync(id, OwnTerminalCode)));
+        if (!ok && !IsMasterOffline)
+        {
+            // Rejected (locked elsewhere): show who holds it.
+            try
+            {
+                using var scope = _scopes.CreateScope();
+                var fresh = await scope.ServiceProvider.GetRequiredService<IComandaService>().GetByIdAsync(id);
+                if (fresh != null && Current?.Id == id) Apply(fresh);
+            }
+            catch (Exception ex) { ReportError(ex, "actualizando"); }
+        }
+        return ok;
+    }
+
+    /// <summary>Best effort: frees a lock we hold (leaving the bill, reopening, switching comanda). Never surfaces errors.</summary>
+    private async Task ReleasePaymentLockAsync(ComandaDto comanda)
+    {
+        try
+        {
+            using var scope = _scopes.CreateScope();
+            await scope.ServiceProvider.GetRequiredService<IComandaService>().UnlockPaymentAsync(comanda.Id, OwnTerminalCode);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"[Comandas] No se pudo liberar la reserva de {comanda.TableName}: {ex.Message}");
+        }
+    }
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(TenderedText), nameof(ChangeText))]
@@ -70,18 +132,20 @@ public partial class ComandaViewModel
     [RelayCommand]
     private void PayExact() => Tendered = Current?.Total ?? 0;
 
-    /// <summary>Panel 1 → 2: freezes the comanda (pending items go to kitchen) and shows the bill.</summary>
+    /// <summary>
+    /// Panel 1 → 2: freezes the comanda (pending items go to kitchen), reserves it for this register and shows the bill.
+    /// LockForPaymentAsync does Open → ReadyToPay exactly like MarkReadyToPayAsync, plus the lock the other register sees.
+    /// </summary>
     [RelayCommand]
     private async Task ReadyToPayAsync()
     {
         if (Current == null) return;
-        await RunAsync(async svc =>
+        if (await ReservePaymentAsync())
         {
-            Apply(await svc.MarkReadyToPayAsync(Current.Id));
             Tendered = 0;
             PayMethod = PaymentMethod.Cash;
             PanelIndex = 2;
-        });
+        }
         await RefreshListOnlyAsync();
     }
 
@@ -89,9 +153,17 @@ public partial class ComandaViewModel
     private async Task ReopenAsync()
     {
         if (Current == null) return;
+        if (IsLockedByOtherRegister)
+        {
+            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            return;
+        }
+        var comanda = Current;
         await RunAsync(async svc =>
         {
-            Apply(await svc.ReopenAsync(Current.Id));
+            if (IsOwnCode(comanda.PaymentLockedByTerminalCode))
+                await svc.UnlockPaymentAsync(comanda.Id, OwnTerminalCode); // UnlockPayment does not reopen by itself
+            Apply(await svc.ReopenAsync(comanda.Id));
             PanelIndex = 1;
             StatusMessage = "Comanda reabierta para agregar productos";
         });
@@ -139,6 +211,11 @@ public partial class ComandaViewModel
             StatusMessage = "⚠️ Cierre la comanda antes de cobrar en el datáfono.";
             return;
         }
+        if (IsLockedByOtherRegister)
+        {
+            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            return;
+        }
         if (_shiftId is not { } shiftId)
         {
             StatusMessage = "❌ No hay turno de caja abierto. Ábralo en 'Turno de Caja'.";
@@ -176,6 +253,11 @@ public partial class ComandaViewModel
     private async Task CloseAndPayCoreAsync(TerminalPaymentDto? charge)
     {
         if (Current == null) return;
+        if (IsLockedByOtherRegister)
+        {
+            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            return;
+        }
         if (_shiftId is not { } shiftId)
         {
             StatusMessage = "❌ No hay turno de caja abierto. Ábralo en 'Turno de Caja'.";
@@ -191,6 +273,8 @@ public partial class ComandaViewModel
 
         await RunAsync(async svc =>
         {
+            // Satellite: RemoteComandaService locks on the master and writes the Order + Payment on THIS database,
+            // so the receipt below comes from the local ISalesService exactly as on the master.
             result = await svc.CloseAndPayAsync(comanda.Id, shiftId, method, tendered, reference, charge?.Id);
             if (!result.Success) return;
             using var scope = _scopes.CreateScope();

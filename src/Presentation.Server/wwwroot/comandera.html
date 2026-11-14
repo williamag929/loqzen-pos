@@ -421,7 +421,7 @@
 
   function tileHtml(name, c, tableId) {
     var cls = 'tile' + (c ? (c.status === 'ReadyToPay' ? ' ready' : ' busy') : '');
-    var sub = c ? ('Comanda #' + c.number + (c.status === 'ReadyToPay' ? ' · por pagar' : '') + ' · ' + money(c.total)) : 'libre';
+    var sub = c ? ('Comanda #' + c.number + (lockedBy(c) ? ' · 💳 cobrando en ' + lockedBy(c) : c.status === 'ReadyToPay' ? ' · por pagar' : '') + ' · ' + money(c.total)) : 'libre';
     return '<button class="' + cls + '" type="button" data-name="' + esc(name) + '"' +
       (c ? ' data-comanda="' + esc(c.id) + '"' : '') + (tableId ? ' data-table="' + esc(tableId) + '"' : '') + '>' +
       '<b>' + esc(name) + '</b><span>' + esc(sub) + '</span></button>';
@@ -503,14 +503,24 @@
     if (c && c.id === currentId) { current = c; renderComanda(); }
   }
 
+  // Another register (CAJA-02…) is collecting this table: ComandaDto.paymentLockedByTerminalCode (null = free).
+  function lockedBy(c) { return c && c.status !== 'Closed' && c.paymentLockedByTerminalCode ? c.paymentLockedByTerminalCode : null; }
+
   function renderComanda() {
     if (!current) return;
     renderHeader();
     var open = current.status === 'Open';
-    $('banner').hidden = open;
-    $('banner').textContent = terminalsEnabled ? '💳 Lista para pagar · cobra en mesa o en el POS' : '💳 Lista para pagar · cobrar en el POS';
+    var lock = lockedBy(current);
+    $('banner').hidden = open && !lock;
+    if (lock) {
+      $('banner').textContent = '💳 Cobrando en ' + lock;
+    } else if (current.status === 'Closed' && current.paidByTerminalCode) {
+      $('banner').textContent = '✓ Pagada en ' + current.paidByTerminalCode;
+    } else {
+      $('banner').textContent = terminalsEnabled ? '💳 Lista para pagar · cobra en mesa o en el POS' : '💳 Lista para pagar · cobrar en el POS';
+    }
     $('btnSend').disabled = paying || !open || !(current.pendingCount > 0);
-    $('btnReady').disabled = paying || !open;
+    $('btnReady').disabled = paying || !open || !!lock;
     renderTerminals();
     var items = (current.items || []).slice();
     itemsEl.innerHTML = items.map(lineHtml).join('') || '<div class="empty-note">Toca un producto para agregarlo</div>';
@@ -634,7 +644,7 @@
     var sel = findTerminal(selectedTerminalId);
     btnTerminal.hidden = !terminalsEnabled;
     btnTerminal.textContent = '📟 ' + (sel ? sel.name : 'Datáfono');
-    var canPay = terminalsEnabled && screen === 'comanda' && !!current &&
+    var canPay = terminalsEnabled && screen === 'comanda' && !!current && !lockedBy(current) &&
       (current.status === 'Open' || current.status === 'ReadyToPay') && Number(current.total) > 0;
     terminalPayEl.hidden = !canPay;
     if (!canPay) return;
@@ -692,7 +702,7 @@
     modalLocked = on;
     btnPayTerminal.disabled = on || !findTerminal(selectedTerminalId);
     $('btnSend').disabled = on || !current || current.status !== 'Open' || !(current.pendingCount > 0);
-    $('btnReady').disabled = on || !current || current.status !== 'Open';
+    $('btnReady').disabled = on || !current || current.status !== 'Open' || !!lockedBy(current);
     $('btnBack').disabled = on;
     $('btnWaiter').disabled = on;
     btnTerminal.disabled = on;
@@ -726,6 +736,7 @@
   // POST /api/comandas/{id}/pay-on-terminal { terminalId, waiterName }. Long request: the server waits for the card.
   function payOnTerminal() {
     if (!current || paying) return;
+    if (lockedBy(current)) { toast('La está cobrando ' + lockedBy(current)); return; }
     var terminal = findTerminal(selectedTerminalId);
     if (!terminal) { toast('Selecciona un datáfono'); return; }
     if (!waiter) { askWaiter(true); return; }
@@ -821,7 +832,15 @@
     socket.onopen = function () { if (ws !== socket) return; wsBackoff = 1000; setOnline(true); scheduleReload(); };
     socket.onmessage = function (ev) {
       if (ws !== socket) return;
-      if (typeof ev.data === 'string' && ev.data.trim() === 'pong') return;
+      if (typeof ev.data !== 'string' || ev.data.trim() === 'pong') return;
+      // Frame = KitchenSocketEnvelope. 'ComandaChanged' (kitchenOrderId = comanda id, from any register: opened, items,
+      // ready, reopened, payment lock, closed) and every kitchen event just mean "refresh": the REST data is the truth.
+      // When the changed comanda is the one on screen, skip the debounce so the lock banner / close shows at once.
+      var msg = null;
+      try { msg = JSON.parse(ev.data); } catch (e) { msg = null; }
+      if (msg && msg.event === 'ComandaChanged' && screen === 'comanda' && currentId && msg.kitchenOrderId === currentId) {
+        clearTimeout(reloadTimer); reloadCurrent(); return;
+      }
       scheduleReload();
     };
     socket.onerror = function () { /* onclose follows */ };

@@ -28,7 +28,13 @@
                                     <StackPanel Grid.Column="1" Margin="14,0" Spacing="4">
                                         <TextBlock Text="{Binding Title}" Foreground="White" FontSize="19" FontWeight="Bold"/>
                                         <TextBlock Text="{Binding Subtitle}" Foreground="#94A3B8" FontSize="13"/>
-                                        <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="14" FontWeight="SemiBold"/>
+                                        <WrapPanel>
+                                            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                                            <!-- Another register is collecting this table (payment lock) -->
+                                            <Border Background="#78350F" CornerRadius="6" Padding="8,2" IsVisible="{Binding HasLockTag}">
+                                                <TextBlock Text="{Binding LockTag}" Foreground="#FCD34D" FontSize="12" FontWeight="Bold"/>
+                                            </Border>
+                                        </WrapPanel>
                                     </StackPanel>
                                     <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="#34D399" FontSize="22" FontWeight="Black" VerticalAlignment="Center"/>
                                 </Grid>

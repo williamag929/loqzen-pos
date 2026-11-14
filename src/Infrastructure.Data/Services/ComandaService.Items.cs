@@ -45,6 +45,7 @@ public partial class ComandaService
         _db.ComandaItems.Add(item);
         comanda.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -58,7 +59,9 @@ public partial class ComandaService
 
         item.Status = ComandaItemStatus.Cancelled;
         item.UpdatedAt = UtcNow;
+        comanda.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -144,6 +147,7 @@ public partial class ComandaService
         await _db.SaveChangesAsync(ct);
         // Status reflects the ticket after the change (may be Cancelled when nothing is left to cook).
         if (kitchenOrder != null) PublishKitchenEvent(KitchenEventType.ItemCancelled, kitchenOrder);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -157,7 +161,9 @@ public partial class ComandaService
         item.Notes = clean;
         item.IsOnHold = false; // saved → let it go to the kitchen (immediately if its delay already elapsed)
         item.UpdatedAt = UtcNow;
+        comanda.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -166,7 +172,9 @@ public partial class ComandaService
         var (comanda, item) = await RequirePendingItemAsync(comandaId, itemId, ct);
         item.IsOnHold = onHold;
         item.UpdatedAt = UtcNow;
+        comanda.UpdatedAt = UtcNow;
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 
@@ -183,8 +191,11 @@ public partial class ComandaService
     public async Task<ComandaDto> ConfirmPendingNowAsync(Guid comandaId, CancellationToken ct = default)
     {
         var comanda = await RequireAsync(comandaId, ct);
-        ConfirmItems(comanda, comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList());
-        await SaveAndPublishTicketsAsync(ct);
+        var pending = comanda.Items.Where(i => i.Status == ComandaItemStatus.Pending).ToList();
+        if (pending.Count == 0) return MapToDto(comanda); // nothing changes: no save, no event
+        ConfirmItems(comanda, pending);
+        comanda.UpdatedAt = UtcNow;
+        await SaveAndPublishAsync(ct, comanda);
         return MapToDto(comanda);
     }
 
@@ -197,14 +208,18 @@ public partial class ComandaService
             .ToListAsync(ct);
 
         var count = 0;
+        var changed = new System.Collections.Generic.List<Comanda>();
         foreach (var c in comandas)
         {
             var due = c.Items.Where(i => i.Status == ComandaItemStatus.Pending && !i.IsOnHold && i.AddedAt <= cutoff).ToList();
+            if (due.Count == 0) continue;
             ConfirmItems(c, due);
+            c.UpdatedAt = UtcNow;
+            changed.Add(c);
             count += due.Count;
         }
 
-        if (count > 0) await SaveAndPublishTicketsAsync(ct);
+        if (count > 0) await SaveAndPublishAsync(ct, changed.ToArray());
         return count;
     }
 }

@@ -89,11 +89,11 @@ public partial class App : Application
             desktop.MainWindow = new MainWindow { DataContext = main };
 
             // Optional start tab (kiosk screens / demos): LOQZEN_START_VIEW=kds|comandas|caja|recaudos|maestros
-            // kds / comandas / maestros are ignored on a satellite (those screens live on the master).
+            // maestros is ignored on a satellite (the catalog is managed on the master); kds / comandas work on both.
             switch (Environment.GetEnvironmentVariable("LOQZEN_START_VIEW")?.ToLowerInvariant())
             {
-                case "kds" when main.IsMaster: _ = main.ShowKdsCommand.ExecuteAsync(null); break;
-                case "comandas" when main.IsMaster: _ = main.ShowComandasCommand.ExecuteAsync(null); break;
+                case "kds": _ = main.ShowKdsCommand.ExecuteAsync(null); break;
+                case "comandas": _ = main.ShowComandasCommand.ExecuteAsync(null); break;
                 case "caja": _ = main.ShowCashShiftCommand.ExecuteAsync(null); break;
                 case "recaudos": _ = main.ShowBillPaymentsCommand.ExecuteAsync(null); break;
                 case "maestros" when main.IsMaster: _ = main.ShowMastersCommand.ExecuteAsync(null); break;

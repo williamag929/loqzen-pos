@@ -22,6 +22,10 @@ namespace Presentation.Desktop.ViewModels;
 ///   Panel 2 (der)    – live receipt preview + close/pay
 /// Services are resolved per operation from a fresh scope: the DbContext is not thread-safe and the
 /// confirmation timer runs concurrently with user actions.
+/// On a SATELLITE register IComandaService is RemoteComandaService (the master owns the comandas): the 1 s timer
+/// only drives the yellow countdown (the master's timer confirms), the list refreshes on ComandaChanged events that
+/// arrive through MasterKitchenSocketClient, and a master that does not answer shows "Sin conexión con la caja
+/// principal" (amber) without leaving the screen.
 /// </summary>
 public partial class ComandaViewModel : ObservableObject, IDisposable
 {
@@ -35,6 +39,8 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     private readonly CustomerDisplayViewModel _display;
     private readonly ITerminalChargePrompt _terminalPrompt;
     private readonly PaymentTerminalSettings _terminalSettings;
+    private readonly TerminalSettings _register;
+    private readonly ITerminalContext _terminal;
     private readonly DispatcherTimer _timer;
     private readonly DispatcherTimer _eventDebounce;
     private readonly IDisposable _eventSubscription;
@@ -42,10 +48,13 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
 
     public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock,
         IManagerAuthPrompt authPrompt, IUserSession session, IKitchenEventBus events, CustomerDisplayViewModel display,
-        ICashDrawerService cashDrawer, ITerminalChargePrompt terminalPrompt, PaymentTerminalSettings terminalSettings)
+        ICashDrawerService cashDrawer, ITerminalChargePrompt terminalPrompt, PaymentTerminalSettings terminalSettings,
+        TerminalSettings register, ITerminalContext terminal)
     {
         _terminalPrompt = terminalPrompt;
         _terminalSettings = terminalSettings;
+        _register = register;
+        _terminal = terminal;
         _cashDrawer = cashDrawer;
         _scopes = scopes;
         _printer = printer;
@@ -62,24 +71,63 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         // 1s tick: confirms due items (→ green + KDS) and refreshes yellow countdowns.
         // Runs for the whole app lifetime — NOT only while this screen is visible — otherwise
         // items would never reach the kitchen while the cashier is on another tab.
+        // On a satellite only the countdown runs: the master's timer confirms (see TickAsync).
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += async (_, _) => await TickAsync();
         _timer.Start();
 
-        // A comandera tablet (REST) may add items / open comandas: new kitchen tickets mean the list
-        // and the current comanda are stale. Created events within 150 ms coalesce into one refresh.
+        // Any register (this one, the other cash register, a comandera tablet) may change a comanda: the service
+        // publishes ComandaChanged after every commit (on a satellite it arrives through the master's WebSocket).
+        // Events within 150 ms coalesce into one refresh of the list and the current comanda.
         _eventDebounce = new DispatcherTimer { Interval = TimeSpan.FromMilliseconds(150) };
         _eventDebounce.Tick += async (_, _) =>
         {
             _eventDebounce.Stop();
             try { await RefreshAsync(); }
-            catch (Exception ex) { StatusMessage = $"❌ Error actualizando: {ex.Message}"; }
+            catch (Exception ex) { ReportError(ex, "actualizando"); }
         };
         _eventSubscription = events.Subscribe(e =>
         {
-            if (e.Type != KitchenEventType.Created) return;
+            if (e.Type != KitchenEventType.ComandaChanged) return;
             Dispatcher.UIThread.Post(() => { _eventDebounce.Stop(); _eventDebounce.Start(); });
         });
+    }
+
+    // ── Register identity (shared comandas between registers) ───────────────
+    /// <summary>Satellite: comandas live on the master; this screen talks to it over HTTP.</summary>
+    public bool IsSatellite => _register.IsSatellite;
+
+    /// <summary>Code stamped on payment locks ("CAJA-02"); the registered context wins over raw settings.</summary>
+    private string OwnTerminalCode => _terminal.IsSet ? _terminal.Code : (_register.Code ?? string.Empty).Trim().ToUpperInvariant();
+
+    private bool IsOwnCode(string? code) => !string.IsNullOrWhiteSpace(code) && string.Equals(code.Trim(), OwnTerminalCode, StringComparison.OrdinalIgnoreCase);
+
+    public const string MasterOfflineMessage = "Sin conexión con la caja principal";
+
+    /// <summary>Satellite: the last call to the master failed (status bar turns amber). Cleared by the next successful call.</summary>
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(StatusBrush))]
+    private bool _isMasterOffline;
+
+    public Avalonia.Media.IBrush StatusBrush => UiBrush.Parse(IsMasterOffline ? "#FBBF24" : "#CBD5E1");
+
+    private static bool IsConnectivityError(Exception ex) => ex switch
+    {
+        System.Net.Http.HttpRequestException or TimeoutException or System.Net.Sockets.SocketException => true,
+        TaskCanceledException => true, // HttpClient timeout
+        _ => ex.InnerException is { } inner && IsConnectivityError(inner)
+    };
+
+    /// <summary>Master unreachable → one amber line, screen stays usable (the next action retries). Anything else → red.</summary>
+    private void ReportError(Exception ex, string doing)
+    {
+        if (IsConnectivityError(ex))
+        {
+            IsMasterOffline = true;
+            StatusMessage = $"⚠️ {MasterOfflineMessage} · reintente en un momento";
+            return;
+        }
+        StatusMessage = $"❌ Error {doing}: {ex.Message}";
     }
 
     // ── Navigation (0 = comandas, 1 = comanda actual, 2 = cierre/pago) ──────
@@ -103,7 +151,10 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     [RelayCommand]
     private void GoLeft()
     {
-        if (PanelIndex > 0) PanelIndex--;
+        if (PanelIndex <= 0) return;
+        if (PanelIndex == 2 && Current is { } c && IsOwnCode(c.PaymentLockedByTerminalCode))
+            _ = ReleasePaymentLockAsync(c); // leaving the bill without paying: free the table for the other register
+        PanelIndex--;
     }
 
     [RelayCommand]
@@ -170,6 +221,14 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         _tickRunning = true;
         try
         {
+            if (IsSatellite)
+            {
+                // The master's timer confirms; a request per second would only load the LAN. The confirmed items
+                // arrive as a ComandaChanged event — here only the yellow countdown moves.
+                foreach (var row in Items) row.Tick(UtcNow);
+                return;
+            }
+
             int confirmed;
             using (var scope = _scopes.CreateScope())
                 confirmed = await scope.ServiceProvider.GetRequiredService<IComandaService>().ConfirmDueItemsAsync();
@@ -186,7 +245,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ Error confirmando: {ex.Message}";
+            ReportError(ex, "confirmando");
         }
         finally
         {

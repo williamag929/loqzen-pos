@@ -157,7 +157,8 @@ public class ComandaEndpointTests : IAsyncLifetime
             .StatusCode.Should().Be(HttpStatusCode.OK);
 
         var published = new List<KitchenEvent>();
-        using var subscription = _fx.Bus.Subscribe(e => { lock (published) published.Add(e); });
+        // Ticket events only (ComandaChanged is the comanda-list refresh, published on every mutation).
+        using var subscription = _fx.Bus.Subscribe(e => { if (e.Type == KitchenEventType.ComandaChanged) return; lock (published) published.Add(e); });
 
         var response = await _fx.PostJsonAsync($"/api/comandas/{comandaId}/send", null);
 

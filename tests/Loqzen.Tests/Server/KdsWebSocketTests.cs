@@ -77,7 +77,7 @@ public class KdsWebSocketTests : IAsyncLifetime
         _fx.Bus.Publish(e);
 
         var message = JsonNode.Parse(await ReceiveTextAsync(ws))!;
-        message["type"]!.GetValue<string>().Should().Be("kitchen");
+        message["type"]!.GetValue<string>().Should().Be("event", "KitchenSocketEnvelope.Type per the shared-comandas contract");
         message["event"]!.GetValue<string>().Should().Be("Created");
         message["kitchenOrderId"]!.GetValue<Guid>().Should().Be(e.KitchenOrderId);
         message["station"]!.GetValue<string>().Should().Be("Barra");

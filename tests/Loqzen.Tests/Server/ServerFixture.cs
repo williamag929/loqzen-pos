@@ -100,7 +100,12 @@ public sealed class ServerFixture : IAsyncLifetime
         services.AddScoped<ICategoryService, CategoryService>();
         services.AddScoped<ITerminalService, TerminalService>();
         services.AddScoped<ICatalogSyncService, CatalogSyncService>();
-        services.AddScoped<ISyncInboxService, SyncInboxService>();
+        // The inbox applies ComandaClosedRemotely through the REAL comanda service of this scope (same DbContext, same
+        // bus), exactly what the desktop's container resolves; explicit so the wiring cannot silently fall back to the
+        // bus-less internal ComandaService.
+        services.AddScoped<ISyncInboxService>(sp => new SyncInboxService(
+            sp.GetRequiredService<PosDbContext>(), sp.GetRequiredService<TimeProvider>(),
+            sp.GetRequiredService<ITerminalContext>(), sp.GetRequiredService<IComandaService>()));
         services.AddScoped<ICashShiftService, CashShiftService>();
         services.AddScoped<ISalesService, SalesService>();
         services.AddScoped<IBillPaymentService, BillPaymentService>();
@@ -290,7 +295,10 @@ public sealed class DriverProbe : IPaymentTerminalDriver
 /// <summary>
 /// Second register ("CAJA-02") with its own database and container, wired to a <see cref="ServerFixture"/> master
 /// over real HTTP. Mirrors ServiceCollectionExtensions for a satellite: SyncSettings forced to the master's inbox,
-/// HttpOutboxSink as the IOutboxSink, MasterApiClient bound to TerminalSettings.MasterUrl/ApiKey.
+/// HttpOutboxSink as the IOutboxSink, MasterApiClient bound to TerminalSettings.MasterUrl/ApiKey, and the shared
+/// comandas/KDS wiring: <see cref="IComandaService"/> → <see cref="RemoteComandaService"/>, <see cref="IKitchenService"/> →
+/// <see cref="RemoteKitchenService"/>, its OWN <see cref="KitchenEventBus"/> and a <see cref="MasterKitchenSocketClient"/>
+/// (registered, NOT started: tests call <c>SocketClient.Start()</c> when they want the /ws/kds feed).
 /// </summary>
 public sealed class SatelliteContainer : IAsyncDisposable
 {
@@ -305,10 +313,14 @@ public sealed class SatelliteContainer : IAsyncDisposable
     public SyncSettings SyncSettings { get; }
     public TerminalContext Terminal { get; } = new();
     public CashShiftSettings CashShiftSettings { get; } = new();
+    /// <summary>This register's own in-process bus (the master's events reach it only through <see cref="SocketClient"/>).</summary>
+    public KitchenEventBus Bus { get; } = new();
     public HttpClient Http { get; }
     public ServiceProvider ServiceProvider { get; private set; } = null!;
 
     public IMasterApiClient MasterApi => ServiceProvider.GetRequiredService<IMasterApiClient>();
+    /// <summary>/ws/kds client bound to the master's URL; idle until a test calls <c>Start()</c>.</summary>
+    public MasterKitchenSocketClient SocketClient => ServiceProvider.GetRequiredService<MasterKitchenSocketClient>();
 
     private SatelliteContainer(ServerFixture master, string code, string name, SqliteConnection connection)
     {
@@ -344,6 +356,7 @@ public sealed class SatelliteContainer : IAsyncDisposable
         services.AddSingleton(sat.SyncSettings);
         services.AddSingleton(sat.Terminal);
         services.AddSingleton<ITerminalContext>(sat.Terminal);
+        services.AddSingleton<IKitchenEventBus>(sat.Bus);
         services.AddSingleton(sat.Http);
         services.AddDbContext<PosDbContext>(o => o.UseSqlite(connection));
         services.AddSingleton<IOutboxSink>(sp => new HttpOutboxSink(sp.GetRequiredService<HttpClient>(), sat.SyncSettings, sat.Terminal));
@@ -351,10 +364,17 @@ public sealed class SatelliteContainer : IAsyncDisposable
         services.AddSingleton<IMasterApiClient>(sp => new MasterApiClient(sp.GetRequiredService<HttpClient>(), sat.TerminalSettings));
         services.AddScoped<ITerminalService, TerminalService>();
         services.AddScoped<ICatalogSyncService, CatalogSyncService>();
-        services.AddScoped<ISyncInboxService, SyncInboxService>(); // registered everywhere, like the desktop; a satellite Rejects
+        // Registered everywhere, like the desktop; a satellite Rejects every envelope. No comanda service handed in: the
+        // satellite's IComandaService is the remote one and must never be reached from an inbox.
+        services.AddScoped<ISyncInboxService>(sp => new SyncInboxService(
+            sp.GetRequiredService<PosDbContext>(), sp.GetRequiredService<TimeProvider>(), sp.GetRequiredService<ITerminalContext>()));
         services.AddScoped<ICashShiftService, CashShiftService>();
         services.AddScoped<ISalesService, SalesService>();
         services.AddScoped<IBillPaymentService, BillPaymentService>();
+        // Shared comandas / KDS (ServiceCollectionExtensions, IsSatellite branch): the master owns them.
+        services.AddScoped<IComandaService, RemoteComandaService>();
+        services.AddScoped<IKitchenService, RemoteKitchenService>();
+        services.AddSingleton(sp => new MasterKitchenSocketClient(sat.TerminalSettings, sp.GetRequiredService<IKitchenEventBus>(), sp.GetRequiredService<TimeProvider>()));
         sat.ServiceProvider = services.BuildServiceProvider();
 
         using (var scope = sat.ServiceProvider.CreateScope())
@@ -414,8 +434,24 @@ public sealed class SatelliteContainer : IAsyncDisposable
         return await scope.ServiceProvider.GetRequiredService<IOutboxDispatcher>().DispatchPendingAsync(ct);
     }
 
+    /// <summary>
+    /// Waits (real time) until an event matching <paramref name="predicate"/> lands on THIS register's bus. Subscribes
+    /// first, then runs <paramref name="trigger"/>, so an event published synchronously inside the trigger is not missed.
+    /// </summary>
+    public async Task<KitchenEvent?> WaitForBusEventAsync(Func<KitchenEvent, bool> predicate, Func<Task> trigger, TimeSpan timeout)
+    {
+        var tcs = new TaskCompletionSource<KitchenEvent>(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var sub = Bus.Subscribe(e => { if (predicate(e)) tcs.TrySetResult(e); });
+        await trigger();
+        var done = await Task.WhenAny(tcs.Task, Task.Delay(timeout));
+        return done == tcs.Task ? tcs.Task.Result : null;
+    }
+
     public async ValueTask DisposeAsync()
     {
+        // Stop the /ws/kds client if a test started it (StopAsync is a no-op otherwise).
+        if (ServiceProvider is not null)
+            await SocketClient.StopAsync();
         Http.Dispose();
         if (ServiceProvider is not null) await ServiceProvider.DisposeAsync();
         await _connection.DisposeAsync();

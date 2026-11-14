@@ -30,9 +30,19 @@ public class Comanda : BaseEntity
     public DateTime? ClosedAt { get; set; }
     public string? Notes { get; set; }
 
-    /// <summary>Invoice generated when the comanda is paid.</summary>
+    /// <summary>Invoice generated when the comanda is paid on THIS register (null when paid on another register, see PaidByTerminalCode).</summary>
     public Guid? OrderId { get; set; }
     public Order? Order { get; set; }
+
+    // ── Shared comandas between registers (2026-11-14) ────────────────────
+    /// <summary>Register that is collecting the payment right now ("CAJA-02"); other registers get 409 until it closes or unlocks.</summary>
+    public string? PaymentLockedByTerminalCode { get; set; }
+    public DateTime? PaymentLockedAt { get; set; }
+    /// <summary>Register that invoiced it when the order lives in another database (satellite). Null when paid here.</summary>
+    public string? PaidByTerminalCode { get; set; }
+    /// <summary>Order number of the remote invoice ("ORD-000123" on CAJA-02) for the comanda list and the kitchen.</summary>
+    public string? RemoteOrderNumber { get; set; }
+    public Guid? RemoteOrderId { get; set; }
 
     public ICollection<ComandaItem> Items { get; set; } = new List<ComandaItem>();
 }

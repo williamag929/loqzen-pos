@@ -22,7 +22,8 @@ public class ComandaEventsTests : ComandaTestBase
 
     public ComandaEventsTests()
     {
-        _bus.Subscribe(_events.Add);
+        // Ticket events only: every mutation also publishes ComandaChanged (comanda-list refresh), which is not under test here.
+        _bus.Subscribe(e => { if (e.Type != KitchenEventType.ComandaChanged) _events.Add(e); });
         _svc = CreateService(_bus);
     }
 

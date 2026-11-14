@@ -69,6 +69,11 @@
                             Height="42" IsVisible="{Binding IsLive}">
                         <TextBlock Text="🟢 En vivo" Foreground="#10B981" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                     </Border>
+                    <!-- Satellite: the master's /api/kds did not answer; the last cards stay on screen, the poll keeps retrying -->
+                    <Border Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="10,0"
+                            Height="42" IsVisible="{Binding IsMasterOffline}">
+                        <TextBlock Text="⚠️ Sin conexión con la caja principal" Foreground="#FBBF24" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                    </Border>
                     <Button Height="42" 
                             Padding="16,0" 
                             Background="#334155" 

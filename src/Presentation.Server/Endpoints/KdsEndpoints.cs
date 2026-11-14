@@ -5,7 +5,7 @@ using Presentation.Server.Realtime;
 
 namespace Presentation.Server.Endpoints;
 
-/// <summary>REST for the KDS tablets (/api/kds/*) and the realtime hub (/ws/kds).</summary>
+/// <summary>REST for the KDS tablets and satellite registers (/api/kds/*, tickets as <c>KitchenOrderWire</c>) and the realtime hub (/ws/kds).</summary>
 public static class KdsEndpoints
 {
     private static readonly string[] DefaultStations = { "Cocina Caliente", "Barra" };
@@ -31,13 +31,13 @@ public static class KdsEndpoints
         group.MapGet("/orders", (string? station) => appServices.WithScopedAsync<IKitchenService>(async kitchen =>
         {
             var orders = await kitchen.GetActiveAsync(string.IsNullOrWhiteSpace(station) ? null : station);
-            return Results.Ok(orders.Select(o => o.ToDto()).ToList());
+            return Results.Ok(orders.Select(o => o.ToWire()).ToList());
         }));
 
         group.MapGet("/orders/{id:guid}", (Guid id) => appServices.WithScopedAsync<IKitchenService>(async kitchen =>
         {
             var order = await kitchen.GetByIdAsync(id);
-            return order is null ? EndpointSupport.NotFound("Orden de cocina no encontrada.") : Results.Ok(order.ToDto());
+            return order is null ? EndpointSupport.NotFound("Orden de cocina no encontrada.") : Results.Ok(order.ToWire());
         }));
 
         group.MapPost("/orders/{id:guid}/advance", (Guid id) => Mutate(appServices, id, (k, oid) => k.AdvanceAsync(oid)));
@@ -45,6 +45,8 @@ public static class KdsEndpoints
         group.MapPost("/orders/{id:guid}/undo", (Guid id) => Mutate(appServices, id, (k, oid) => k.UndoDeliverAsync(oid)));
 
         // Realtime hub. Non-WebSocket requests get a 400 so a browser typo is obvious.
+        // Deliberately NOT behind RequireTerminalApiKey: the browser KDS/comandera cannot send an Authorization
+        // header on a WebSocket handshake. Frames are read-only notifications (KitchenSocketEnvelope).
         app.MapGet("/ws/kds", async (HttpContext ctx, string? station) =>
         {
             if (!ctx.WebSockets.IsWebSocketRequest)
@@ -67,6 +69,6 @@ public static class KdsEndpoints
             if (await kitchen.GetByIdAsync(id) is null)
                 return EndpointSupport.NotFound("Orden de cocina no encontrada.");
             var updated = await mutation(kitchen, id);
-            return Results.Ok(updated.ToDto());
+            return Results.Ok(updated.ToWire());
         });
 }

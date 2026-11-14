@@ -398,6 +398,24 @@ namespace Infrastructure.Data.Migrations
                     b.Property<Guid?>("OrderId")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("PaidByTerminalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<DateTime?>("PaymentLockedAt")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("PaymentLockedByTerminalCode")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("RemoteOrderId")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RemoteOrderNumber")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("Status")
                         .HasColumnType("INTEGER");
 
@@ -421,6 +439,8 @@ namespace Infrastructure.Data.Migrations
                     b.HasIndex("Number");
 
                     b.HasIndex("OrderId");
+
+                    b.HasIndex("PaidByTerminalCode");
 
                     b.HasIndex("Status");
 

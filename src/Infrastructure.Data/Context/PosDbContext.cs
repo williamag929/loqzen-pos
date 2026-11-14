@@ -222,6 +222,11 @@ public class PosDbContext : DbContext
             entity.Property(c => c.WaiterName).HasMaxLength(100);
             entity.HasIndex(c => c.Status);
             entity.HasIndex(c => c.Number);
+            // Shared comandas between registers (2026-11-14)
+            entity.Property(c => c.PaymentLockedByTerminalCode).HasMaxLength(20);
+            entity.Property(c => c.PaidByTerminalCode).HasMaxLength(20);
+            entity.Property(c => c.RemoteOrderNumber).HasMaxLength(50);
+            entity.HasIndex(c => c.PaidByTerminalCode);
             entity.HasOne(c => c.DiningTable).WithMany().HasForeignKey(c => c.DiningTableId).OnDelete(DeleteBehavior.SetNull);
             entity.HasOne(c => c.Order).WithMany().HasForeignKey(c => c.OrderId).OnDelete(DeleteBehavior.SetNull);
             entity.HasMany(c => c.Items)

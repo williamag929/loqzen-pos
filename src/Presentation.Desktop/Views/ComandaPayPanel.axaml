@@ -35,6 +35,12 @@
                 </Border>
 
                 <StackPanel Spacing="14" IsVisible="{Binding IsCurrentReadyToPay}">
+                    <!-- Payment lock between registers: amber "Cobrando en CAJA-02" (Cobrar disabled) or blue "Reservada para esta caja" -->
+                    <Border CornerRadius="10" Padding="14,10" IsVisible="{Binding IsLockBannerVisible}"
+                            Background="{Binding LockBannerColor}">
+                        <TextBlock Text="{Binding LockBannerText}" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                    </Border>
+
                     <Grid ColumnDefinitions="*, Auto">
                         <TextBlock Text="TOTAL" Foreground="#94A3B8" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
                         <TextBlock Grid.Column="1" Text="{Binding CurrentTotalText}" Foreground="#34D399" FontSize="40" FontWeight="Black"/>
@@ -72,13 +78,13 @@
                     <StackPanel Spacing="6" IsVisible="{Binding IsTerminalChargeVisible}">
                         <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="20" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding IsPayIdle}"/>
+                                Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding CanPay}"/>
                         <TextBlock Text="«Cobrar y facturar» registra la tarjeta sin pasar por el datáfono." Foreground="#64748B" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                     </StackPanel>
 
                     <Button Height="72" CornerRadius="12" Background="#059669" Foreground="White" FontSize="22" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}" IsEnabled="{Binding IsPayIdle}"/>
+                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}" IsEnabled="{Binding CanPay}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

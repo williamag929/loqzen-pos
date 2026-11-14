@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 814 tests pass (`dotnet test`) — 2026-11-13 (mañana, datáfono).
+- ✅ 1079 tests pass (`dotnet test`) — 2026-11-14 (segunda caja parte 2).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -234,6 +234,13 @@
 - Desktop: `Services/ITerminalChargePrompt.cs`, `TerminalChargePromptViewModel` + `Views/TerminalChargeDialog.axaml` (singleton modal, TCS pattern), `CheckoutViewModel` split into EnsureOrder/Pay (reuses Draft on retry), Comanda/BillPayments ChargeOnTerminalCommand, `MastersViewModel.PaymentTerminals.cs` (💳 Datáfonos tab), Caja "Tarjeta por datáfono".
 - Known gaps: no real provider drivers; orphan Draft orders after a declined charge + cart change; comanda-level event missing in IKitchenEventBus (synthetic Created used); satellites cannot register terminals (Maestros hidden).
 
+### Second register part 2 — shared comandas/KDS (2026-11-14; verified: 1079 tests, live master+satellite: comanda opened on master visible on satellite)
+- Domain: Comanda lock/paid fields; migration `ComandaRemotePayment`. Application: `IComandaService.LockForPaymentAsync/UnlockPaymentAsync/CloseRemotelyAsync`, `ComandaRemoteCloseRequest`, `ComandaSettings.PaymentLockMinutes`, `KitchenEventType.ComandaChanged`, `KitchenSocketEnvelope`, `KitchenOrderWire`, `SyncEventTypes.ComandaClosedRemotely`.
+- Data: `ComandaService.Remote.cs` + helpers (publish ComandaChanged everywhere, lock guards in CloseAndPay/Reopen), `Sync/{MasterHttp,RemoteComandaService,RemoteKitchenService,MasterKitchenSocketClient}.cs`, `SyncInboxService(…, IComandaService? comandas)` applies ComandaClosedRemotely, `OutboxPayloads.ComandaClosedRemotely`.
+- Server: comanda routes reopen/hold/cancel-confirmed/payment-lock/payment-unlock/close-remote (last four behind ApiKey), KDS JSON = KitchenOrderWire, `/ws/kds` type "event" + ComandaChanged bypasses station filter, comandera lock banner. `Presentation.Server` now references `Infrastructure.Data` (PosDbContext for the remote override).
+- Desktop: satellite DI swaps IComandaService/IKitchenService for the remote ones + `MasterKitchenSocketClient` (started by SatelliteSyncWorker); Comandas/KDS tabs visible on satellites; `ComandaViewModel` reacts to ComandaChanged only, locks on "Cerrar"/select, unlocks on leave/reopen; lock banner + list tag; offline amber messages; KDS `IsMasterOffline`.
+- Known gaps: pay + ComandaClosedRemotely in two SaveChanges on the satellite; local re-pricing; remote cancel override has ManagerUserId = Guid.Empty; satellites cannot open/charge tables offline.
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
@@ -244,6 +251,7 @@
 7. ~~Cash close of reference + bill payments~~ ✅ 2026-11-13.
 8. ~~Second cash register (master/satellite)~~ ✅ 2026-11-13.
 9. ~~Payment terminal / pay-at-table~~ ✅ 2026-11-13.
-10. Real provider driver (Redeban/Credibanco, Bold or Mercado Pago Point) or second register part 2 (shared comandas/KDS, mDNS).
+10. ~~Second register part 2 (shared comandas/KDS)~~ ✅ 2026-11-14.
+11. ERP integration phase A (`Docs/erp-integration-hooks.md`), real payment-terminal provider driver, or second register part 3 (mDNS, replicated customers/overrides).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

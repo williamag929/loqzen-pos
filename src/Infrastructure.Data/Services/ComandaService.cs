@@ -99,6 +99,7 @@ public partial class ComandaService : IComandaService
         };
         _db.Comandas.Add(comanda);
         await _db.SaveChangesAsync(ct);
+        PublishComandaChanged(comanda);
         return MapToDto(comanda);
     }
 }

@@ -475,7 +475,12 @@
     };
     socket.onmessage = function (ev) {
       if (ws !== socket) return;
-      if (typeof ev.data === 'string' && ev.data.trim() === 'pong') return;
+      if (typeof ev.data !== 'string' || ev.data.trim() === 'pong') return;
+      // Frame = KitchenSocketEnvelope { type:'event', event, kitchenOrderId, station, ... }. 'ComandaChanged' is a
+      // comanda (table) notification for the registers/comandera, not a ticket: ignore it here.
+      var msg = null;
+      try { msg = JSON.parse(ev.data); } catch (e) { msg = null; }
+      if (msg && msg.event === 'ComandaChanged') return;
       scheduleReload();            // the event only tells us *something* changed; the REST list is the truth
     };
     socket.onerror = function () { /* onclose follows */ };

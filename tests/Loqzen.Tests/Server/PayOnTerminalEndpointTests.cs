@@ -409,7 +409,7 @@ public class PayOnTerminalEndpointTests : IAsyncLifetime
         var comandaId = await SentComandaAsync("Mesa 4", await SeededProductIdAsync("Gaseosa 400ml"));
 
         var events = new List<KitchenEvent>();
-        using var sub = _fx.Bus.Subscribe(e => { lock (events) events.Add(e); });
+        using var sub = _fx.Bus.Subscribe(e => { if (e.Type == KitchenEventType.ComandaChanged) return; lock (events) events.Add(e); }); // ticket events only
 
         var response = await PayAsync(comandaId, terminalId);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -436,7 +436,7 @@ public class PayOnTerminalEndpointTests : IAsyncLifetime
         await AddItemAsync(comandaId, await SeededProductIdAsync("Hamburguesa Especial")); // Cocina Caliente
 
         var events = new List<KitchenEvent>();
-        using var sub = _fx.Bus.Subscribe(e => { lock (events) events.Add(e); });
+        using var sub = _fx.Bus.Subscribe(e => { if (e.Type == KitchenEventType.ComandaChanged) return; lock (events) events.Add(e); }); // ticket events only
 
         var response = await PayAsync(comandaId, terminalId);
         response.StatusCode.Should().Be(HttpStatusCode.OK);
@@ -458,7 +458,7 @@ public class PayOnTerminalEndpointTests : IAsyncLifetime
         var comandaId = await SentComandaAsync("Mesa 6", await ProductPricedAsync(1099m));
 
         var events = new List<KitchenEvent>();
-        using var sub = _fx.Bus.Subscribe(e => { lock (events) events.Add(e); });
+        using var sub = _fx.Bus.Subscribe(e => { if (e.Type == KitchenEventType.ComandaChanged) return; lock (events) events.Add(e); }); // ticket events only
 
         var response = await PayAsync(comandaId, terminalId);
         response.StatusCode.Should().Be(HttpStatusCode.OK);

@@ -60,6 +60,7 @@ Luego lee, en este orden:
 | `IProductService`, `ICategoryService`, `ITaxService`, `ICustomerService` | Maestros |
 | `ITerminalService`, `ITerminalContext` | Identidad de esta caja (`Terminal:Code`); el contexto se llena una vez al arrancar y los servicios filtran turnos por caja cuando está puesto |
 | `IPaymentTerminalService` | Datáfonos: registro, asignación a mesero, cobro con auditoría (`TerminalPayments`), pago en mesa. Drivers por proveedor en `Infrastructure.Hardware/PaymentTerminals` (`IPaymentTerminalDriver`, simulado + JSON/TCP) |
+| `RemoteComandaService`, `RemoteKitchenService`, `MasterKitchenSocketClient` (`Infrastructure.Data/Sync`) | En una satélite sustituyen a `ComandaService`/`KitchenService`: hablan con la principal por HTTP/WebSocket; el cobro de una mesa factura en la base local y cierra la comanda en la principal (`LockForPaymentAsync` → orden local → `ComandaClosedRemotely`) |
 | `ICatalogSyncService`, `ISyncInboxService`, `IMasterApiClient` | Segunda caja: snapshot del catálogo (principal → satélite), inbox idempotente de sobres del Outbox (satélite → principal), cliente HTTP de la satélite |
 
 ---
@@ -118,6 +119,8 @@ Luego lee, en este orden:
 | Cocina recibe el plato sin la nota | El temporizador confirmó mientras se escribía | Por eso existe `IsOnHold`: pausa el item mientras el editor está abierto |
 | La satélite nunca aplica el catálogo ("error al guardar") | La base nueva ya traía el catálogo de ejemplo con **otros Guid** pero el mismo SKU/nombre; el snapshot de la principal chocaba con el índice único | `CatalogSyncService` empareja por id y, si no, por clave natural: borra la fila local si nadie la referencia o la desactiva y renombra. Pruébalo siempre con dos bases reales (`XDG_DATA_HOME` distintos) |
 | `kill $(cat pid)` no mata la instancia de prueba | Con `nohup ./app &` el `$!` es el envoltorio; el proceso real es otro pid | Busca por entorno: `pgrep -f Presentation.Desktop` + `/proc/<pid>/environ` con `XDG_DATA_HOME=/tmp/...` |
+| Dos cajas cobran la misma mesa | Nada impedía que dos registradoras facturaran la misma comanda | `LockForPaymentAsync` reserva la mesa (`PaymentLockedByTerminalCode`); `CloseAndPayAsync`/`ReopenAsync` rechazan si otra caja la tiene reservada hace menos de `PaymentLockMinutes` |
+| Los tests que cuentan eventos del bus se rompen al añadir uno nuevo | `ComandaChanged` se publica en cada mutación de comanda | Filtra por tipo en el suscriptor del test (`e.Type != KitchenEventType.ComandaChanged`) en vez de contar todo |
 | En la principal aparece "turno abierto" de otra caja | La base de la principal también guarda los turnos replicados de las satélites | Toda consulta de "turno actual" filtra por `ITerminalContext` (`TerminalId == mío`, o `null` para filas antiguas) |
 
 ---
@@ -189,4 +192,4 @@ Reglas:
 ¿Dudas de arquitectura? Revisa `memory-bank/systemPatterns.md` y `memory-bank/projectbrief.md` (reglas invariables).
 6. Autorización: `UserService` no valida `CanAssignRole` (solo la UI); el requester queda vacío si el llamador no lo pasa en el flujo por PIN.
 7. Datáfono: drivers de proveedores reales (hoy simulado y JSON/TCP); los borradores de venta que quedan si el datáfono rechaza y luego se cambia el carrito no se limpian (no hay `ISalesService.Cancel`); el evento "comanda cerrada" hacia el escritorio es sintético (`KitchenEvent Created` vacío) — falta un evento de comanda en `IKitchenEventBus`.
-8. Segunda caja, parte 2: comandas/KDS compartidos entre cajas (hoy solo en la principal); replicar clientes y `ManagerOverrides` de la satélite; mDNS para no escribir la IP; en la satélite el `CashMovement` de un recaudo en efectivo no viaja (el esperado de la principal sale del `BillPayment`, así que cuadra igual).
+8. Segunda caja, parte 3: replicar clientes y `ManagerOverrides` de la satélite; mDNS para no escribir la IP; dar de alta datáfonos desde la satélite; en la satélite el `CashMovement` de un recaudo en efectivo no viaja (el esperado de la principal sale del `BillPayment`, así que cuadra igual). En el cobro remoto, el pago local y el Outbox `ComandaClosedRemotely` van en dos `SaveChanges` (ISalesService guarda por su cuenta): un corte justo en medio deja la mesa reservada hasta que vence `PaymentLockMinutes`. La satélite re-precia las líneas con su catálogo local (igual al de la principal si el snapshot está al día). `Presentation.Server` ahora referencia `Infrastructure.Data` (solo por `PosDbContext` en la anulación remota).

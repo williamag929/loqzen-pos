@@ -1,6 +1,8 @@
+using System;
 using System.Linq;
 using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
+using Core.Application.DTOs;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,43 +15,82 @@ public partial class ComandaViewModel
     [RelayCommand]
     public async Task RefreshAsync()
     {
-        await RefreshListOnlyAsync();
+        if (!await RefreshListOnlyAsync()) return; // master unreachable: keep what is on screen
         if (Current == null) return;
 
-        using var scope = _scopes.CreateScope();
-        var fresh = await scope.ServiceProvider.GetRequiredService<IComandaService>().GetByIdAsync(Current.Id);
-        if (fresh == null || fresh.Status is ComandaStatus.Closed or ComandaStatus.Cancelled)
-            ClearCurrent();
-        else
-            Apply(fresh);
+        try
+        {
+            ComandaDto? fresh;
+            using (var scope = _scopes.CreateScope())
+                fresh = await scope.ServiceProvider.GetRequiredService<IComandaService>().GetByIdAsync(Current.Id);
+
+            if (fresh == null || fresh.Status is ComandaStatus.Closed or ComandaStatus.Cancelled)
+            {
+                var table = Current.TableName;
+                ClearCurrent();
+                // Closed on the other register while we were looking at it: say so instead of silently vanishing.
+                if (fresh is { Status: ComandaStatus.Closed, PaidByTerminalCode: { } paidBy } && !IsOwnCode(paidBy))
+                    StatusMessage = $"💳 {table} ya fue cobrada en {paidBy}";
+            }
+            else
+            {
+                Apply(fresh);
+            }
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex, "actualizando");
+        }
     }
 
-    private async Task RefreshListOnlyAsync()
+    /// <summary>Reloads shift (local), comandas and tables. Returns false when the master could not be reached (satellite).</summary>
+    private async Task<bool> RefreshListOnlyAsync()
     {
         using var scope = _scopes.CreateScope();
         var sp = scope.ServiceProvider;
-        var svc = sp.GetRequiredService<IComandaService>();
-        var comandas = await svc.GetActiveComandasAsync();
-        var tables = await svc.GetTablesAsync();
-        var shift = await sp.GetRequiredService<ICashShiftService>().GetCurrentShiftAsync();
 
+        // The shift is always local (this register's drawer): read it first so "Sin turno" stays right even offline.
+        var shift = await sp.GetRequiredService<ICashShiftService>().GetCurrentShiftAsync();
         IsShiftOpen = shift != null;
         _shiftId = shift?.Id;
         CashierName = shift?.CashierName ?? string.Empty;
 
+        System.Collections.Generic.IReadOnlyList<ComandaDto> comandas;
+        System.Collections.Generic.IReadOnlyList<DiningTableDto> tables;
+        try
+        {
+            var svc = sp.GetRequiredService<IComandaService>();
+            comandas = await svc.GetActiveComandasAsync();
+            tables = await svc.GetTablesAsync();
+            IsMasterOffline = false;
+        }
+        catch (Exception ex)
+        {
+            ReportError(ex, "leyendo comandas");
+            return false;
+        }
+
+        // Only Open + ReadyToPay come back: a comanda closed on another register disappears here.
+        var own = OwnTerminalCode;
         Comandas.Clear();
         foreach (var c in comandas)
-            Comandas.Add(new ComandaCardViewModel(c, c.Id == Current?.Id, UtcNow, SelectComanda));
+            Comandas.Add(new ComandaCardViewModel(c, c.Id == Current?.Id, UtcNow, SelectComanda, own));
 
         Tables.Clear();
         foreach (var t in tables)
             Tables.Add(new TableTileViewModel(t, TapTable));
+        return true;
     }
 
     private async void SelectComanda(ComandaCardViewModel card)
     {
+        var previous = Current;
         Apply(card.Dto);
         PanelIndex = card.Dto.Status == ComandaStatus.ReadyToPay ? 2 : 1;
+        if (previous != null && previous.Id != card.Dto.Id && IsOwnCode(previous.PaymentLockedByTerminalCode))
+            _ = ReleasePaymentLockAsync(previous);
+        if (card.Dto.Status == ComandaStatus.ReadyToPay)
+            await ReservePaymentAsync(); // opening the bill reserves the table; another register's lock shows the banner
         await RefreshListOnlyAsync();
     }
 
