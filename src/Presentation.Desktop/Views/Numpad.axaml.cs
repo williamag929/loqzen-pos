@@ -12,9 +12,9 @@ public partial class Numpad : UserControl
         AvaloniaProperty.Register<Numpad, ICommand?>(nameof(ClearCommand));
     public static readonly StyledProperty<ICommand?> ExactCommandProperty =
         AvaloniaProperty.Register<Numpad, ICommand?>(nameof(ExactCommand));
-    /// <summary>Caption of the big blue key (default "Exacto"; PIN dialogs use "OK" / "Entrar").</summary>
+    /// <summary>Caption of the big blue key (default i18n "Numpad.Exact"; PIN dialogs pass "OK" / "Entrar").</summary>
     public static readonly StyledProperty<string> ExactLabelProperty =
-        AvaloniaProperty.Register<Numpad, string>(nameof(ExactLabel), "Exacto");
+        AvaloniaProperty.Register<Numpad, string>(nameof(ExactLabel), Presentation.Desktop.Localization.Localizer.Instance.T("Numpad.Exact"));
 
     public ICommand? DigitCommand { get => GetValue(DigitCommandProperty); set => SetValue(DigitCommandProperty, value); }
     public ICommand? ClearCommand { get => GetValue(ClearCommandProperty); set => SetValue(ClearCommandProperty, value); }

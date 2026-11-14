@@ -16,7 +16,7 @@ public sealed class BorderRunnerLight : Control
     public static readonly StyledProperty<bool> IsRunningProperty =
         AvaloniaProperty.Register<BorderRunnerLight, bool>(nameof(IsRunning));
     public static readonly StyledProperty<IBrush?> ColorProperty =
-        AvaloniaProperty.Register<BorderRunnerLight, IBrush?>(nameof(Color), Brushes.LimeGreen);
+        AvaloniaProperty.Register<BorderRunnerLight, IBrush?>(nameof(Color));
     public static readonly StyledProperty<double> CornerRadiusValueProperty =
         AvaloniaProperty.Register<BorderRunnerLight, double>(nameof(CornerRadiusValue), 12);
     /// <summary>Seconds per full lap.</summary>
@@ -24,6 +24,7 @@ public sealed class BorderRunnerLight : Control
         AvaloniaProperty.Register<BorderRunnerLight, double>(nameof(LapSeconds), 2.4);
 
     public bool IsRunning { get => GetValue(IsRunningProperty); set => SetValue(IsRunningProperty, value); }
+    /// <summary>Light colour. Null (not bound) = the theme's SuccessBright token, resolved per frame so a theme switch applies live.</summary>
     public IBrush? Color { get => GetValue(ColorProperty); set => SetValue(ColorProperty, value); }
     public double CornerRadiusValue { get => GetValue(CornerRadiusValueProperty); set => SetValue(CornerRadiusValueProperty, value); }
     public double LapSeconds { get => GetValue(LapSecondsProperty); set => SetValue(LapSecondsProperty, value); }
@@ -81,7 +82,9 @@ public sealed class BorderRunnerLight : Control
 
     public override void Render(DrawingContext context)
     {
-        if (!IsRunning || Color is not ISolidColorBrush solid) return;
+        if (!IsRunning) return;
+        var brush = Color ?? (this.TryFindResource("SuccessBright", ActualThemeVariant, out var res) ? res as IBrush : null);
+        if (brush is not ISolidColorBrush solid) return;
         var w = Bounds.Width;
         var h = Bounds.Height;
         if (w < 4 || h < 4) return;

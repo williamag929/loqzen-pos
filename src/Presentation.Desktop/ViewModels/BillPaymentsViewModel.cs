@@ -11,6 +11,7 @@ using Core.Application.Receipts;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -24,6 +25,7 @@ namespace Presentation.Desktop.ViewModels;
 public partial class BillPaymentsViewModel : ObservableObject
 {
     private static readonly string StoreName = new ReceiptDto().StoreName;
+    private static Localizer L => Localizer.Instance;
 
     private readonly IServiceScopeFactory _scopes;
     private readonly IUserSession _session;
@@ -60,7 +62,7 @@ public partial class BillPaymentsViewModel : ObservableObject
         nameof(Total), nameof(TotalText), nameof(BreakdownText), nameof(Change), nameof(ChangeText), nameof(CanCharge), nameof(ChargeHint))]
     private BillerTileViewModel? _selectedBiller;
     public bool HasSelectedBiller => SelectedBiller != null;
-    public string SelectedBillerText => SelectedBiller is { } b ? $"{b.Name} · {b.CommissionText}" : "① Elija el convenio";
+    public string SelectedBillerText => SelectedBiller is { } b ? $"{b.Name} · {b.CommissionText}" : L.T("Bills.ChooseBiller");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanCharge), nameof(ChargeHint))]
@@ -87,14 +89,55 @@ public partial class BillPaymentsViewModel : ObservableObject
     /// <summary>"💳 Cobrar en datáfono" above "Cobrar recaudo" (manual path) when Card is selected and terminals are enabled.</summary>
     public bool IsTerminalChargeVisible => IsCard && _terminalPrompt.IsEnabled;
 
+    private void OnThemeChanged()
+    {
+        OnPropertyChanged(nameof(AmountBorder));
+        OnPropertyChanged(nameof(TenderedBorder));
+        foreach (var b in Billers) b.RefreshTheme();
+    }
+
+    /// <summary>
+    /// ES/EN switch: re-render every string this VM composes. XAML labels re-bind on their own; rows and chips are
+    /// immutable, so they are rebuilt from their DTOs. The last Notification / VoidError keep their language until
+    /// the next message (they are one-off events, not state).
+    /// </summary>
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(SelectedBillerText));
+        OnPropertyChanged(nameof(BreakdownText));
+        OnPropertyChanged(nameof(ChargeHint));
+        OnPropertyChanged(nameof(NumpadExactLabel));
+        OnPropertyChanged(nameof(VoidTitle));
+        foreach (var b in Billers) b.RefreshLanguage();
+        BuildVoidReasonChips();
+        var rows = Payments.Select(r => r.Dto).ToList();
+        if (!string.IsNullOrEmpty(PaymentsSummary)) PaymentsSummary = SummaryText(rows);
+        Payments.Clear();
+        foreach (var dto in rows) Payments.Add(new BillPaymentRowViewModel(dto, ReprintAsync, StartVoid));
+    }
+
+    private void BuildVoidReasonChips()
+    {
+        VoidReasonChips.Clear();
+        foreach (var key in new[] { "Bills.Void.Reason.Typo", "Bills.Void.Reason.WrongReference", "Bills.Void.Reason.WrongBiller", "Bills.Void.Reason.CustomerLeft" })
+            VoidReasonChips.Add(new ChipViewModel(L.T(key), v => VoidReason = v));
+    }
+
+    private static string SummaryText(System.Collections.Generic.IReadOnlyList<BillPaymentDto> list)
+    {
+        var ok = list.Where(p => p.Status == BillPaymentStatus.Completed).ToList();
+        return L.T("Bills.Summary", ok.Count, ReceiptFormatter.Cop(ok.Sum(p => p.Total)), ReceiptFormatter.Cop(ok.Sum(p => p.Commission)));
+    }
+
     /// <summary>Which figure the numpad edits: the bill amount or (cash) the tendered money.</summary>
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsEditingAmount), nameof(NumpadExactLabel), nameof(AmountBorder), nameof(TenderedBorder))]
     private bool _isEditingTendered;
     public bool IsEditingAmount => !IsEditingTendered;
-    public string NumpadExactLabel => IsEditingTendered ? "Exacto" : "Recibido ➜";
-    public string AmountBorder => IsEditingTendered ? "#334155" : "#38BDF8";
-    public string TenderedBorder => IsEditingTendered ? "#38BDF8" : "#334155";
+    public string NumpadExactLabel => IsEditingTendered ? L.T("Bills.Numpad.Exact") : L.T("Bills.Numpad.ToTendered");
+    /// <summary>Border of the figure the numpad edits (theme Info) vs. the idle one (theme Border); read from the current theme.</summary>
+    public string AmountBorder => IsEditingTendered ? ThemePalette.Border : ThemePalette.Info;
+    public string TenderedBorder => IsEditingTendered ? ThemePalette.Info : ThemePalette.Border;
 
     public decimal Amount => CashShiftViewModel.ParseAmount(AmountStr);
     public decimal Commission => SelectedBiller is { } b && Amount > 0 ? b.Dto.CommissionFor(Amount) : 0m;
@@ -107,17 +150,17 @@ public partial class BillPaymentsViewModel : ObservableObject
     public string TotalText => ReceiptFormatter.Cop(Total);
     public string TenderedText => ReceiptFormatter.Cop(Tendered);
     public string ChangeText => ReceiptFormatter.Cop(Change);
-    public string BreakdownText => $"Valor {AmountText} + Comisión {CommissionText} = Total {TotalText}";
+    public string BreakdownText => L.T("Bills.Breakdown", AmountText, CommissionText, TotalText);
 
     public bool CanCharge => IsFormEnabled && SelectedBiller != null && !string.IsNullOrWhiteSpace(Reference)
                              && Amount > 0 && (!IsCash || Tendered >= Total);
 
     public string ChargeHint =>
-        !HasOpenShift ? "Abra un turno para cobrar recaudos"
-        : SelectedBiller == null ? "① Elija el convenio"
-        : string.IsNullOrWhiteSpace(Reference) ? "② Escriba o escanee la referencia"
-        : Amount <= 0 ? "③ Ingrese el valor de la factura"
-        : IsCash && Tendered < Total ? $"Faltan {ReceiptFormatter.Cop(Total - Tendered)} por recibir"
+        !HasOpenShift ? L.T("Bills.Hint.OpenShift")
+        : SelectedBiller == null ? L.T("Bills.ChooseBiller")
+        : string.IsNullOrWhiteSpace(Reference) ? L.T("Bills.Hint.Reference")
+        : Amount <= 0 ? L.T("Bills.Hint.Amount")
+        : IsCash && Tendered < Total ? L.T("Bills.Hint.Missing", ReceiptFormatter.Cop(Total - Tendered))
         : string.Empty;
 
     // ── Change screen ────────────────────────────────────────────────────────
@@ -131,13 +174,18 @@ public partial class BillPaymentsViewModel : ObservableObject
     [ObservableProperty] private BillPaymentRowViewModel? _voidTarget;
     [ObservableProperty] private string _voidReason = string.Empty;
     [ObservableProperty] private string _voidError = string.Empty;
-    public string VoidTitle => VoidTarget is { } v ? $"Anular {v.Dto.ReceiptNumber} · {v.Dto.BillerName} · {v.TotalText}" : string.Empty;
+    public string VoidTitle => VoidTarget is { } v ? L.T("Bills.Void.TitleFor", v.Dto.ReceiptNumber, v.Dto.BillerName, v.TotalText) : string.Empty;
     partial void OnVoidTargetChanged(BillPaymentRowViewModel? value) => OnPropertyChanged(nameof(VoidTitle));
 
     public BillPaymentsViewModel(IServiceScopeFactory scopes, IUserSession session, IManagerAuthPrompt authPrompt,
-        IPrinterService printer, ICashDrawerService cashDrawer, IBarcodeScannerService scanner, ITerminalChargePrompt terminalPrompt)
+        IPrinterService printer, ICashDrawerService cashDrawer, IBarcodeScannerService scanner, ITerminalChargePrompt terminalPrompt,
+        ThemeService? theme = null)
     {
         _terminalPrompt = terminalPrompt;
+        // Colours exposed as strings (AmountBorder, tile borders) are read from ThemePalette at call time:
+        // re-raise them when the user switches Dark/Light so the open tab repaints without a reload.
+        if (theme != null) theme.Changed += OnThemeChanged;
+        L.Changed += OnLanguageChanged;
         _scopes = scopes;
         _session = session;
         _authPrompt = authPrompt;
@@ -147,8 +195,7 @@ public partial class BillPaymentsViewModel : ObservableObject
 
         Billers.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasBillers));
         Payments.CollectionChanged += (_, _) => OnPropertyChanged(nameof(HasPayments));
-        foreach (var r in new[] { "Error de digitación", "Referencia equivocada", "Convenio equivocado", "Cliente desistió" })
-            VoidReasonChips.Add(new ChipViewModel(r, v => VoidReason = v));
+        BuildVoidReasonChips();
     }
 
     // ── Activation (tab shown / hidden) ─────────────────────────────────────
@@ -176,7 +223,7 @@ public partial class BillPaymentsViewModel : ObservableObject
         {
             if (!_isActive || string.IsNullOrWhiteSpace(code)) return;
             Reference = code.Trim();
-            Notification = $"📷 Referencia leída: {Reference}";
+            Notification = L.T("Bills.Notify.ReferenceRead", Reference);
         });
 
     /// <summary>Satellite: billers changed on the master. Same loader (selection is kept by id); nothing typed is lost.</summary>
@@ -201,7 +248,7 @@ public partial class BillPaymentsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification = $"❌ {ex.Message}";
+            Notification = L.T("Bills.Notify.Error", ex.Message);
         }
         await LoadPaymentsAsync();
     }
@@ -216,12 +263,11 @@ public partial class BillPaymentsViewModel : ObservableObject
             using var scope = _scopes.CreateScope();
             var list = await scope.ServiceProvider.GetRequiredService<IBillPaymentService>().GetForShiftAsync();
             foreach (var p in list) Payments.Add(new BillPaymentRowViewModel(p, ReprintAsync, StartVoid));
-            var ok = list.Where(p => p.Status == BillPaymentStatus.Completed).ToList();
-            PaymentsSummary = $"{ok.Count} recaudos · {ReceiptFormatter.Cop(ok.Sum(p => p.Total))} · comisiones {ReceiptFormatter.Cop(ok.Sum(p => p.Commission))}";
+            PaymentsSummary = SummaryText(list);
         }
         catch (Exception ex)
         {
-            Notification = $"❌ {ex.Message}";
+            Notification = L.T("Bills.Notify.Error", ex.Message);
         }
     }
 
@@ -285,7 +331,7 @@ public partial class BillPaymentsViewModel : ObservableObject
     [RelayCommand]
     public async Task ChargeAsync()
     {
-        if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = $"⚠️ {ChargeHint}"; return; }
+        if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = L.T("Bills.Notify.Warn", ChargeHint); return; }
         IsBusy = true;
         try { await ChargeCoreAsync(null); }
         finally { IsBusy = false; }
@@ -299,13 +345,13 @@ public partial class BillPaymentsViewModel : ObservableObject
     public async Task ChargeOnTerminalAsync()
     {
         if (Method != PaymentMethod.Card) Method = PaymentMethod.Card;
-        if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = $"⚠️ {ChargeHint}"; return; }
+        if (!CanCharge || SelectedBiller == null) { if (!string.IsNullOrEmpty(ChargeHint)) Notification = L.T("Bills.Notify.Warn", ChargeHint); return; }
         IsBusy = true;
         try
         {
             var biller = SelectedBiller;
             var outcome = await _terminalPrompt.RequestAsync(Total, TerminalPaymentPurpose.BillPayment, Reference.Trim(),
-                description: $"Recaudo {biller.Name}");
+                description: L.T("Bills.Terminal.Description", biller.Name));
 
             if (outcome.IsApproved)
             {
@@ -313,12 +359,12 @@ public partial class BillPaymentsViewModel : ObservableObject
             }
             else if (outcome.FallbackToManual)
             {
-                Notification = string.IsNullOrWhiteSpace(outcome.Message) ? "✍️ Tarjeta registrada manualmente" : $"✍️ Datáfono: {outcome.Message}";
+                Notification = string.IsNullOrWhiteSpace(outcome.Message) ? L.T("Bills.Notify.CardManual") : L.T("Bills.Notify.TerminalFallback", outcome.Message);
                 await ChargeCoreAsync(null);
             }
             else
             {
-                Notification = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · el recaudo no se registró";
+                Notification = L.T("Bills.Notify.TerminalDeclined", outcome.Message ?? L.T("Bills.Terminal.NotApproved"));
             }
         }
         finally
@@ -350,19 +396,17 @@ public partial class BillPaymentsViewModel : ObservableObject
             }
 
             LastPayment = new SaleSummaryViewModel(paid.ReceiptNumber, paid.Total, paid.TenderedAmount, paid.ChangeAmount,
-                paid.Method, null, () => LastPayment = null, title: $"✅ Recaudo {paid.ReceiptNumber} · {paid.BillerName}",
-                dismissLabel: "🧾 Nuevo recaudo");
-            Notification = reference is null
-                ? $"✅ Recaudo {paid.ReceiptNumber} registrado · {ReceiptFormatter.Cop(paid.Total)}"
-                : $"✅ Recaudo {paid.ReceiptNumber} registrado · {reference}";
+                paid.Method, null, () => LastPayment = null, title: L.T("Bills.Summary.Title", paid.ReceiptNumber, paid.BillerName),
+                dismissLabel: L.T("Bills.Summary.Dismiss"));
+            Notification = L.T("Bills.Notify.Recorded", paid.ReceiptNumber, reference ?? ReceiptFormatter.Cop(paid.Total));
             ResetForm();
             await LoadPaymentsAsync();
         }
         catch (Exception ex)
         {
             Notification = charge is { IsApproved: true }
-                ? $"❌ {ex.Message} · el datáfono SÍ aprobó {charge.ReferenceText}: registre el recaudo manualmente"
-                : $"❌ {ex.Message}";
+                ? L.T("Bills.Notify.ErrorApproved", ex.Message, charge.ReferenceText)
+                : L.T("Bills.Notify.Error", ex.Message);
         }
     }
 
@@ -371,18 +415,18 @@ public partial class BillPaymentsViewModel : ObservableObject
         try
         {
             if (!await _printer.PrintLinesAsync(CashReports.BillPaymentReceipt(p, StoreName), p.ReceiptNumber))
-                Notification = $"⚠️ No se pudo imprimir {p.ReceiptNumber} (copia guardada en FailedReceipts)";
+                Notification = L.T("Bills.Notify.PrintFailed", p.ReceiptNumber);
         }
         catch (Exception ex)
         {
-            Notification = $"⚠️ No se pudo imprimir {p.ReceiptNumber}: {ex.Message}";
+            Notification = L.T("Bills.Notify.PrintError", p.ReceiptNumber, ex.Message);
         }
     }
 
     private async Task ReprintAsync(BillPaymentRowViewModel row)
     {
         await PrintReceiptAsync(row.Dto);
-        Notification = $"🖨️ Reimpreso {row.Dto.ReceiptNumber}";
+        Notification = L.T("Bills.Notify.Reprinted", row.Dto.ReceiptNumber);
     }
 
     // ── Void ─────────────────────────────────────────────────────────────────
@@ -401,11 +445,11 @@ public partial class BillPaymentsViewModel : ObservableObject
     public async Task ConfirmVoidAsync()
     {
         if (VoidTarget is not { } row) return;
-        if (string.IsNullOrWhiteSpace(VoidReason)) { VoidError = "⚠️ Indique el motivo de la anulación."; return; }
+        if (string.IsNullOrWhiteSpace(VoidReason)) { VoidError = L.T("Bills.Void.NeedReason"); return; }
 
         var approval = await RequiredOverride.RequestAsync(_authPrompt, _scopes, _session, AuthorizedAction.VoidBillPayment,
-            $"Anular recaudo {row.Dto.ReceiptNumber} ({row.Dto.BillerName}): {VoidReason.Trim()}", row.Dto.Total, row.Dto.ReceiptNumber);
-        if (!approval.IsApproved) { VoidError = approval.Error ?? "❌ No autorizado"; return; }
+            L.T("Bills.Void.AuthDescription", row.Dto.ReceiptNumber, row.Dto.BillerName, VoidReason.Trim()), row.Dto.Total, row.Dto.ReceiptNumber);
+        if (!approval.IsApproved) { VoidError = approval.Error ?? L.T("Bills.Void.Denied"); return; }
 
         IsBusy = true;
         try
@@ -415,8 +459,8 @@ public partial class BillPaymentsViewModel : ObservableObject
             IsVoidDialogVisible = false;
             VoidTarget = null;
             Notification = row.Dto.Method == PaymentMethod.Cash
-                ? $"🗑️ Recaudo {row.Dto.ReceiptNumber} anulado · devuelva {ReceiptFormatter.Cop(row.Dto.Total)} al cliente"
-                : $"🗑️ Recaudo {row.Dto.ReceiptNumber} anulado";
+                ? L.T("Bills.Notify.VoidedCash", row.Dto.ReceiptNumber, ReceiptFormatter.Cop(row.Dto.Total))
+                : L.T("Bills.Notify.Voided", row.Dto.ReceiptNumber);
             if (row.Dto.Method == PaymentMethod.Cash)
             {
                 try { await _cashDrawer.OpenDrawerAsync(); } catch { /* best effort */ }
@@ -425,7 +469,7 @@ public partial class BillPaymentsViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            VoidError = $"❌ {ex.Message}";
+            VoidError = L.T("Bills.Notify.Error", ex.Message);
         }
         finally
         {

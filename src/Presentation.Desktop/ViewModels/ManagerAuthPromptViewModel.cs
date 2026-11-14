@@ -9,6 +9,7 @@ using Core.Application.Security;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -38,7 +39,15 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         // 1 s countdown while approvals are locked (independent from the login lock: own scope).
         _lockTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _lockTimer.Tick += (_, _) => UpdateLockout();
+
+        Localizer.Instance.Changed += () =>
+        {
+            OnPropertyChanged(nameof(Title));
+            if (IsLocked) UpdateLockout(); // countdown text in the new language
+        };
     }
+
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
 
     /// <summary>Too many wrong manager PINs: numpad and "Autorizar" are disabled until the countdown ends ("Cancelar" stays).</summary>
     [ObservableProperty]
@@ -53,7 +62,7 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         {
             IsLocked = true;
             Pin = string.Empty;
-            ErrorMessage = $"🔒 Demasiados intentos. Espere {left} s";
+            ErrorMessage = T("Auth.Error.Locked", left);
             if (!_lockTimer.IsEnabled) _lockTimer.Start();
         }
         else if (IsLocked)
@@ -64,7 +73,7 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         }
     }
 
-    public string Title => "🔐 Autorización de gerente";
+    public string Title => T("Auth.Title");
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private string _actionLabel = string.Empty;
@@ -151,7 +160,7 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         if (IsBusy || IsLocked || _request == null || _pending == null) return;
         if (!PinHasher.IsValidPin(Pin))
         {
-            ErrorMessage = $"El PIN debe tener entre {PinHasher.MinLength} y {PinHasher.MaxLength} dígitos.";
+            ErrorMessage = T("Auth.Error.Length", PinHasher.MinLength, PinHasher.MaxLength);
             return;
         }
 
@@ -171,13 +180,13 @@ public partial class ManagerAuthPromptViewModel : ObservableObject, IManagerAuth
         }
         catch (UnauthorizedAccessException ex)
         {
-            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? "PIN incorrecto o sin permiso para autorizar." : ex.Message;
+            ErrorMessage = string.IsNullOrWhiteSpace(ex.Message) ? T("Auth.Error.Denied") : ex.Message;
             Pin = string.Empty;
             UpdateLockout(); // the failing attempt may have been the one that triggered the lock
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error: {ex.Message}";
+            ErrorMessage = T("Auth.Error.Generic", ex.Message);
             Pin = string.Empty;
         }
         finally

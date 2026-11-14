@@ -3,7 +3,7 @@
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:entities="using:Core.Domain.Entities"
              xmlns:dtos="using:Core.Application.DTOs"
-             xmlns:converters="using:Presentation.Desktop.Converters"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -11,72 +11,52 @@
              x:DataType="vm:MastersViewModel"
              x:Name="MastersRoot">
 
-    <UserControl.Resources>
-        <converters:BoolToColorConverter x:Key="BoolToColor"/>
-    </UserControl.Resources>
-
     <Grid RowDefinitions="Auto, *">
 
         <!-- ── TAB BAR ───────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Background="#020617" Padding="20,12" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource BgBar}" Padding="20,12" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*, Auto">
                 <WrapPanel Grid.Column="0" Orientation="Horizontal">
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="📦 Productos"
-                            Background="{Binding IsProductsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowProductsCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🏷️ Categorías"
-                            Background="{Binding IsCategoriesTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowCategoriesCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="📋 Impuestos"
-                            Background="{Binding IsTaxesTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowTaxesCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="👥 Clientes"
-                            Background="{Binding IsCustomersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowCustomersCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🔑 Usuarios" IsVisible="{Binding CanManageUsers}"
-                            Background="{Binding IsUsersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowUsersCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🏢 Convenios"
-                            Background="{Binding IsBillersTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowBillersCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="🖥️ Cajas"
-                            Background="{Binding IsTerminalsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowTerminalsCommand}"/>
-                    <Button Height="48" Padding="22,0" Margin="0,0,10,6" CornerRadius="8" FontWeight="Bold" FontSize="14"
-                            Content="💳 Datáfonos" IsVisible="{Binding IsPaymentTerminalsTabVisible}"
-                            Background="{Binding IsPaymentTerminalsTab, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowPaymentTerminalsCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsProductsTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Products}" Command="{Binding ShowProductsCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsCategoriesTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Categories}" Command="{Binding ShowCategoriesCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsTaxesTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Taxes}" Command="{Binding ShowTaxesCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsCustomersTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Customers}" Command="{Binding ShowCustomersCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsUsersTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Users}" IsVisible="{Binding CanManageUsers}" Command="{Binding ShowUsersCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsBillersTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Billers}" Command="{Binding ShowBillersCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsTerminalsTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.Terminals}" Command="{Binding ShowTerminalsCommand}"/>
+                    <Button Classes="tab" Classes.active="{Binding IsPaymentTerminalsTab}" Padding="22,0" Margin="0,0,10,6"
+                            Content="{i18n:Loc Masters.Tab.PaymentTerminals}" IsVisible="{Binding IsPaymentTerminalsTabVisible}" Command="{Binding ShowPaymentTerminalsCommand}"/>
                 </WrapPanel>
                 <!-- Notification -->
-                <Border Grid.Column="1" Background="#1E293B" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
+                <Border Grid.Column="1" Background="{DynamicResource BgSurface}" CornerRadius="8" Padding="14,8" Margin="12,0,0,0"
                         IsVisible="{Binding Notification, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                    <TextBlock Text="{Binding Notification}" Foreground="#CBD5E1" FontSize="13"/>
+                    <TextBlock Text="{Binding Notification}" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                 </Border>
             </Grid>
         </Border>
 
         <!-- ── CONTENT AREA ──────────────────────────────────────────── -->
-        <Grid Grid.Row="1" Background="#020617">
+        <Grid Grid.Row="1" Background="{DynamicResource BgApp}">
 
             <!-- ══ PRODUCTS TAB ════════════════════════════════════════ -->
             <Grid IsVisible="{Binding IsProductsTab}" RowDefinitions="Auto, *">
                 <!-- Toolbar -->
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
                     <Grid ColumnDefinitions="*, Auto">
                         <TextBox Grid.Column="0" Height="48" Text="{Binding SearchQuery, Mode=TwoWay}"
-                                 Watermark="🔍 Buscar producto por nombre o SKU..."
+                                 Watermark="{i18n:Loc Masters.Products.SearchWatermark}"
                                  FontSize="15" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center"/>
                         <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0"
-                                Background="#2563EB" Foreground="White"
+                                Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14" FontWeight="Bold" CornerRadius="8"
-                                Content="➕ Nuevo Producto"
+                                Content="{i18n:Loc Masters.Products.New}"
                                 Command="{Binding NewProductCommand}"/>
                     </Grid>
                 </Border>
@@ -85,44 +65,45 @@
                     <ItemsControl ItemsSource="{Binding Products}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="entities:Product">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                                         CornerRadius="10" Padding="16" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto, Auto">
                                         <!-- SKU Badge -->
-                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="6"
+                                        <Border Grid.Column="0" Background="{DynamicResource AccentSurface}" CornerRadius="6"
                                                 Padding="10,6" Margin="0,0,14,0" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding Sku}" Foreground="#38BDF8"
+                                            <TextBlock Text="{Binding Sku}" Foreground="{DynamicResource AccentText}"
                                                        FontSize="12" FontWeight="Bold"/>
                                         </Border>
                                         <!-- Info -->
                                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding Name}" Foreground="White"
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}"
                                                            FontSize="16" FontWeight="SemiBold"/>
                                                 <Border IsVisible="{Binding IsWeighed}"
-                                                        Background="#047857" CornerRadius="4" Padding="6,2">
-                                                    <TextBlock Text="⚖️ Pesado" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                        Background="{DynamicResource SuccessSurface}" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{i18n:Loc Masters.Products.Weighed}" Foreground="{DynamicResource SuccessText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
                                             </StackPanel>
                                             <TextBlock Text="{Binding Category.Name}"
-                                                       Foreground="#64748B" FontSize="13"/>
+                                                       Foreground="{DynamicResource TextFaint}" FontSize="13"/>
                                         </StackPanel>
                                         <!-- Price -->
                                         <StackPanel Grid.Column="2" Spacing="2" VerticalAlignment="Center" Margin="0,0,16,0">
                                             <TextBlock Text="{Binding Price, StringFormat='${0:N0}'}"
-                                                       Foreground="#10B981" FontSize="18" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding StockQuantity, StringFormat='Stock: {0:N0}'}"
-                                                       Foreground="#64748B" FontSize="12"/>
+                                                       Foreground="{DynamicResource SuccessBright}" FontSize="18" FontWeight="Bold"/>
+                                            <TextBlock Foreground="{DynamicResource TextFaint}" FontSize="12">
+                                                <Run Text="{i18n:Loc Masters.Products.Stock}"/><Run Text="{Binding StockQuantity, StringFormat='{}{0:N0}'}"/>
+                                            </TextBlock>
                                         </StackPanel>
                                         <!-- Edit -->
                                         <Button Grid.Column="3" Height="44" Width="44" CornerRadius="8"
-                                                Background="#1E3A5F" Foreground="White" Content="✏️" FontSize="18"
+                                                Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" Content="✏️" FontSize="18"
                                                 Margin="0,0,6,0" VerticalAlignment="Center"
                                                 Command="{Binding #MastersRoot.DataContext.EditProductCommand}"
                                                 CommandParameter="{Binding .}"/>
                                         <!-- Delete -->
                                         <Button Grid.Column="4" Height="44" Width="44" CornerRadius="8"
-                                                Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
+                                                Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" Content="🗑️" FontSize="18"
                                                 VerticalAlignment="Center"
                                                 Command="{Binding #MastersRoot.DataContext.DeleteProductCommand}"
                                                 CommandParameter="{Binding .}"/>
@@ -136,10 +117,10 @@
 
             <!-- ══ CATEGORIES TAB ══════════════════════════════════════ -->
             <Grid IsVisible="{Binding IsCategoriesTab}" RowDefinitions="Auto, *">
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
-                    <Button Height="48" Padding="20,0" Background="#2563EB" Foreground="White"
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
+                    <Button Height="48" Padding="20,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                             FontSize="14" FontWeight="Bold" CornerRadius="8"
-                            Content="➕ Nueva Categoría" Command="{Binding NewCategoryCommand}"/>
+                            Content="{i18n:Loc Masters.Categories.New}" Command="{Binding NewCategoryCommand}"/>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <ItemsControl ItemsSource="{Binding Categories}">
@@ -154,14 +135,15 @@
                                         Padding="20,14" Margin="8" MinWidth="180">
                                     <Grid RowDefinitions="Auto, Auto">
                                         <TextBlock Grid.Row="0" Text="{Binding Name}"
-                                                   Foreground="White" FontSize="17" FontWeight="Bold"/>
+                                                   Foreground="{DynamicResource TextOnAccent}" FontSize="17" FontWeight="Bold"/>
                                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="8" Margin="0,8,0,0">
                                             <Button Height="38" Padding="12,0" CornerRadius="6"
-                                                    Background="#00000040" Foreground="White" Content="✏️ Editar"
+                                                    Background="Transparent" BorderBrush="{DynamicResource TextOnAccent}" BorderThickness="1"
+                                                    Foreground="{DynamicResource TextOnAccent}" Content="{i18n:Loc Masters.Edit}"
                                                     Command="{Binding #MastersRoot.DataContext.EditCategoryCommand}"
                                                     CommandParameter="{Binding .}"/>
                                             <Button Height="38" Padding="12,0" CornerRadius="6"
-                                                    Background="#7F1D1D80" Foreground="White" Content="🗑️"
+                                                    Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}" Content="🗑️"
                                                     Command="{Binding #MastersRoot.DataContext.DeleteCategoryCommand}"
                                                     CommandParameter="{Binding .}"/>
                                         </StackPanel>
@@ -174,23 +156,24 @@
             </Grid>
 
             <!-- ══ TAXES TAB ═══════════════════════════════════════════ -->
-            <Border IsVisible="{Binding IsTaxesTab}" Background="#020617" Padding="24">
+            <Border IsVisible="{Binding IsTaxesTab}" Background="{DynamicResource BgApp}" Padding="24">
                 <StackPanel Spacing="10">
-                    <TextBlock Text="Impuestos configurados en el sistema" Foreground="#94A3B8" FontSize="15" Margin="0,0,0,8"/>
+                    <TextBlock Text="{i18n:Loc Masters.Taxes.Header}" Foreground="{DynamicResource TextMuted}" FontSize="15" Margin="0,0,0,8"/>
                     <ItemsControl ItemsSource="{Binding Taxes}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="entities:Tax">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                                         CornerRadius="10" Padding="16" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="*, Auto, Auto">
                                         <StackPanel Grid.Column="0" Spacing="3">
-                                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding Rate, StringFormat='Tasa: {0:P0}'}"
-                                                       Foreground="#10B981" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold"/>
+                                            <TextBlock Foreground="{DynamicResource SuccessBright}" FontSize="14" FontWeight="SemiBold">
+                                                <Run Text="{i18n:Loc Masters.Taxes.Rate}"/><Run Text="{Binding Rate, StringFormat='{}{0:P0}'}"/>
+                                            </TextBlock>
                                         </StackPanel>
-                                        <Border Grid.Column="1" Background="#047857" CornerRadius="6" Padding="12,6"
+                                        <Border Grid.Column="1" Background="{DynamicResource SuccessSurface}" CornerRadius="6" Padding="12,6"
                                                 IsVisible="{Binding IsActive}" VerticalAlignment="Center" Margin="0,0,8,0">
-                                            <TextBlock Text="ACTIVO" Foreground="White" FontSize="12" FontWeight="Bold"/>
+                                            <TextBlock Text="{i18n:Loc Masters.Badge.Active}" Foreground="{DynamicResource SuccessText}" FontSize="12" FontWeight="Bold"/>
                                         </Border>
                                     </Grid>
                                 </Border>
@@ -202,36 +185,36 @@
 
             <!-- ══ CUSTOMERS TAB ═══════════════════════════════════════ -->
             <Grid IsVisible="{Binding IsCustomersTab}" RowDefinitions="Auto, *">
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
-                    <Button Height="48" Padding="20,0" Background="#2563EB" Foreground="White"
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
+                    <Button Height="48" Padding="20,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                             FontSize="14" FontWeight="Bold" CornerRadius="8"
-                            Content="➕ Nuevo Cliente" Command="{Binding NewCustomerCommand}"/>
+                            Content="{i18n:Loc Masters.Customers.New}" Command="{Binding NewCustomerCommand}"/>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <ItemsControl ItemsSource="{Binding Customers}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="entities:Customer">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                                         CornerRadius="10" Padding="16" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto">
-                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="8"
+                                        <Border Grid.Column="0" Background="{DynamicResource BgSurface2}" CornerRadius="8"
                                                 Width="48" Height="48" Margin="0,0,14,0">
                                             <TextBlock Text="👤" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
-                                            <TextBlock Text="{Binding FullName}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding FullName}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="SemiBold"/>
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding DocumentId}" Foreground="#64748B" FontSize="13"/>
-                                                <TextBlock Text="{Binding Email}" Foreground="#38BDF8" FontSize="13"/>
+                                                <TextBlock Text="{Binding DocumentId}" Foreground="{DynamicResource TextFaint}" FontSize="13"/>
+                                                <TextBlock Text="{Binding Email}" Foreground="{DynamicResource Info}" FontSize="13"/>
                                             </StackPanel>
                                         </StackPanel>
                                         <Button Grid.Column="2" Height="44" Width="44" CornerRadius="8"
-                                                Background="#1E3A5F" Foreground="White" Content="✏️" FontSize="18"
+                                                Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" Content="✏️" FontSize="18"
                                                 Margin="0,0,6,0" VerticalAlignment="Center"
                                                 Command="{Binding #MastersRoot.DataContext.EditCustomerCommand}"
                                                 CommandParameter="{Binding .}"/>
                                         <Button Grid.Column="3" Height="44" Width="44" CornerRadius="8"
-                                                Background="#7F1D1D" Foreground="White" Content="🗑️" FontSize="18"
+                                                Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" Content="🗑️" FontSize="18"
                                                 VerticalAlignment="Center"
                                                 Command="{Binding #MastersRoot.DataContext.DeleteCustomerCommand}"
                                                 CommandParameter="{Binding .}"/>
@@ -245,40 +228,40 @@
 
             <!-- ══ BILLERS TAB (convenios de recaudo) ═══════════════════ -->
             <Grid IsVisible="{Binding IsBillersTab}" RowDefinitions="Auto, *">
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="Empresas cuyas facturas se cobran en caja (energía, agua, gas, recargas…). La comisión se suma al valor de la factura."
-                                   Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                        <TextBlock Text="{i18n:Loc Masters.Billers.Intro}"
+                                   Foreground="{DynamicResource TextMuted}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14" FontWeight="Bold" CornerRadius="8"
-                                Content="➕ Nuevo convenio" Command="{Binding NewBillerCommand}"/>
+                                Content="{i18n:Loc Masters.Billers.New}" Command="{Binding NewBillerCommand}"/>
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <ItemsControl ItemsSource="{Binding Billers}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:BillerRowViewModel">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,8">
+                                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto, *, Auto">
                                         <Border Grid.Column="0" Background="{Binding Color}" CornerRadius="8" Width="48" Height="48" Margin="0,0,14,0">
                                             <TextBlock Text="🏢" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
-                                                <Border Background="#047857" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsActive}">
-                                                    <TextBlock Text="ACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="SemiBold"/>
+                                                <Border Background="{DynamicResource SuccessSurface}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsActive}">
+                                                    <TextBlock Text="{i18n:Loc Masters.Badge.Active}" Foreground="{DynamicResource SuccessText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Background="#7F1D1D" CornerRadius="4" Padding="6,2" IsVisible="{Binding !IsActive}">
-                                                    <TextBlock Text="INACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                <Border Background="{DynamicResource DangerSurface}" CornerRadius="4" Padding="6,2" IsVisible="{Binding !IsActive}">
+                                                    <TextBlock Text="{i18n:Loc Masters.Badge.Inactive}" Foreground="{DynamicResource DangerText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock Foreground="#94A3B8" FontSize="13">
+                                            <TextBlock Foreground="{DynamicResource TextMuted}" FontSize="13">
                                                 <Run Text="{Binding CommissionText}"/><Run Text=" · "/><Run Text="{Binding CodeText}"/><Run Text=" · "/><Run Text="{Binding OrderText}"/>
                                             </TextBlock>
                                         </StackPanel>
                                         <Button Grid.Column="2" Height="48" Padding="16,0" CornerRadius="8"
-                                                Background="#1E3A5F" Foreground="White" Content="✏️ Editar" FontSize="14" FontWeight="Bold"
+                                                Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" Content="{i18n:Loc Masters.Edit}" FontSize="14" FontWeight="Bold"
                                                 VerticalAlignment="Center" Command="{Binding EditCommand}"/>
                                     </Grid>
                                 </Border>
@@ -290,54 +273,57 @@
 
             <!-- ══ USERS TAB (PIN login staff) ═════════════════════════ -->
             <Grid IsVisible="{Binding IsUsersTab}" RowDefinitions="Auto, *">
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="Cada usuario entra con su PIN. Los PIN de usuarios activos no se pueden repetir."
-                                   Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
-                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                        <TextBlock Text="{i18n:Loc Masters.Users.Intro}"
+                                   Foreground="{DynamicResource TextMuted}" FontSize="13" VerticalAlignment="Center" TextWrapping="Wrap"/>
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14" FontWeight="Bold" CornerRadius="8"
-                                Content="➕ Nuevo Usuario" Command="{Binding NewUserCommand}"/>
+                                Content="{i18n:Loc Masters.Users.New}" Command="{Binding NewUserCommand}"/>
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <ItemsControl ItemsSource="{Binding Users}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="dtos:UserDto">
-                                <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1"
+                                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1"
                                         CornerRadius="10" Padding="16" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="Auto, *, Auto, Auto, Auto">
-                                        <Border Grid.Column="0" Background="#1E293B" CornerRadius="8"
+                                        <Border Grid.Column="0" Background="{DynamicResource BgSurface2}" CornerRadius="8"
                                                 Width="48" Height="48" Margin="0,0,14,0">
                                             <TextBlock Text="🔑" FontSize="22" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                         </Border>
                                         <StackPanel Grid.Column="1" Spacing="4" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold"/>
-                                                <Border Background="#1E3A5F" CornerRadius="4" Padding="6,2">
-                                                    <TextBlock Text="{Binding RoleLabel}" Foreground="#93C5FD" FontSize="11" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="SemiBold"/>
+                                                <Border Background="{DynamicResource AccentSurface}" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{Binding RoleLabel}" Foreground="{DynamicResource AccentText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Background="#047857" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsActive}">
-                                                    <TextBlock Text="ACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                <Border Background="{DynamicResource SuccessSurface}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsActive}">
+                                                    <TextBlock Text="{i18n:Loc Masters.Badge.Active}" Foreground="{DynamicResource SuccessText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Background="#7F1D1D" CornerRadius="4" Padding="6,2" IsVisible="{Binding !IsActive}">
-                                                    <TextBlock Text="INACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                <Border Background="{DynamicResource DangerSurface}" CornerRadius="4" Padding="6,2" IsVisible="{Binding !IsActive}">
+                                                    <TextBlock Text="{i18n:Loc Masters.Badge.Inactive}" Foreground="{DynamicResource DangerText}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock Text="{Binding LastLoginAt, StringFormat='Último ingreso: {0:dd/MM/yyyy HH:mm}', TargetNullValue='Nunca ha ingresado'}"
-                                                       Foreground="#64748B" FontSize="13"/>
+                                            <TextBlock Foreground="{DynamicResource TextFaint}" FontSize="13" IsVisible="{Binding LastLoginAt, Converter={x:Static ObjectConverters.IsNotNull}}">
+                                                <Run Text="{i18n:Loc Masters.Users.LastLogin}"/><Run Text="{Binding LastLoginAt, StringFormat='{}{0:dd/MM/yyyy HH:mm}'}"/>
+                                            </TextBlock>
+                                            <TextBlock Text="{i18n:Loc Masters.Users.NeverLoggedIn}" Foreground="{DynamicResource TextFaint}" FontSize="13"
+                                                       IsVisible="{Binding LastLoginAt, Converter={x:Static ObjectConverters.IsNull}}"/>
                                         </StackPanel>
                                         <Button Grid.Column="2" Height="48" Padding="16,0" CornerRadius="8" Margin="0,0,8,0"
-                                                Background="#1E3A5F" Foreground="White" Content="✏️ Editar" FontSize="14" FontWeight="Bold"
+                                                Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" Content="{i18n:Loc Masters.Edit}" FontSize="14" FontWeight="Bold"
                                                 VerticalAlignment="Center"
                                                 Command="{Binding #MastersRoot.DataContext.EditUserCommand}"
                                                 CommandParameter="{Binding .}"/>
                                         <Button Grid.Column="3" Height="48" Padding="16,0" CornerRadius="8"
-                                                Background="#7F1D1D" Foreground="White" Content="🚫 Desactivar" FontSize="14" FontWeight="Bold"
+                                                Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" Content="{i18n:Loc Masters.Users.Deactivate}" FontSize="14" FontWeight="Bold"
                                                 VerticalAlignment="Center" IsVisible="{Binding IsActive}"
                                                 Command="{Binding #MastersRoot.DataContext.ToggleUserActiveCommand}"
                                                 CommandParameter="{Binding .}"/>
                                         <Button Grid.Column="4" Height="48" Padding="16,0" CornerRadius="8"
-                                                Background="#15803D" Foreground="White" Content="✅ Reactivar" FontSize="14" FontWeight="Bold"
+                                                Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" Content="{i18n:Loc Masters.Users.Reactivate}" FontSize="14" FontWeight="Bold"
                                                 VerticalAlignment="Center" IsVisible="{Binding !IsActive}"
                                                 Command="{Binding #MastersRoot.DataContext.ToggleUserActiveCommand}"
                                                 CommandParameter="{Binding .}"/>
@@ -352,27 +338,27 @@
             <!-- ══ TERMINALS TAB (cajas: principal + satélites, recepciones del inbox) ═══ -->
             <Grid IsVisible="{Binding IsTerminalsTab}" RowDefinitions="Auto, *">
                 <!-- Header: this register + the URL the satellites must use -->
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
                     <Grid ColumnDefinitions="*, Auto">
                         <StackPanel Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding ThisTerminalText}" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding ThisTerminalText}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
                             <WrapPanel Orientation="Horizontal">
-                                <TextBlock Text="Dirección para las cajas satélite: " Foreground="#94A3B8" FontSize="13" VerticalAlignment="Center"/>
-                                <Border Background="#1E293B" CornerRadius="6" Padding="10,4" Margin="0,2,0,2">
-                                    <SelectableTextBlock Text="{Binding MasterUrlText}" Foreground="#C4B5FD" FontSize="14" FontWeight="Bold"/>
+                                <TextBlock Text="{i18n:Loc Masters.Terminals.SatelliteUrlLabel}" Foreground="{DynamicResource TextMuted}" FontSize="13" VerticalAlignment="Center"/>
+                                <Border Background="{DynamicResource PurpleSurface}" CornerRadius="6" Padding="10,4" Margin="0,2,0,2">
+                                    <SelectableTextBlock Text="{Binding MasterUrlText}" Foreground="{DynamicResource Purple}" FontSize="14" FontWeight="Bold"/>
                                 </Border>
                             </WrapPanel>
                             <TextBlock Text="{Binding MasterUrlHint}" Foreground="{Binding MasterUrlHintColor}" FontSize="12" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
-                                Content="↻ Actualizar" IsEnabled="{Binding !IsLoadingTerminals}" Command="{Binding LoadTerminalsCommand}"/>
+                                Content="{i18n:Loc Masters.Refresh}" IsEnabled="{Binding !IsLoadingTerminals}" Command="{Binding LoadTerminalsCommand}"/>
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="{Binding TerminalsSummary}" Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
-                        <TextBlock Text="No hay cajas registradas todavía." Foreground="#64748B" FontSize="15" IsVisible="{Binding !HasTerminals}"/>
+                        <TextBlock Text="{Binding TerminalsSummary}" Foreground="{DynamicResource TextMuted}" FontSize="13" TextWrapping="Wrap"/>
+                        <TextBlock Text="{i18n:Loc Masters.Terminals.NoTerminals}" Foreground="{DynamicResource TextFaint}" FontSize="15" IsVisible="{Binding !HasTerminals}"/>
 
                         <!-- Registers: one card per terminal (WrapPanel so narrow windows stack them) -->
                         <ItemsControl ItemsSource="{Binding Terminals}">
@@ -381,23 +367,23 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:TerminalRowViewModel">
-                                    <Border Background="#1E293B" CornerRadius="10" Padding="16,12" Margin="0,0,10,10" Width="330" MinHeight="96">
+                                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16,12" Margin="0,0,10,10" Width="330" MinHeight="96">
                                         <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto, Auto, Auto">
                                             <Ellipse Grid.RowSpan="4" Width="14" Height="14" Fill="{Binding DotColor}" Margin="0,4,12,0" VerticalAlignment="Top"/>
                                             <WrapPanel Grid.Column="1" Grid.Row="0" Orientation="Horizontal">
-                                                <TextBlock Text="{Binding Code}" Foreground="White" FontSize="18" FontWeight="Black" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                <TextBlock Text="{Binding Code}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Black" Margin="0,0,8,0" VerticalAlignment="Center"/>
                                                 <Border Background="{Binding KindColor}" CornerRadius="6" Padding="8,2" VerticalAlignment="Center">
-                                                    <TextBlock Text="{Binding KindLabel}" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding KindLabel}" Foreground="{DynamicResource TextOnAccent}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
                                             </WrapPanel>
-                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Name}" Foreground="#CBD5E1" FontSize="14" TextTrimming="CharacterEllipsis"/>
+                                            <TextBlock Grid.Column="1" Grid.Row="1" Text="{Binding Name}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextTrimming="CharacterEllipsis"/>
                                             <WrapPanel Grid.Column="1" Grid.Row="2" Orientation="Horizontal" Margin="0,4,0,0">
-                                                <TextBlock Text="{Binding LastSeenText}" Foreground="#94A3B8" FontSize="12" Margin="0,0,10,0"/>
-                                                <TextBlock Text="{Binding LastSyncText}" Foreground="#94A3B8" FontSize="12"/>
+                                                <TextBlock Text="{Binding LastSeenText}" Foreground="{DynamicResource TextMuted}" FontSize="12" Margin="0,0,10,0"/>
+                                                <TextBlock Text="{Binding LastSyncText}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
                                             </WrapPanel>
                                             <WrapPanel Grid.Column="1" Grid.Row="3" Orientation="Horizontal" Margin="0,4,0,0">
                                                 <TextBlock Text="{Binding OpenShiftText}" Foreground="{Binding OpenShiftColor}" FontSize="13" FontWeight="Bold" Margin="0,0,10,0"/>
-                                                <TextBlock Text="{Binding DetailText}" Foreground="#64748B" FontSize="12"/>
+                                                <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource TextFaint}" FontSize="12"/>
                                             </WrapPanel>
                                         </Grid>
                                     </Border>
@@ -406,21 +392,21 @@
                         </ItemsControl>
 
                         <!-- Inbox receipts: last 50 envelopes received from satellites -->
-                        <TextBlock Text="📥 Últimas recepciones de las cajas satélite" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
-                        <TextBlock Text="Todavía no se ha recibido nada de las cajas satélite." Foreground="#64748B" FontSize="14" IsVisible="{Binding !HasInboxReceipts}"/>
+                        <TextBlock Text="{i18n:Loc Masters.Terminals.InboxHeader}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
+                        <TextBlock Text="{i18n:Loc Masters.Terminals.NoInbox}" Foreground="{DynamicResource TextFaint}" FontSize="14" IsVisible="{Binding !HasInboxReceipts}"/>
                         <ItemsControl ItemsSource="{Binding InboxReceipts}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:InboxReceiptRowViewModel">
-                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
+                                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
                                         <Grid ColumnDefinitions="120, 90, *, 120">
-                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding TerminalCode}" Foreground="White" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="{DynamicResource TextMuted}" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding TerminalCode}" Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Bold" VerticalAlignment="Center"/>
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
                                                 <WrapPanel Orientation="Horizontal">
-                                                    <TextBlock Text="{Binding EventText}" Foreground="#CBD5E1" FontSize="13" Margin="0,0,8,0"/>
-                                                    <TextBlock Text="{Binding AggregateText}" Foreground="#64748B" FontSize="11" VerticalAlignment="Center"/>
+                                                    <TextBlock Text="{Binding EventText}" Foreground="{DynamicResource TextSecondary}" FontSize="13" Margin="0,0,8,0"/>
+                                                    <TextBlock Text="{Binding AggregateText}" Foreground="{DynamicResource TextFaint}" FontSize="11" VerticalAlignment="Center"/>
                                                 </WrapPanel>
-                                                <TextBlock Text="{Binding ErrorText}" Foreground="#F87171" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
+                                                <TextBlock Text="{Binding ErrorText}" Foreground="{DynamicResource DangerBright}" FontSize="12" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="3" Text="{Binding OutcomeText}" Foreground="{Binding OutcomeColor}" FontSize="13" FontWeight="Bold"
                                                        TextAlignment="Right" VerticalAlignment="Center"/>
@@ -435,63 +421,63 @@
 
             <!-- ══ PAYMENT TERMINALS TAB (datáfonos: registro, asignación, prueba, últimos cobros) ═══ -->
             <Grid IsVisible="{Binding IsPaymentTerminalsTab}" RowDefinitions="Auto, *">
-                <Border Grid.Row="0" Background="#0F172A" Padding="20,12">
+                <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,12">
                     <Grid ColumnDefinitions="*, Auto, Auto">
                         <StackPanel Spacing="4" VerticalAlignment="Center">
-                            <TextBlock Text="Datáfonos con los que el POS cobra tarjetas (semi-integrado: el monto viaja al equipo y la aprobación vuelve con su referencia)."
-                                       Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding PaymentTerminalsSummary}" Foreground="#CBD5E1" FontSize="13" TextWrapping="Wrap"/>
+                            <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.Intro}"
+                                       Foreground="{DynamicResource TextMuted}" FontSize="13" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding PaymentTerminalsSummary}" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap"/>
                         </StackPanel>
-                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#1E293B" BorderBrush="#475569" BorderThickness="1"
-                                Foreground="White" FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
-                                Content="↻ Actualizar" IsEnabled="{Binding !IsLoadingPaymentTerminals}" Command="{Binding LoadPaymentTerminalsCommand}"/>
-                        <Button Grid.Column="2" Height="48" Padding="20,0" Margin="10,0,0,0" Background="#2563EB" Foreground="White"
+                        <Button Grid.Column="1" Height="48" Padding="20,0" Margin="10,0,0,0" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1"
+                                Foreground="{DynamicResource TextPrimary}" FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
+                                Content="{i18n:Loc Masters.Refresh}" IsEnabled="{Binding !IsLoadingPaymentTerminals}" Command="{Binding LoadPaymentTerminalsCommand}"/>
+                        <Button Grid.Column="2" Height="48" Padding="20,0" Margin="10,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14" FontWeight="Bold" CornerRadius="8" VerticalAlignment="Top"
-                                Content="➕ Nuevo datáfono" Command="{Binding NewPaymentTerminalCommand}"/>
+                                Content="{i18n:Loc Masters.PaymentTerminals.New}" Command="{Binding NewPaymentTerminalCommand}"/>
                     </Grid>
                 </Border>
                 <ScrollViewer Grid.Row="1" Padding="16">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="No hay datáfonos registrados todavía." Foreground="#64748B" FontSize="15" IsVisible="{Binding !HasPaymentTerminals}"/>
+                        <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.NoTerminals}" Foreground="{DynamicResource TextFaint}" FontSize="15" IsVisible="{Binding !HasPaymentTerminals}"/>
 
                         <!-- One card per terminal; the inline assign strip and the deactivate confirmation expand inside the card -->
                         <ItemsControl ItemsSource="{Binding PaymentTerminals}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:PaymentTerminalRowViewModel">
-                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="10" Padding="16,12" Margin="0,0,0,8">
+                                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16,12" Margin="0,0,0,8">
                                         <StackPanel Spacing="8">
                                             <Grid ColumnDefinitions="Auto, *, Auto">
                                                 <Ellipse Grid.Column="0" Width="14" Height="14" Fill="{Binding DotColor}" Margin="0,0,12,0" VerticalAlignment="Center"/>
                                                 <StackPanel Grid.Column="1" Spacing="3" VerticalAlignment="Center">
                                                     <WrapPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="17" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
-                                                        <Border Background="#1E3A5F" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
-                                                            <TextBlock Text="{Binding ProviderLabel}" Foreground="#BFDBFE" FontSize="11" FontWeight="Bold"/>
+                                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="17" FontWeight="Bold" Margin="0,0,8,0" VerticalAlignment="Center"/>
+                                                        <Border Background="{DynamicResource AccentSurface}" CornerRadius="4" Padding="6,2" Margin="0,0,6,0" VerticalAlignment="Center">
+                                                            <TextBlock Text="{Binding ProviderLabel}" Foreground="{DynamicResource AccentText}" FontSize="11" FontWeight="Bold"/>
                                                         </Border>
-                                                        <Border Background="#7F1D1D" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding IsInactive}">
-                                                            <TextBlock Text="INACTIVO" Foreground="White" FontSize="11" FontWeight="Bold"/>
+                                                        <Border Background="{DynamicResource DangerSurface}" CornerRadius="4" Padding="6,2" VerticalAlignment="Center" IsVisible="{Binding IsInactive}">
+                                                            <TextBlock Text="{i18n:Loc Masters.Badge.Inactive}" Foreground="{DynamicResource DangerText}" FontSize="11" FontWeight="Bold"/>
                                                         </Border>
                                                     </WrapPanel>
                                                     <WrapPanel Orientation="Horizontal">
-                                                        <TextBlock Text="{Binding AddressText}" Foreground="#94A3B8" FontSize="13" Margin="0,0,10,0"/>
-                                                        <TextBlock Text="{Binding SerialText}" Foreground="#64748B" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
-                                                        <TextBlock Text="{Binding OrderText}" Foreground="#64748B" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding AddressText}" Foreground="{DynamicResource TextMuted}" FontSize="13" Margin="0,0,10,0"/>
+                                                        <TextBlock Text="{Binding SerialText}" Foreground="{DynamicResource TextFaint}" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
+                                                        <TextBlock Text="{Binding OrderText}" Foreground="{DynamicResource TextFaint}" FontSize="12" Margin="0,0,10,0" VerticalAlignment="Center"/>
                                                         <TextBlock Text="{Binding LastPingText}" Foreground="{Binding DotColor}" FontSize="12" VerticalAlignment="Center"/>
                                                     </WrapPanel>
-                                                    <TextBlock Text="{Binding AssignmentLabel}" Foreground="#FCD34D" FontSize="13" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding AssignmentLabel}" Foreground="{DynamicResource WarningBright}" FontSize="13" FontWeight="Bold"/>
                                                 </StackPanel>
                                                 <!-- Actions wrap under the text on narrow windows -->
                                                 <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" MaxWidth="420">
-                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#475569" BorderThickness="1"
-                                                            Foreground="White" FontSize="13" FontWeight="Bold" Content="📡 Probar conexión"
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderStrong}" BorderThickness="1"
+                                                            Foreground="{DynamicResource TextPrimary}" FontSize="13" FontWeight="Bold" Content="{i18n:Loc Masters.PaymentTerminals.Test}"
                                                             Command="{Binding TestCommand}" IsEnabled="{Binding !IsTesting}"/>
-                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1"
-                                                            Foreground="#FCD34D" FontSize="13" FontWeight="Bold" Content="👤 Asignar a…"
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Warning}" BorderThickness="1"
+                                                            Foreground="{DynamicResource WarningBright}" FontSize="13" FontWeight="Bold" Content="{i18n:Loc Masters.PaymentTerminals.AssignTo}"
                                                             Command="{Binding AssignCommand}" IsVisible="{Binding IsActive}"/>
-                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E3A5F"
-                                                            Foreground="White" FontSize="13" FontWeight="Bold" Content="✏️ Editar" Command="{Binding EditCommand}"/>
-                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="#1E293B" BorderBrush="#7F1D1D" BorderThickness="1"
-                                                            Foreground="#FCA5A5" FontSize="13" FontWeight="Bold" Content="🗑️ Desactivar"
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="{DynamicResource AccentSurface}"
+                                                            Foreground="{DynamicResource AccentText}" FontSize="13" FontWeight="Bold" Content="{i18n:Loc Masters.Edit}" Command="{Binding EditCommand}"/>
+                                                    <Button Height="48" Padding="14,0" Margin="4" CornerRadius="8" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Danger}" BorderThickness="1"
+                                                            Foreground="{DynamicResource DangerBright}" FontSize="13" FontWeight="Bold" Content="{i18n:Loc Masters.PaymentTerminals.Deactivate}"
                                                             Command="{Binding AskDeactivateCommand}" IsVisible="{Binding IsActive}"/>
                                                 </WrapPanel>
                                             </Grid>
@@ -500,28 +486,28 @@
                                                        TextWrapping="Wrap" IsVisible="{Binding HasTestResult}"/>
 
                                             <!-- Inline confirmation (no dialogs) -->
-                                            <Border Background="#450A0A" BorderBrush="#7F1D1D" BorderThickness="1" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsConfirmingDeactivate}">
+                                            <Border Background="{DynamicResource DangerSurface}" BorderBrush="{DynamicResource Danger}" BorderThickness="1" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsConfirmingDeactivate}">
                                                 <WrapPanel Orientation="Horizontal">
-                                                    <TextBlock Text="¿Desactivar este datáfono? Dejará de aparecer al cobrar." Foreground="#FECACA" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
-                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="#DC2626" Foreground="White" FontWeight="Bold"
-                                                            Content="Sí, desactivar" Command="{Binding ConfirmDeactivateCommand}"/>
-                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="#334155" Foreground="White" FontWeight="Bold"
-                                                            Content="No" Command="{Binding CancelDeactivateCommand}"/>
+                                                    <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.ConfirmDeactivate}" Foreground="{DynamicResource DangerText}" FontSize="14" VerticalAlignment="Center" Margin="0,0,12,0"/>
+                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}" FontWeight="Bold"
+                                                            Content="{i18n:Loc Masters.PaymentTerminals.YesDeactivate}" Command="{Binding ConfirmDeactivateCommand}"/>
+                                                    <Button Height="48" Padding="18,0" Margin="4" CornerRadius="8" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"
+                                                            Content="{i18n:Loc Common.No}" Command="{Binding CancelDeactivateCommand}"/>
                                                 </WrapPanel>
                                             </Border>
 
                                             <!-- Inline "Asignar a…": En caja + active users (one strip open at a time; options live on the VM) -->
-                                            <Border Background="#1E293B" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsAssigning}">
+                                            <Border Background="{DynamicResource BgSurface2}" CornerRadius="8" Padding="12,8" IsVisible="{Binding IsAssigning}">
                                                 <StackPanel Spacing="6">
-                                                    <TextBlock Text="¿Quién lleva este datáfono?" Foreground="#CBD5E1" FontSize="13"/>
+                                                    <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.WhoCarries}" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
                                                     <ItemsControl ItemsSource="{Binding #MastersRoot.((vm:MastersViewModel)DataContext).TerminalAssignOptions}">
                                                         <ItemsControl.ItemsPanel>
                                                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                                                         </ItemsControl.ItemsPanel>
                                                         <ItemsControl.ItemTemplate>
                                                             <DataTemplate x:DataType="vm:ChipViewModel">
-                                                                <Button Height="48" Padding="16,0" Margin="0,0,8,8" CornerRadius="24" Background="#0F172A" BorderBrush="#F59E0B" BorderThickness="1"
-                                                                        Foreground="White" FontSize="14" FontWeight="Bold" Content="{Binding Text}" Command="{Binding SelectCommand}"/>
+                                                                <Button Height="48" Padding="16,0" Margin="0,0,8,8" CornerRadius="24" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Warning}" BorderThickness="1"
+                                                                        Foreground="{DynamicResource TextPrimary}" FontSize="14" FontWeight="Bold" Content="{Binding Text}" Command="{Binding SelectCommand}"/>
                                                             </DataTemplate>
                                                         </ItemsControl.ItemTemplate>
                                                     </ItemsControl>
@@ -534,18 +520,18 @@
                         </ItemsControl>
 
                         <!-- Last 50 charges -->
-                        <TextBlock Text="🧾 Últimos cobros en datáfono" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
-                        <TextBlock Text="Todavía no se ha cobrado nada en datáfono." Foreground="#64748B" FontSize="14" IsVisible="{Binding !HasTerminalCharges}"/>
+                        <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.ChargesHeader}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" Margin="0,12,0,0"/>
+                        <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.NoCharges}" Foreground="{DynamicResource TextFaint}" FontSize="14" IsVisible="{Binding !HasTerminalCharges}"/>
                         <ItemsControl ItemsSource="{Binding TerminalCharges}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:TerminalChargeRowViewModel">
-                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
+                                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,8" Margin="0,0,0,4" MinHeight="44">
                                         <Grid ColumnDefinitions="100, 110, *, 130">
-                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="#94A3B8" FontSize="12" VerticalAlignment="Center"/>
-                                            <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="White" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="0" Text="{Binding TimeText}" Foreground="{DynamicResource TextMuted}" FontSize="12" VerticalAlignment="Center"/>
+                                            <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="{DynamicResource TextPrimary}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
                                             <StackPanel Grid.Column="2" VerticalAlignment="Center">
-                                                <TextBlock Text="{Binding ReferenceText}" Foreground="#CBD5E1" FontSize="13" TextTrimming="CharacterEllipsis"/>
-                                                <TextBlock Text="{Binding DetailText}" Foreground="#64748B" FontSize="12" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding ReferenceText}" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextTrimming="CharacterEllipsis"/>
+                                                <TextBlock Text="{Binding DetailText}" Foreground="{DynamicResource TextFaint}" FontSize="12" TextTrimming="CharacterEllipsis"/>
                                             </StackPanel>
                                             <TextBlock Grid.Column="3" Text="{Binding StatusLabel}" Foreground="{Binding StatusColor}" FontSize="13" FontWeight="Bold"
                                                        TextAlignment="Right" VerticalAlignment="Center"/>
@@ -561,112 +547,112 @@
         </Grid>
 
         <!-- ══ MODAL: PAYMENT TERMINAL FORM ═══════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000" IsVisible="{Binding IsPaymentTerminalFormVisible}">
-            <Border Width="560" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="16" Padding="28"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}" IsVisible="{Binding IsPaymentTerminalFormVisible}">
+            <Border Width="560" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="{Binding PaymentTerminalFormTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding PaymentTerminalFormTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="13"/>
+                        <TextBlock Text="{i18n:Loc Masters.Form.NameRequired}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                         <TextBox Text="{Binding PaymentTerminalName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
-                                 Watermark="Ej. Datáfono barra" MaxLength="60"/>
+                                 Watermark="{i18n:Loc Masters.PaymentTerminals.NameWatermark}" MaxLength="60"/>
                     </StackPanel>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Proveedor *" Foreground="#94A3B8" FontSize="13"/>
+                        <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.Provider}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                         <ComboBox ItemsSource="{Binding TerminalProviderOptions}" SelectedItem="{Binding PaymentTerminalProviderOption, Mode=TwoWay}"
-                                  Height="52" CornerRadius="8" HorizontalAlignment="Stretch" FontSize="16" PlaceholderText="Elija el proveedor">
+                                  Height="52" CornerRadius="8" HorizontalAlignment="Stretch" FontSize="16" PlaceholderText="{i18n:Loc Masters.PaymentTerminals.ChooseProvider}">
                             <ComboBox.ItemTemplate>
                                 <DataTemplate x:DataType="vm:TerminalProviderOptionViewModel">
                                     <TextBlock Text="{Binding Label}" FontSize="16"/>
                                 </DataTemplate>
                             </ComboBox.ItemTemplate>
                         </ComboBox>
-                        <TextBlock Text="{Binding PaymentTerminalAddressHint}" Foreground="#A7F3D0" FontSize="12" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding PaymentTerminalAddressHint}" Foreground="{DynamicResource SuccessText}" FontSize="12" TextWrapping="Wrap"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="3*, 2*">
                         <StackPanel Spacing="6" Margin="0,0,8,0">
-                            <TextBlock Text="Dirección (IP:puerto)" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.Address}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding PaymentTerminalAddress, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
                                      Watermark="192.168.1.50:9100"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
-                            <TextBlock Text="Serial" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.PaymentTerminals.Serial}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding PaymentTerminalSerial, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                         </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*, *">
                         <StackPanel Spacing="6" Margin="0,0,8,0">
-                            <TextBlock Text="Orden" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Form.Order}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding PaymentTerminalSortOrderStr, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                         </StackPanel>
-                        <CheckBox Grid.Column="1" IsChecked="{Binding PaymentTerminalIsActive, Mode=TwoWay}" Content="Activo" Foreground="White" FontSize="16"
+                        <CheckBox Grid.Column="1" IsChecked="{Binding PaymentTerminalIsActive, Mode=TwoWay}" Content="{i18n:Loc Masters.Form.Active}" Foreground="{DynamicResource TextPrimary}" FontSize="16"
                                   VerticalAlignment="Bottom" Margin="8,0,0,12"/>
                     </Grid>
                     <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="56" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="8"
+                        <Button Grid.Column="0" Height="56" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" CornerRadius="8"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelPaymentTerminalFormCommand}"/>
-                        <Button Grid.Column="1" Height="56" Margin="6,0,0,0" Background="#2563EB" Foreground="White" FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelPaymentTerminalFormCommand}"/>
+                        <Button Grid.Column="1" Height="56" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="16" FontWeight="Black" CornerRadius="8"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💾 Guardar" Command="{Binding SavePaymentTerminalCommand}"/>
+                                Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SavePaymentTerminalCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </Border>
 
         <!-- ══ MODAL: PRODUCT FORM ═════════════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}"
                 IsVisible="{Binding IsProductFormVisible}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Width="600" MaxHeight="720" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+            <Border Width="600" MaxHeight="720" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
                     CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <ScrollViewer>
                     <StackPanel Spacing="16">
                         <TextBlock Text="{Binding ProductFormTitle}"
-                                   Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                                   Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
 
                         <Grid ColumnDefinitions="*, *" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto" >
                             <!-- SKU -->
                             <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                                <TextBlock Text="SKU *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Sku}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductSku, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- Barcode -->
                             <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
-                                <TextBlock Text="Código de Barras" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Barcode}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductBarcode, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- Name -->
                             <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,12">
-                                <TextBlock Text="Nombre del Producto *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Name}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductName, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- Price -->
                             <StackPanel Grid.Row="2" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                                <TextBlock Text="Precio de Venta *" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Price}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductPriceStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- Cost -->
                             <StackPanel Grid.Row="2" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
-                                <TextBlock Text="Costo" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Cost}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductCostStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- Stock -->
                             <StackPanel Grid.Row="3" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                                <TextBlock Text="Stock Inicial" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.InitialStock}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <TextBox Text="{Binding ProductStockStr, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                             </StackPanel>
                             <!-- IsWeighed toggle -->
                             <Border Grid.Row="3" Grid.Column="1" Margin="8,0,0,12" VerticalAlignment="Bottom">
                                 <CheckBox IsChecked="{Binding ProductIsWeighed, Mode=TwoWay}"
-                                          Foreground="White" FontSize="15" Content="⚖️ Venta por peso (balanza)"/>
+                                          Foreground="{DynamicResource TextPrimary}" FontSize="15" Content="{i18n:Loc Masters.Products.SoldByWeight}"/>
                             </Border>
                             <!-- Category: decides the catalog filter, the comanda tiles and the kitchen station (Bebidas -> Barra) -->
                             <StackPanel Grid.Row="4" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                                <TextBlock Text="Categoría" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Category}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <ComboBox ItemsSource="{Binding Categories}" SelectedItem="{Binding ProductCategory, Mode=TwoWay}"
-                                          PlaceholderText="Sin categoría" Height="48" CornerRadius="8" FontSize="15"
+                                          PlaceholderText="{i18n:Loc Masters.Products.NoCategory}" Height="48" CornerRadius="8" FontSize="15"
                                           HorizontalAlignment="Stretch" VerticalContentAlignment="Center">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="entities:Category">
@@ -677,9 +663,9 @@
                             </StackPanel>
                             <!-- Tax -->
                             <StackPanel Grid.Row="4" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
-                                <TextBlock Text="Impuesto" Foreground="#94A3B8" FontSize="13"/>
+                                <TextBlock Text="{i18n:Loc Masters.Products.Tax}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                 <ComboBox ItemsSource="{Binding Taxes}" SelectedItem="{Binding ProductTax, Mode=TwoWay}"
-                                          PlaceholderText="Sin impuesto" Height="48" CornerRadius="8" FontSize="15"
+                                          PlaceholderText="{i18n:Loc Masters.Products.NoTax}" Height="48" CornerRadius="8" FontSize="15"
                                           HorizontalAlignment="Stretch" VerticalContentAlignment="Center">
                                     <ComboBox.ItemTemplate>
                                         <DataTemplate x:DataType="entities:Tax">
@@ -692,12 +678,12 @@
 
                         <!-- Action Buttons -->
                         <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
-                            <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                            <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
                                     FontSize="16" FontWeight="Bold" CornerRadius="8"
-                                    Content="Cancelar" Command="{Binding CancelProductFormCommand}"/>
-                            <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                    Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelProductFormCommand}"/>
+                            <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                     FontSize="16" FontWeight="Black" CornerRadius="8"
-                                    Content="💾 Guardar" Command="{Binding SaveProductCommand}"/>
+                                    Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SaveProductCommand}"/>
                         </Grid>
                     </StackPanel>
                 </ScrollViewer>
@@ -705,146 +691,146 @@
         </Border>
 
         <!-- ══ MODAL: CATEGORY FORM ════════════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}"
                 IsVisible="{Binding IsCategoryFormVisible}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Width="440" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+            <Border Width="440" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
                     CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="🏷️ Categoría" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Masters.Categories.FormTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBlock Text="{i18n:Loc Masters.Form.NameRequired}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                         <TextBox Text="{Binding CategoryName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                     </StackPanel>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Color HEX (ej. #3B82F6)" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBlock Text="{i18n:Loc Masters.Categories.ColorHex}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                         <TextBox Text="{Binding CategoryColorHex, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                     </StackPanel>
                     <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
                                 FontSize="16" FontWeight="Bold" CornerRadius="8"
-                                Content="Cancelar" Command="{Binding CancelCategoryFormCommand}"/>
-                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelCategoryFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="💾 Guardar" Command="{Binding SaveCategoryCommand}"/>
+                                Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SaveCategoryCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </Border>
 
         <!-- ══ MODAL: CUSTOMER FORM ════════════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}"
                 IsVisible="{Binding IsCustomerFormVisible}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Width="520" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+            <Border Width="520" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
                     CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="👥 Cliente" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Masters.Customers.FormTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <Grid ColumnDefinitions="*, *" RowDefinitions="Auto,Auto,Auto">
                         <StackPanel Grid.Row="0" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                            <TextBlock Text="Documento / NIT *" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Customers.Document}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding CustomerDocumentId, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                         </StackPanel>
                         <StackPanel Grid.Row="0" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
-                            <TextBlock Text="Nombre Completo *" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Customers.FullName}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding CustomerFullName, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="0" Spacing="6" Margin="0,0,8,12">
-                            <TextBlock Text="Correo Electrónico" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Customers.Email}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding CustomerEmail, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                         </StackPanel>
                         <StackPanel Grid.Row="1" Grid.Column="1" Spacing="6" Margin="8,0,0,12">
-                            <TextBlock Text="Teléfono" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Customers.Phone}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding CustomerPhone, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                         </StackPanel>
                         <StackPanel Grid.Row="2" Grid.ColumnSpan="2" Spacing="6" Margin="0,0,0,12">
-                            <TextBlock Text="Dirección" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Customers.Address}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding CustomerAddress, Mode=TwoWay}" Height="48" CornerRadius="8" Padding="10,0" VerticalContentAlignment="Center" FontSize="15"/>
                         </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*,*">
-                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
                                 FontSize="16" FontWeight="Bold" CornerRadius="8"
-                                Content="Cancelar" Command="{Binding CancelCustomerFormCommand}"/>
-                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelCustomerFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="💾 Guardar" Command="{Binding SaveCustomerCommand}"/>
+                                Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SaveCustomerCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </Border>
 
         <!-- ══ MODAL: USER FORM ════════════════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}"
                 IsVisible="{Binding IsUserFormVisible}"
                 HorizontalAlignment="Stretch" VerticalAlignment="Stretch">
-            <Border Width="480" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+            <Border Width="480" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
                     CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="{Binding UserFormTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding UserFormTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBlock Text="{i18n:Loc Masters.Form.NameRequired}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                         <TextBox Text="{Binding UserName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                     </StackPanel>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="Rol *" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBlock Text="{i18n:Loc Masters.Users.Role}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                         <ComboBox ItemsSource="{Binding RoleOptions}" SelectedItem="{Binding UserRoleOption, Mode=TwoWay}"
                                   DisplayMemberBinding="{Binding Label}"
                                   Height="52" HorizontalAlignment="Stretch" CornerRadius="8" Padding="12,0" FontSize="16"/>
                     </StackPanel>
                     <StackPanel Spacing="8">
-                        <TextBlock Text="{Binding UserPinHint}" Foreground="#94A3B8" FontSize="14"/>
+                        <TextBlock Text="{Binding UserPinHint}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                         <TextBox Text="{Binding UserPin, Mode=TwoWay}" PasswordChar="●" MaxLength="6"
                                  Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="20" Watermark="••••"/>
                     </StackPanel>
-                    <ToggleSwitch IsChecked="{Binding UserIsActive, Mode=TwoWay}" OnContent="Activo" OffContent="Inactivo"
-                                  Foreground="White" FontSize="15" Content="Estado"/>
+                    <ToggleSwitch IsChecked="{Binding UserIsActive, Mode=TwoWay}" OnContent="{i18n:Loc Masters.Form.Active}" OffContent="{i18n:Loc Masters.Form.Inactive}"
+                                  Foreground="{DynamicResource TextPrimary}" FontSize="15" Content="{i18n:Loc Masters.Users.Status}"/>
                     <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="#334155" Foreground="White"
+                        <Button Grid.Column="0" Height="52" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
                                 FontSize="16" FontWeight="Bold" CornerRadius="8"
-                                Content="Cancelar" Command="{Binding CancelUserFormCommand}"/>
-                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="#2563EB" Foreground="White"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelUserFormCommand}"/>
+                        <Button Grid.Column="1" Height="52" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="16" FontWeight="Black" CornerRadius="8"
-                                Content="💾 Guardar" Command="{Binding SaveUserCommand}"/>
+                                Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SaveUserCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
         </Border>
 
         <!-- ══ MODAL: BILLER FORM ═════════════════════════════════════════ -->
-        <Border Grid.RowSpan="2" Background="#CC000000" IsVisible="{Binding IsBillerFormVisible}">
-            <Border Width="560" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1" CornerRadius="16" Padding="28"
+        <Border Grid.RowSpan="2" Background="{DynamicResource BgOverlay}" IsVisible="{Binding IsBillerFormVisible}">
+            <Border Width="560" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Accent}" BorderThickness="1" CornerRadius="16" Padding="28"
                     VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="{Binding BillerFormTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{Binding BillerFormTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <Grid ColumnDefinitions="2*, *">
                         <StackPanel Spacing="6" Margin="0,0,8,0">
-                            <TextBlock Text="Nombre *" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Form.NameRequired}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding BillerName, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
-                                     Watermark="Ej. Energía Celsia" MaxLength="100"/>
+                                     Watermark="{i18n:Loc Masters.Billers.NameWatermark}" MaxLength="100"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
-                            <TextBlock Text="Código" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Form.Code}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding BillerCode, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                         </StackPanel>
                     </Grid>
                     <Grid ColumnDefinitions="*, *">
                         <StackPanel Spacing="6" Margin="0,0,8,0">
-                            <TextBlock Text="Comisión fija ($)" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Billers.FixedCommission}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding BillerFixedStr, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                         </StackPanel>
                         <StackPanel Grid.Column="1" Spacing="6" Margin="8,0,0,0">
-                            <TextBlock Text="Comisión porcentual (%)" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Billers.PercentCommission}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding BillerPercentStr, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"
-                                     Watermark="Ej. 3 = 3 %"/>
+                                     Watermark="{i18n:Loc Masters.Billers.PercentWatermark}"/>
                         </StackPanel>
                     </Grid>
-                    <TextBlock Text="{Binding BillerExampleText}" Foreground="#A7F3D0" FontSize="14" TextWrapping="Wrap"/>
+                    <TextBlock Text="{Binding BillerExampleText}" Foreground="{DynamicResource SuccessText}" FontSize="14" TextWrapping="Wrap"/>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Color" Foreground="#94A3B8" FontSize="13"/>
+                        <TextBlock Text="{i18n:Loc Masters.Form.Color}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                         <Grid ColumnDefinitions="Auto, *">
                             <Border Width="52" Height="52" CornerRadius="8" Background="{Binding BillerColorPreview}" Margin="0,0,10,0"/>
                             <TextBox Grid.Column="1" Text="{Binding BillerColorHex, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
@@ -862,19 +848,19 @@
                     </StackPanel>
                     <Grid ColumnDefinitions="*, *">
                         <StackPanel Spacing="6" Margin="0,0,8,0">
-                            <TextBlock Text="Orden" Foreground="#94A3B8" FontSize="13"/>
+                            <TextBlock Text="{i18n:Loc Masters.Form.Order}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                             <TextBox Text="{Binding BillerSortOrderStr, Mode=TwoWay}" Height="52" CornerRadius="8" Padding="12,0" VerticalContentAlignment="Center" FontSize="16"/>
                         </StackPanel>
-                        <CheckBox Grid.Column="1" IsChecked="{Binding BillerIsActive, Mode=TwoWay}" Content="Activo" Foreground="White" FontSize="16"
+                        <CheckBox Grid.Column="1" IsChecked="{Binding BillerIsActive, Mode=TwoWay}" Content="{i18n:Loc Masters.Form.Active}" Foreground="{DynamicResource TextPrimary}" FontSize="16"
                                   VerticalAlignment="Bottom" Margin="8,0,0,12"/>
                     </Grid>
                     <Grid ColumnDefinitions="*,*" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="56" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="8"
+                        <Button Grid.Column="0" Height="56" Margin="0,0,6,0" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" CornerRadius="8"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelBillerFormCommand}"/>
-                        <Button Grid.Column="1" Height="56" Margin="6,0,0,0" Background="#2563EB" Foreground="White" FontSize="16" FontWeight="Black" CornerRadius="8"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelBillerFormCommand}"/>
+                        <Button Grid.Column="1" Height="56" Margin="6,0,0,0" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="16" FontWeight="Black" CornerRadius="8"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💾 Guardar" Command="{Binding SaveBillerCommand}"/>
+                                Content="{i18n:Loc Masters.Form.Save}" Command="{Binding SaveBillerCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

@@ -52,6 +52,7 @@
 | **Autorización de gerente** (PIN) para devoluciones, descuentos y anular productos ya en cocina, con auditoría (`ManagerOverrides`) | ✅ |
 | **Segunda caja (maestro / satélite)**: cada caja con su propia base, la satélite recibe el catálogo y envía ventas/turnos/recaudos a la principal, **cierre del día por caja** | ✅ |
 | **Datáfono semi-integrado** (el POS envía el monto, el datáfono cobra y responde; driver simulado, emulador Docker y protocolo JSON/TCP listo para un proveedor real) y **pago en mesa** desde la comandera web con datáfonos inalámbricos asignados a meseros | ✅ |
+| **Tema oscuro / claro** (chip 🌙/☀️) e **idioma ES / EN** (chip 🌐) cambiables en caliente y recordados por equipo; barra superior de 48 px con menú "⋯" en ventanas angostas | ✅ |
 | Proveedores reales de datáfono (Redeban, Credibanco, Bold, Mercado Pago Point), ZPL, mDNS, app Android nativa | ❌ pendiente |
 
 Detalle y próximos pasos: [`Docs/handoff.md`](Docs/handoff.md).
@@ -200,6 +201,7 @@ loqzen-pos/
 | | `IntervalSeconds` / `BatchSize` / `MaxRetries` / `TimeoutSeconds` | `15` / `50` / `10` / `10` | Reintentos con espera exponencial (1 s … 5 min); tras `MaxRetries` queda *fallido* y se reintenta desde Caja |
 | `Terminal` | `Code` / `Name` / `Mode` | `CAJA-01` / `Caja principal` / `Master` | Identidad de esta caja. `Satellite` = segunda caja que sincroniza con la principal |
 | | `MasterUrl` / `ApiKey` / `CatalogPullSeconds` / `HeartbeatSeconds` | — / — / `60` / `30` | Solo satélite: URL de la principal, clave compartida opcional, frecuencia de catálogo y latido (ver `appsettings.Satellite.example.json`) |
+| `Ui` | `Theme` / `Language` | `Dark` / `es` | Tema (`Dark`/`Light`) e idioma (`es`/`en`) iniciales; lo que el usuario elija con los chips 🌙/☀️ y 🌐 se guarda en `<datos>/LoqzenPos/ui.json` y manda sobre esto. Recibos, tickets y páginas web siguen en español (idioma de la tienda) |
 | `PaymentTerminals` | `Enabled` / `ChargeTimeoutSeconds` / `MockDelaySeconds` / `PrintVoucher` | `true` / `90` / `2` / `true` | Datáfonos: botones "Cobrar en datáfono", espera máxima, retardo del simulado, imprimir el voucher bajo el recibo |
 | `Kds` | `WarningMinutes` / `MaxPrepMinutes` | `5` / `15` | Umbrales amarillo / rojo (parpadea) |
 | | `ArchiveDelaySeconds` | `20` | Tiempo con "Deshacer" tras ENTREGAR |
@@ -286,6 +288,7 @@ Detalle y convenciones de código: [`CONTRIBUTING.md`](CONTRIBUTING.md).
 - [x] **Segunda caja, parte 2**: comandas y KDS compartidos (la satélite usa `RemoteComandaService`/`RemoteKitchenService` + WebSocket contra la principal; reserva de mesa para cobro, cierre remoto idempotente por Outbox, evento `ComandaChanged` para todas las pantallas)
 - [ ] Segunda caja, parte 3: clientes y auditoría de gerente replicados, descubrimiento de la principal por mDNS, datáfonos dados de alta desde la satélite
 - [x] **Datáfono semi-integrado**: `IPaymentTerminalDriver` (simulado + JSON/TCP + emulador Docker 9102) e `IPaymentTerminalService` (auditoría `TerminalPayments`, tiempo de espera, cancelación, ocupado); el pago con tarjeta se registra solo con la referencia de aprobación impresa
+- [x] **Tema claro/oscuro e idioma ES/EN** en el escritorio (tokens en `Styles/Theme.axaml`, tablas en `Assets/i18n/`)
 - [ ] Drivers de proveedores reales (Redeban, Credibanco, Bold, Mercado Pago Point) + QR dinámico (Nequi/Daviplata/Bre-B) en el visor del cliente
 - [x] **Pago en la mesa**: datáfonos asignados a meseros, "💳 Cobrar en mesa" en la comandera web → `POST /api/comandas/{id}/pay-on-terminal` → la comanda se cierra y factura sola
 - [ ] ZPL, mDNS, app Android nativa

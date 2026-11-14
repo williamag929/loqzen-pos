@@ -2,44 +2,57 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.LoginView"
              x:DataType="vm:LoginViewModel"
              x:CompileBindings="True">
 
+    <UserControl.Styles>
+        <!-- Primary action; the :pointerover selector stops Fluent from repainting the button grey on hover. -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+    </UserControl.Styles>
+
     <!-- Full-window PIN login (covers the whole app until someone signs in). -->
-    <Border Background="#0F172A">
+    <Border Background="{DynamicResource BgApp}">
         <Border Width="460" HorizontalAlignment="Center" VerticalAlignment="Center"
-                Background="#020617" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="20" Padding="32">
+                Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="20" Padding="32">
             <StackPanel Spacing="16">
                 <StackPanel Orientation="Horizontal" Spacing="10" HorizontalAlignment="Center">
-                    <Border Background="#2563EB" CornerRadius="8" Padding="12,6">
-                        <TextBlock Text="LOQZEN" Foreground="White" FontWeight="Black" FontSize="18"/>
+                    <Border Background="{DynamicResource Accent}" CornerRadius="8" Padding="12,6">
+                        <TextBlock Text="{i18n:Loc App.Brand}" Foreground="{DynamicResource TextOnAccent}" FontWeight="Black" FontSize="18"/>
                     </Border>
-                    <TextBlock Text="Terminal POS" Foreground="White" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Login.Subtitle}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" FontSize="20" VerticalAlignment="Center"/>
                 </StackPanel>
 
-                <TextBlock Text="Ingrese su PIN" Foreground="#CBD5E1" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                <TextBlock Text="{i18n:Loc Login.Title}" Foreground="{DynamicResource TextSecondary}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
 
-                <Border Background="#0F172A" CornerRadius="12" Height="72" BorderBrush="#334155" BorderThickness="1">
-                    <TextBlock Text="{Binding PinDots}" Foreground="White" FontSize="40" FontWeight="Black"
+                <Border Background="{DynamicResource BgInput}" CornerRadius="12" Height="72" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                    <TextBlock Text="{Binding PinDots}" Foreground="{DynamicResource TextPrimary}" FontSize="40" FontWeight="Black"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="15" FontWeight="Bold"
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBright}" FontSize="15" FontWeight="Bold"
                            TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
 
                 <!-- Disabled while the PIN limiter has this terminal locked (countdown in ErrorMessage) -->
                 <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
                               ClearCommand="{Binding ClearCommand}"
                               ExactCommand="{Binding LoginCommand}"
-                              ExactLabel="Entrar"
+                              ExactLabel="{i18n:Loc Login.Enter}"
                               IsEnabled="{Binding IsInputEnabled}"/>
 
-                <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
+                <Button Classes="primary" Height="64" CornerRadius="12" FontSize="18" FontWeight="Black"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                        Content="🔓 Entrar" Command="{Binding LoginCommand}" IsEnabled="{Binding IsInputEnabled}"/>
+                        Content="{i18n:Loc Login.Button}" Command="{Binding LoginCommand}" IsEnabled="{Binding IsInputEnabled}"/>
 
-                <TextBlock Text="{Binding DefaultPinHint}" Foreground="#64748B" FontSize="12" TextWrapping="Wrap"
+                <TextBlock Text="{Binding DefaultPinHint}" Foreground="{DynamicResource TextFaint}" FontSize="12" TextWrapping="Wrap"
                            HorizontalAlignment="Center" IsVisible="{Binding ShowDefaultPinHint}"/>
             </StackPanel>
         </Border>

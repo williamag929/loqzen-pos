@@ -1,15 +1,20 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.Numpad"
              x:Name="Root">
-    <!-- Reusable touch numpad (64px keys). Bind DigitCommand (string param), ClearCommand, ExactCommand; ExactLabel renames the blue key. -->
+    <!-- Reusable touch numpad (64px keys). Bind DigitCommand (string param), ClearCommand, ExactCommand; ExactLabel renames the accent key.
+         Keys: BgSurface/TextPrimary; "C" on DangerSurface/DangerText; the Exact key on Accent/TextOnAccent.
+         The :pointerover selectors keep each key's colour on hover (Fluent would repaint it grey). -->
     <UserControl.Styles>
         <Style Selector="Button.key">
             <Setter Property="Margin" Value="3"/>
             <Setter Property="CornerRadius" Value="10"/>
-            <Setter Property="Background" Value="#1E293B"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="FontSize" Value="24"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
@@ -17,6 +22,32 @@
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Command" Value="{Binding #Root.DigitCommand}"/>
+        </Style>
+        <Style Selector="Button.key:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        </Style>
+        <Style Selector="Button.key.danger">
+            <Setter Property="Background" Value="{DynamicResource DangerSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerText}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource DangerSurface}"/>
+        </Style>
+        <Style Selector="Button.key.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Danger}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Danger}"/>
+        </Style>
+        <Style Selector="Button.key.accent">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+            <Setter Property="FontSize" Value="16"/>
+        </Style>
+        <Style Selector="Button.key.accent:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentStrong}"/>
         </Style>
     </UserControl.Styles>
     <Grid RowDefinitions="64,64,64,64" ColumnDefinitions="*,*,*,*">
@@ -32,9 +63,9 @@
         <Button Classes="key" Grid.Row="3" Grid.Column="0" Content="0" CommandParameter="0"/>
         <Button Classes="key" Grid.Row="3" Grid.Column="1" Content="00" CommandParameter="00"/>
         <Button Classes="key" Grid.Row="3" Grid.Column="2" Content="000" CommandParameter="000"/>
-        <Button Classes="key" Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Content="C" Background="#7F1D1D"
+        <Button Classes="key danger" Grid.Row="0" Grid.Column="3" Grid.RowSpan="2" Content="{i18n:Loc Numpad.Clear}"
                 Command="{Binding #Root.ClearCommand}"/>
-        <Button Classes="key" Grid.Row="2" Grid.Column="3" Grid.RowSpan="2" Content="{Binding #Root.ExactLabel}" FontSize="16" Background="#1D4ED8"
+        <Button Classes="key accent" Grid.Row="2" Grid.Column="3" Grid.RowSpan="2" Content="{Binding #Root.ExactLabel}"
                 Command="{Binding #Root.ExactCommand}"/>
     </Grid>
 </UserControl>

@@ -34,6 +34,7 @@ public partial class ComandaViewModel
     public int MaxNotesLength => ComandaSettings.MaxNotesLength;
 
     private Guid? _editingItemId;
+    private string _editingItemName = string.Empty; // to re-title the editor on a language switch
 
     private IEnumerable<string> QuickNotesSource =>
         _settings.QuickNotes is { Count: > 0 } configured ? configured : DefaultQuickNotes;
@@ -43,7 +44,7 @@ public partial class ComandaViewModel
         if (Current == null) return;
         if (!row.IsPending)
         {
-            StatusMessage = "⚠️ Ya está en cocina; la nota ya no se puede cambiar.";
+            StatusMessage = T("Comanda.Notes.AlreadyInKitchen");
             return;
         }
 
@@ -57,7 +58,8 @@ public partial class ComandaViewModel
         if (!held) return; // e.g. it was confirmed a moment ago — RunAsync showed why
 
         _editingItemId = row.Dto.Id;
-        NotesEditorTitle = $"📝 Nota para: {row.Name}";
+        _editingItemName = row.Name;
+        NotesEditorTitle = T("Comanda.Notes.Title", row.Name);
         NotesText = row.Dto.Notes ?? string.Empty;
         RebuildChips();
         IsNotesEditorOpen = true;
@@ -81,7 +83,7 @@ public partial class ComandaViewModel
         var joined = string.Join(", ", parts);
         if (joined.Length > ComandaSettings.MaxNotesLength)
         {
-            StatusMessage = $"⚠️ La nota no puede superar {ComandaSettings.MaxNotesLength} caracteres.";
+            StatusMessage = T("Comanda.Notes.TooLong", ComandaSettings.MaxNotesLength);
             return;
         }
         NotesText = joined;
@@ -117,7 +119,7 @@ public partial class ComandaViewModel
         if (!saved) return; // keep editor open so the text isn't lost; message already shown
 
         CloseEditor();
-        StatusMessage = string.IsNullOrWhiteSpace(text) ? "Nota eliminada" : $"📝 Nota guardada: {text.Trim()}";
+        StatusMessage = string.IsNullOrWhiteSpace(text) ? T("Comanda.Notes.Deleted") : T("Comanda.Notes.Saved", text.Trim());
     }
 
     [RelayCommand]
@@ -151,9 +153,7 @@ public sealed partial class QuickNoteChipViewModel : ObservableObject
     public IRelayCommand ToggleCommand { get; }
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(Background), nameof(Label))]
-    private bool _isActive;
-
-    public Avalonia.Media.IBrush Background => UiBrush.Parse(IsActive ? "#CA8A04" : "#1E293B");
+    [NotifyPropertyChangedFor(nameof(Label))]
+    private bool _isActive; // XAML class "active" → WarningStrong chip
     public string Label => IsActive ? $"✓ {Text}" : Text;
 }

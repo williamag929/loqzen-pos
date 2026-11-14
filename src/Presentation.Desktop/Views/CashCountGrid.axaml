@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.CashCountGrid"
              x:DataType="vm:CashCountViewModel"
              x:CompileBindings="True">
@@ -16,21 +17,21 @@
                 </ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:CashCountRowViewModel">
-                        <Border Background="#1E293B" CornerRadius="10" Padding="10,6" Margin="0,0,8,8" Width="440">
+                        <Border Background="{DynamicResource BgSurface}" CornerRadius="10" Padding="10,6" Margin="0,0,8,8" Width="440">
                             <Grid ColumnDefinitions="130, Auto, *, Auto, Auto, 100">
-                                <TextBlock Text="{Binding Label}" Foreground="White" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
-                                <Button Grid.Column="1" Width="56" Height="56" CornerRadius="10" Background="#334155" Foreground="White"
+                                <TextBlock Text="{Binding Label}" Foreground="{DynamicResource TextPrimary}" FontSize="17" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <Button Grid.Column="1" Width="56" Height="56" CornerRadius="10" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Foreground="{DynamicResource TextPrimary}"
                                         FontSize="24" FontWeight="Bold" Content="−" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                         Command="{Binding MinusCommand}"/>
-                                <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="24" FontWeight="Black"
+                                <TextBlock Grid.Column="2" Text="{Binding Quantity}" Foreground="{DynamicResource Info}" FontSize="24" FontWeight="Black"
                                            HorizontalAlignment="Center" VerticalAlignment="Center" MinWidth="44" TextAlignment="Center"/>
-                                <Button Grid.Column="3" Width="56" Height="56" CornerRadius="10" Background="#334155" Foreground="White"
+                                <Button Grid.Column="3" Width="56" Height="56" CornerRadius="10" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Foreground="{DynamicResource TextPrimary}"
                                         FontSize="24" FontWeight="Bold" Content="+" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                         Command="{Binding PlusCommand}"/>
-                                <Button Grid.Column="4" Width="60" Height="56" Margin="6,0,0,0" CornerRadius="10" Background="#1D4ED8" Foreground="White"
+                                <Button Grid.Column="4" Width="60" Height="56" Margin="6,0,0,0" CornerRadius="10" Background="{DynamicResource AccentStrong}" Foreground="{DynamicResource TextOnAccent}"
                                         FontSize="16" FontWeight="Bold" Content="+10" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                         Command="{Binding PlusTenCommand}"/>
-                                <TextBlock Grid.Column="5" Text="{Binding SubtotalText}" Foreground="#E2E8F0" FontSize="16"
+                                <TextBlock Grid.Column="5" Text="{Binding SubtotalText}" Foreground="{DynamicResource TextPrimary}" FontSize="16"
                                            TextAlignment="Right" HorizontalAlignment="Stretch" VerticalAlignment="Center"/>
                             </Grid>
                         </Border>
@@ -39,13 +40,13 @@
             </ItemsControl>
         </ScrollViewer>
 
-        <Border Grid.Row="1" Background="#0B1220" CornerRadius="10" Padding="16,10" Margin="0,8,0,0">
+        <Border Grid.Row="1" Background="{DynamicResource BgSurface2}" CornerRadius="10" Padding="16,10" Margin="0,8,0,0">
             <Grid ColumnDefinitions="Auto, *, Auto">
-                <Button Height="52" Padding="16,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="14" FontWeight="Bold"
-                        Content="↺ Poner en cero" Command="{Binding ResetCountCommand}"/>
-                <TextBlock Grid.Column="1" Text="Total contado" Foreground="#94A3B8" FontSize="16" FontWeight="Bold"
+                <Button Height="52" Padding="16,0" CornerRadius="10" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Foreground="{DynamicResource TextPrimary}" FontSize="14" FontWeight="Bold"
+                        Content="{i18n:Loc Cash.Count.Reset}" Command="{Binding ResetCountCommand}"/>
+                <TextBlock Grid.Column="1" Text="{i18n:Loc Cash.Count.Total}" Foreground="{DynamicResource TextMuted}" FontSize="16" FontWeight="Bold"
                            VerticalAlignment="Center" HorizontalAlignment="Right" Margin="0,0,14,0"/>
-                <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="#38BDF8" FontSize="32" FontWeight="Black" VerticalAlignment="Center"/>
+                <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="{DynamicResource Info}" FontSize="32" FontWeight="Black" VerticalAlignment="Center"/>
             </Grid>
         </Border>
     </Grid>

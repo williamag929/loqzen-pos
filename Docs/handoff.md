@@ -1,11 +1,29 @@
 # Handoff / Progress Report - Loqzen POS
 **Fecha:** 2026-11-13  
-**Última sesión:** Segunda caja parte 2 — comandas y KDS compartidos
+**Última sesión:** Tema claro/oscuro, idioma ES/EN y barra superior
 
 
 > 👋 **¿Nuevo en el proyecto?** Empieza por [`CONTRIBUTING.md`](../CONTRIBUTING.md) (setup, convenciones, trampas conocidas y checklist).
 
 ---
+
+---
+
+## 🆕 SESIÓN 2026-11-14 (tarde): Tema claro/oscuro, idioma ES/EN y barra superior
+
+Chequeo crítico de la barra superior → contrato del arquitecto (tokens de tema, estilos `tab`/`chip`, `ThemeService`, `Localizer`) → **cinco agentes de UI en paralelo por grupos de pantallas** para el tema y luego **cinco más** para el idioma sobre la misma partición (fragmentos `es.{masters,cash,sales,kitchen}.json` para no pisarse). 1084 tests, build 0/0. Verificado en pantalla: oscuro/ES y claro/EN a 739 px.
+
+**Hallazgos de la barra superior (corregidos):** pestañas y chips de 44 px (regla: 48); por debajo de ~900 px las pestañas se partían en dos filas; los chips en modo compacto eran solo icono y dependían del tooltip (inútil en táctil) y dos usaban el mismo icono 🖥️; al pasar el ratón las pestañas se pintaban de gris (plantilla Fluent). Ahora: estilos `Button.tab`/`Button.chip` de 48 px con *hover* corregido, tres niveles de ancho (`<1200` etiquetas cortas, `<1750` las herramientas se pliegan en un chip "⋯" con *flyout*, `≥2100` subtítulo de marca), chips siempre con texto e iconos distintos (▣ Scan, 📺 Visor, 🌐 LAN, 🏪 CAJA-01, 👤 usuario, 🌙/☀️ tema, 🌐 ES/EN).
+
+**Tema:** todos los colores viven en `Styles/Theme.axaml` (`ThemeDictionaries` Dark/Light, ~45 tokens por rol); las 25 vistas y los ViewModels con color usan `{DynamicResource}` / `ThemePalette`; `BoolToResourceConverter` con claves de recurso (el `BoolToColorConverter` con hex queda como legado sin uso); `ThemeService` cambia `RequestedThemeVariant` y guarda la elección en `ui.json`. Excepciones a propósito: el QR del visor (negro sobre blanco), los colores de categorías/convenios elegidos por el usuario (datos), la urgencia de las tarjetas del KDS (verde/ámbar/rojo en ambos temas).
+
+**Idioma:** `Localization/Localizer.cs` (+ `{i18n:Loc}`), tablas por área en `Assets/i18n/` (~790 claves), cambio en caliente (`PropertyChanged("Item[]")` + `Localizer.Changed` en los ViewModels que calculan texto), persistido en `ui.json`, inicial `Ui:Language`. Test `I18nTablesTests` vigila paridad de claves, duplicados, marcadores y claves usadas. **No se traducen** documentos (recibos, tickets, Z, comprobantes), páginas web del servidor, mensajes de servicios ni etiquetas de enums de `Core.Application` (roles, proveedores, tipos de movimiento). Detalle: los motivos de movimiento elegidos por chip y las descripciones de autorización se guardan en el idioma del cajero.
+
+**⚠️ Para el usuario:** chips 🌙/☀️ y 🌐 ES/EN en la barra (o dentro de "⋯" en ventanas angostas); cada equipo recuerda su elección. Para fijar el valor inicial: `appsettings.json` → `Ui`.
+
+**Pendiente de probar a mano:** el *flyout* "⋯" con clics, cambio de tema/idioma con diálogos abiertos (algunos textos de una sola vez conservan el idioma anterior hasta la siguiente acción), y las pantallas en inglés a 1100 px (algunas etiquetas son más largas).
+
+**Siguiente fase recomendada:** integración con ERP fase A, driver de datáfono real, o segunda caja parte 3.
 
 ---
 

@@ -11,6 +11,7 @@ using Core.Application.Kitchen;
 using Core.Application.Receipts;
 using Core.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -46,6 +47,9 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     private readonly IDisposable _eventSubscription;
     private bool _tickRunning;
 
+    /// <summary>UI text in the current language (Assets/i18n/{lang}.kitchen.json); documents stay Spanish.</summary>
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+
     public ComandaViewModel(IServiceScopeFactory scopes, IPrinterService printer, ComandaSettings settings, TimeProvider clock,
         IManagerAuthPrompt authPrompt, IUserSession session, IKitchenEventBus events, CustomerDisplayViewModel display,
         ICashDrawerService cashDrawer, ITerminalChargePrompt terminalPrompt, PaymentTerminalSettings terminalSettings,
@@ -68,6 +72,9 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         ApplySessionWaiter();
         _session.Changed += ApplySessionWaiter;
 
+        // ES/EN switch: texts computed in code (titles, card/tile/row states, banners) are re-evaluated in place.
+        Localizer.Instance.Changed += OnLanguageChanged;
+
         // 1s tick: confirms due items (→ green + KDS) and refreshes yellow countdowns.
         // Runs for the whole app lifetime — NOT only while this screen is visible — otherwise
         // items would never reach the kitchen while the cashier is on another tab.
@@ -84,7 +91,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         {
             _eventDebounce.Stop();
             try { await RefreshAsync(); }
-            catch (Exception ex) { ReportError(ex, "actualizando"); }
+            catch (Exception ex) { ReportError(ex, "Comanda.Doing.Refreshing"); }
         };
         _eventSubscription = events.Subscribe(e =>
         {
@@ -106,10 +113,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
 
     /// <summary>Satellite: the last call to the master failed (status bar turns amber). Cleared by the next successful call.</summary>
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(StatusBrush))]
-    private bool _isMasterOffline;
-
-    public Avalonia.Media.IBrush StatusBrush => UiBrush.Parse(IsMasterOffline ? "#FBBF24" : "#CBD5E1");
+    private bool _isMasterOffline; // ComandaView converts it to WarningBright|TextSecondary
 
     private static bool IsConnectivityError(Exception ex) => ex switch
     {
@@ -118,16 +122,32 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         _ => ex.InnerException is { } inner && IsConnectivityError(inner)
     };
 
-    /// <summary>Master unreachable → one amber line, screen stays usable (the next action retries). Anything else → red.</summary>
-    private void ReportError(Exception ex, string doing)
+    /// <summary>Master unreachable → one amber line, screen stays usable (the next action retries). Anything else → red.
+    /// <paramref name="doingKey"/> is a Comanda.Doing.* key ("actualizando", …); the service message itself stays as-is.</summary>
+    private void ReportError(Exception ex, string doingKey)
     {
         if (IsConnectivityError(ex))
         {
             IsMasterOffline = true;
-            StatusMessage = $"⚠️ {MasterOfflineMessage} · reintente en un momento";
+            StatusMessage = T("Status.MasterOffline");
             return;
         }
-        StatusMessage = $"❌ Error {doing}: {ex.Message}";
+        StatusMessage = T("Comanda.Error.Doing", doingKey.Length == 0 ? string.Empty : T(doingKey), ex.Message);
+    }
+
+    /// <summary>Language switched: recompute every text this screen builds in code. The status bar keeps its last
+    /// message until the next action; item rows refresh on the next 1 s tick.</summary>
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(PanelTitle));
+        OnPropertyChanged(nameof(DelayHint));
+        if (_othersTile != null) _othersTile.Rename(T("Comanda.Catalog.Others"));
+        OnPropertyChanged(nameof(CatalogTitle));
+        NotifyLockChanged();
+        if (IsNotesEditorOpen) NotesEditorTitle = T("Comanda.Notes.Title", _editingItemName);
+        foreach (var card in Comandas) card.RefreshTexts();
+        foreach (var tile in Tables) tile.RefreshTexts();
+        foreach (var row in Items) { row.RefreshTexts(); row.Tick(UtcNow); }
     }
 
     // ── Navigation (0 = comandas, 1 = comanda actual, 2 = cierre/pago) ──────
@@ -143,9 +163,9 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
 
     public string PanelTitle => PanelIndex switch
     {
-        0 => "📋 Comandas abiertas",
-        1 => Current == null ? "Comanda" : $"🍽️ {Current.TableName} · Comanda #{Current.Number}",
-        _ => Current == null ? "Cierre" : $"💳 Cerrar {Current.TableName} · #{Current.Number}"
+        0 => T("Comanda.Title.List"),
+        1 => Current == null ? T("Comanda.Title.Order") : T("Comanda.Title.OrderFor", Current.TableName, Current.Number),
+        _ => Current == null ? T("Comanda.Title.Pay") : T("Comanda.Title.PayFor", Current.TableName, Current.Number)
     };
 
     [RelayCommand]
@@ -190,7 +210,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
     [ObservableProperty] private bool _isShiftOpen;
     [ObservableProperty] private string _cashierName = string.Empty;
 
-    public string DelayHint => $"Los productos nuevos esperan {_settings.ConfirmationDelaySeconds}s (amarillo) antes de ir a cocina (verde).";
+    public string DelayHint => T("Comanda.DelayHint", _settings.ConfirmationDelaySeconds);
 
     public ObservableCollection<ComandaCardViewModel> Comandas { get; } = new();
     public ObservableCollection<TableTileViewModel> Tables { get; } = new();
@@ -213,6 +233,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         _timer.Stop();
         _eventDebounce.Stop();
         _eventSubscription.Dispose();
+        Localizer.Instance.Changed -= OnLanguageChanged;
     }
 
     private async Task TickAsync()
@@ -236,7 +257,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
             if (confirmed > 0)
             {
                 await RefreshAsync();
-                StatusMessage = $"🟢 {confirmed} producto(s) confirmados y enviados a cocina";
+                StatusMessage = T("Comanda.Status.Confirmed", confirmed);
             }
             else
             {
@@ -245,7 +266,7 @@ public partial class ComandaViewModel : ObservableObject, IDisposable
         }
         catch (Exception ex)
         {
-            ReportError(ex, "confirmando");
+            ReportError(ex, "Comanda.Doing.Confirming");
         }
         finally
         {

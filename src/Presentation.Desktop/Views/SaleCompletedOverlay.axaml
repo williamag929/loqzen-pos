@@ -1,20 +1,33 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.SaleCompletedOverlay"
              x:DataType="vm:SaleSummaryViewModel"
              x:CompileBindings="True">
 
+    <UserControl.Styles>
+        <Style Selector="Button.success">
+            <Setter Property="Background" Value="{DynamicResource SuccessStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.success:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Success}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+    </UserControl.Styles>
+
     <!-- "Cambio a entregar": shown after paying, until the cashier taps Nueva venta. -->
-    <Border Background="#D9000000">
-        <Border Background="#0F172A" BorderBrush="#10B981" BorderThickness="3" CornerRadius="20" Padding="32"
+    <Border Background="{DynamicResource BgOverlayStrong}">
+        <Border Background="{DynamicResource BgApp}" BorderBrush="{DynamicResource Success}" BorderThickness="3" CornerRadius="20" Padding="32"
                 Width="640" HorizontalAlignment="Center" VerticalAlignment="Center">
             <StackPanel Spacing="18">
-                <TextBlock Text="{Binding Title}" Foreground="#A7F3D0" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource SuccessBright}" FontSize="20" FontWeight="Bold" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
 
-                <Border Background="#1E293B" CornerRadius="14" Padding="20,24">
+                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="14" Padding="20,24">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{Binding Headline}" Foreground="#94A3B8" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding Headline}" Foreground="{DynamicResource TextMuted}" FontSize="18" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <!-- BigFigureColor comes from ThemePalette (amber = change, green = exact) -->
                         <TextBlock Text="{Binding BigFigure}" Foreground="{Binding BigFigureColor}" FontSize="84" FontWeight="Black"
                                    HorizontalAlignment="Center" TextAlignment="Center"/>
                     </StackPanel>
@@ -22,20 +35,20 @@
 
                 <Grid ColumnDefinitions="*, *, *">
                     <StackPanel Grid.Column="0" Spacing="2" HorizontalAlignment="Center">
-                        <TextBlock Text="Total" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding TotalText}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Sale.Completed.Total}" Foreground="{DynamicResource TextMuted}" FontSize="14" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding TotalText}" Foreground="{DynamicResource TextPrimary}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="1" Spacing="2" HorizontalAlignment="Center" IsVisible="{Binding IsCash}">
-                        <TextBlock Text="Recibido" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding TenderedText}" Foreground="#38BDF8" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Sale.Completed.Tendered}" Foreground="{DynamicResource TextMuted}" FontSize="14" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding TenderedText}" Foreground="{DynamicResource Info}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Grid.Column="2" Spacing="2" HorizontalAlignment="Center">
-                        <TextBlock Text="Medio de pago" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
-                        <TextBlock Text="{Binding MethodText}" Foreground="White" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Sale.Completed.Method}" Foreground="{DynamicResource TextMuted}" FontSize="14" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding MethodText}" Foreground="{DynamicResource TextPrimary}" FontSize="24" FontWeight="Bold" HorizontalAlignment="Center"/>
                     </StackPanel>
                 </Grid>
 
-                <Button Height="80" CornerRadius="14" Background="#059669" Foreground="White" FontSize="24" FontWeight="Black"
+                <Button Classes="success" Height="80" CornerRadius="14" FontSize="24" FontWeight="Black"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                         Content="{Binding DismissLabel}" Command="{Binding DismissCommand}"/>
             </StackPanel>

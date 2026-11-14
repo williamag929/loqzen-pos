@@ -9,12 +9,15 @@ using Core.Application.Hardware;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Core.Domain.Enums;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
 public partial class CheckoutViewModel : ObservableObject
 {
+    private static Localizer L => Localizer.Instance;
+
     private readonly ICategoryService _categoryService;
     private readonly IProductService _productService;
     private readonly ISalesService _salesService;
@@ -48,7 +51,30 @@ public partial class CheckoutViewModel : ObservableObject
     private decimal _scaleWeightKg = 0m;
 
     [ObservableProperty]
-    private string _statusMessage = "Listo para vender";
+    private string _statusMessage = L.T("Sale.Status.Ready");
+
+    // Last status / warning as (key, args) so an ES/EN switch re-renders the message on screen instead of
+    // leaving it in the previous language until the next event.
+    private (string Key, object?[] Args)? _status = ("Sale.Status.Ready", Array.Empty<object?>());
+    private (string Key, object?[] Args)? _warning;
+
+    private void SetStatus(string key, params object?[] args)
+    {
+        _status = (key, args);
+        StatusMessage = L.T(key, args);
+    }
+
+    private void SetWarning(string? key, params object?[] args)
+    {
+        _warning = key is null ? null : (key, args);
+        ShiftWarning = key is null ? string.Empty : L.T(key, args);
+    }
+
+    private void OnLanguageChanged()
+    {
+        if (_status is { } st) StatusMessage = L.T(st.Key, st.Args);
+        if (_warning is { } w) ShiftWarning = L.T(w.Key, w.Args);
+    }
 
     [ObservableProperty]
     private bool _isPaymentModalOpen = false;
@@ -138,6 +164,7 @@ public partial class CheckoutViewModel : ObservableObject
         _authPrompt = authPrompt;
         _session = session;
         _session.Changed += () => RebuildReceiptPreview(); // cashier name on the live receipt
+        L.Changed += OnLanguageChanged; // re-render the status bar text in the new language
 
         _scaleService.WeightChanged += (s, e) =>
         {
@@ -186,11 +213,11 @@ public partial class CheckoutViewModel : ObservableObject
         if (product != null)
         {
             AddProduct(product);
-            StatusMessage = $"⚡ Escaneado: {product.Name} (Código: {barcode})";
+            SetStatus("Sale.Status.Scanned", product.Name, barcode);
         }
         else
         {
-            StatusMessage = $"⚠️ Código de barras no encontrado: {barcode}";
+            SetStatus("Sale.Status.BarcodeNotFound", barcode);
         }
     }
 
@@ -214,18 +241,18 @@ public partial class CheckoutViewModel : ObservableObject
             
             if (IsShiftOpen && currentShift != null)
             {
-                ShiftWarning = string.Empty;
-                StatusMessage = $"✅ Turno #{currentShift.ShiftNumber} abierto – {currentShift.CashierName}";
+                SetWarning(null);
+                SetStatus("Sale.Status.ShiftOpen", currentShift.ShiftNumber, currentShift.CashierName);
             }
             else
             {
-                ShiftWarning = "⚠️ Debe abrir un turno antes de registrar ventas";
-                StatusMessage = "🔴 Sin turno abierto";
+                SetWarning("Sale.Warn.OpenShiftFirst");
+                SetStatus("Sale.Status.NoShift");
             }
         }
         catch (Exception ex)
         {
-            ShiftWarning = $"Error verificando turno: {ex.Message}";
+            SetWarning("Sale.Warn.ShiftCheckError", ex.Message);
         }
     }
 
@@ -241,11 +268,11 @@ public partial class CheckoutViewModel : ObservableObject
             await LoadDataAsync();
             if (selectedId is { } id)
                 SelectedCategory = Categories.FirstOrDefault(c => c.Id == id); // null = category deactivated
-            StatusMessage = "🔄 Catálogo actualizado desde la caja principal";
+            SetStatus("Sale.Status.CatalogUpdated");
         }
         catch (Exception ex)
         {
-            StatusMessage = $"⚠️ No se pudo actualizar el catálogo: {ex.Message}";
+            SetStatus("Sale.Status.CatalogUpdateFailed", ex.Message);
         }
     }
 
@@ -306,7 +333,7 @@ public partial class CheckoutViewModel : ObservableObject
         // Warn if no shift is open but still allow adding
         if (!IsShiftOpen)
         {
-            ShiftWarning = "⚠️ Sin turno abierto – abra un turno antes de cobrar";
+            SetWarning("Sale.Warn.NoShiftBeforeCharge");
         }
 
         var existing = CartItems.FirstOrDefault(x => x.ProductId == product.Id);
@@ -339,7 +366,7 @@ public partial class CheckoutViewModel : ObservableObject
         }
 
         NotifyCartTotalsChanged();
-        StatusMessage = $"Agregado: {product.Name}";
+        SetStatus("Sale.Status.Added", product.Name);
     }
 
     [RelayCommand]
@@ -385,7 +412,7 @@ public partial class CheckoutViewModel : ObservableObject
         {
             CartItems.Remove(item);
             NotifyCartTotalsChanged();
-            StatusMessage = "Devolución removida";
+            SetStatus("Sale.Status.ReturnRemoved");
             return;
         }
 
@@ -397,15 +424,15 @@ public partial class CheckoutViewModel : ObservableObject
 
         if (returnedQty >= normalQty)
         {
-            StatusMessage = "❌ No puede devolver más de lo agregado en esta venta";
+            SetStatus("Sale.Status.ReturnExceeds");
             return;
         }
 
         var lineValue = item.UnitPrice * (item.IsWeighed ? Math.Abs(item.WeightKg ?? 1m) : 1m);
-        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ReturnItem, $"Devolver {item.Name}", lineValue, item.Name);
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ReturnItem, L.T("Sale.Auth.Return", item.Name), lineValue, item.Name);
         if (!auth.IsAllowed)
         {
-            StatusMessage = "❌ Devolución no autorizada";
+            SetStatus("Sale.Status.ReturnDenied");
             return;
         }
 
@@ -427,9 +454,8 @@ public partial class CheckoutViewModel : ObservableObject
 
         CartItems.Add(returnItem);
         NotifyCartTotalsChanged();
-        StatusMessage = auth.ManagerName is { } manager
-            ? $"🔄 Devolución agregada: {item.Name} · autorizó {manager}"
-            : $"🔄 Devolución agregada: {item.Name}";
+        if (auth.ManagerName is { } manager) SetStatus("Sale.Status.ReturnAddedBy", item.Name, manager);
+        else SetStatus("Sale.Status.ReturnAdded", item.Name);
     }
 
     [RelayCommand]
@@ -438,7 +464,7 @@ public partial class CheckoutViewModel : ObservableObject
         CartItems.Clear();
         DiscountTotal = 0m;
         NotifyCartTotalsChanged();
-        StatusMessage = "Venta cancelada / carrito limpio";
+        SetStatus("Sale.Status.CartCleared");
     }
 
     [RelayCommand]
@@ -448,7 +474,7 @@ public partial class CheckoutViewModel : ObservableObject
         // TODO: Implement full modal with percentage/fixed amount UI
         if (Subtotal == 0)
         {
-            StatusMessage = "Agregue productos antes de aplicar descuento";
+            SetStatus("Sale.Status.AddBeforeDiscount");
             return;
         }
 
@@ -460,19 +486,19 @@ public partial class CheckoutViewModel : ObservableObject
         };
         var discountAmount = Math.Min(discount.CalculateDiscount(Subtotal), Subtotal);
 
-        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ApplyDiscount, "Descuento 10%", discountAmount);
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.ApplyDiscount, L.T("Sale.Auth.Discount"), discountAmount);
         if (!auth.IsAllowed)
         {
-            StatusMessage = "❌ Descuento no autorizado";
+            SetStatus("Sale.Status.DiscountDenied");
             return;
         }
         discount.AuthorizedBy = auth.ManagerName ?? _session.CurrentUser?.Name ?? "Cajero";
 
         DiscountTotal = discountAmount;
         NotifyCartTotalsChanged();
-        StatusMessage = auth.ManagerName is { } manager
-            ? $"Descuento aplicado: ${DiscountTotal:N0} · autorizó {manager}"
-            : $"Descuento aplicado: ${DiscountTotal:N0}";
+        var discountText = $"${DiscountTotal:N0}"; // same figure format as before (not culture-switched)
+        if (auth.ManagerName is { } manager) SetStatus("Sale.Status.DiscountAppliedBy", discountText, manager);
+        else SetStatus("Sale.Status.DiscountApplied", discountText);
     }
 
     [RelayCommand]
@@ -480,21 +506,21 @@ public partial class CheckoutViewModel : ObservableObject
     {
         DiscountTotal = 0m;
         NotifyCartTotalsChanged();
-        StatusMessage = "Descuento removido";
+        SetStatus("Sale.Status.DiscountRemoved");
     }
 
     [RelayCommand]
     public async Task OpenCashDrawerAsync()
     {
         // Not in the default ManagerRequiredFor list → normally no prompt.
-        var auth = await _authPrompt.RequestAsync(AuthorizedAction.OpenCashDrawer, "Abrir cajón sin venta");
+        var auth = await _authPrompt.RequestAsync(AuthorizedAction.OpenCashDrawer, L.T("Sale.Auth.OpenDrawer"));
         if (!auth.IsAllowed)
         {
-            StatusMessage = "❌ Apertura de cajón no autorizada";
+            SetStatus("Sale.Status.DrawerDenied");
             return;
         }
         await _cashDrawer.OpenDrawerAsync();
-        StatusMessage = "Cajón monedero abierto";
+        SetStatus("Sale.Status.DrawerOpened");
     }
 
     [RelayCommand]
@@ -502,7 +528,7 @@ public partial class CheckoutViewModel : ObservableObject
     {
         if (!CartItems.Any())
         {
-            StatusMessage = "Agregue productos antes de cobrar";
+            SetStatus("Sale.Status.AddBeforeCharge");
             return;
         }
 
@@ -510,8 +536,8 @@ public partial class CheckoutViewModel : ObservableObject
         await CheckCashShiftStatusAsync();
         if (!IsShiftOpen || _currentCashShiftId == null)
         {
-            StatusMessage = "❌ Debe abrir un turno de caja antes de procesar ventas";
-            ShiftWarning = "⚠️ Vaya a 'Caja' y abra un turno primero";
+            SetStatus("Sale.Status.OpenShiftBeforeSales");
+            SetWarning("Sale.Warn.GoToCash");
             return;
         }
 
@@ -589,7 +615,7 @@ public partial class CheckoutViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ Error procesando venta: {ex.Message}";
+            SetStatus("Sale.Status.SaleError", ex.Message);
         }
         finally
         {
@@ -615,7 +641,7 @@ public partial class CheckoutViewModel : ObservableObject
         {
             var orderId = await EnsureOrderAsync();
             var outcome = await _terminalPrompt.RequestAsync(Total, TerminalPaymentPurpose.Sale, _currentOrderNumber ?? orderId.ToString("N")[..8],
-                orderId: orderId, cashShiftId: _currentCashShiftId, description: $"Venta mostrador · {TotalItems} ítems");
+                orderId: orderId, cashShiftId: _currentCashShiftId, description: L.T("Sale.Terminal.Description", TotalItems));
 
             if (outcome.IsApproved)
             {
@@ -623,20 +649,19 @@ public partial class CheckoutViewModel : ObservableObject
             }
             else if (outcome.FallbackToManual)
             {
-                StatusMessage = string.IsNullOrWhiteSpace(outcome.Message)
-                    ? "✍️ Tarjeta registrada manualmente"
-                    : $"✍️ Datáfono: {outcome.Message} · tarjeta registrada manualmente";
+                if (string.IsNullOrWhiteSpace(outcome.Message)) SetStatus("Sale.Status.CardManual");
+                else SetStatus("Sale.Status.TerminalFallback", outcome.Message);
                 await PayAsync(orderId, null);
             }
             else
             {
                 // Nothing collected: the order stays Draft and the modal stays open for a retry or another method.
-                StatusMessage = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · la venta sigue pendiente";
+                SetStatus("Sale.Status.TerminalDeclined", outcome.Message ?? L.T("Sale.Terminal.NotApproved"));
             }
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ Error procesando venta: {ex.Message}";
+            SetStatus("Sale.Status.SaleError", ex.Message);
         }
         finally
         {
@@ -649,17 +674,17 @@ public partial class CheckoutViewModel : ObservableObject
         if (IsPaying) return false;
         if (!CartItems.Any())
         {
-            StatusMessage = "Agregue productos antes de cobrar";
+            SetStatus("Sale.Status.AddBeforeCharge");
             return false;
         }
         if (TenderedAmount < Total && SelectedPaymentMethod == PaymentMethod.Cash)
         {
-            StatusMessage = "El monto ingresado es menor al total";
+            SetStatus("Sale.Status.TenderedBelowTotal");
             return false;
         }
         if (_currentCashShiftId == null)
         {
-            StatusMessage = "❌ Error: No hay turno de caja abierto";
+            SetStatus("Sale.Status.NoShiftError");
             return false;
         }
         return true;
@@ -698,7 +723,7 @@ public partial class CheckoutViewModel : ObservableObject
 
         if (!paymentResult.Success)
         {
-            StatusMessage = $"❌ Error en pago: {paymentResult.ErrorMessage}";
+            SetStatus("Sale.Status.PaymentError", paymentResult.ErrorMessage);
             return;
         }
 
@@ -762,9 +787,8 @@ public partial class CheckoutViewModel : ObservableObject
         LastSale = new SaleSummaryViewModel(completedOrderNumber, completedTotal,
             SelectedPaymentMethod == PaymentMethod.Cash ? TenderedAmount : completedTotal,
             completedChange, SelectedPaymentMethod, null, DismissSale);
-        StatusMessage = reference is null
-            ? $"✅ Venta {completedOrderNumber} completada · Cambio {Core.Application.Receipts.ReceiptFormatter.Cop(completedChange)}"
-            : $"✅ Venta {completedOrderNumber} completada · {reference}";
+        if (reference is null) SetStatus("Sale.Status.CompletedChange", completedOrderNumber, Core.Application.Receipts.ReceiptFormatter.Cop(completedChange));
+        else SetStatus("Sale.Status.CompletedRef", completedOrderNumber, reference);
     }
 
     /// <summary>Reference line + voucher under the totals when the sale was charged on a terminal (shared by the three screens).</summary>

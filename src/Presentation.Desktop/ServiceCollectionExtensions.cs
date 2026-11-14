@@ -58,6 +58,10 @@ public static class ServiceCollectionExtensions
         services.AddSingleton<ITerminalContext>(terminalContext);
         services.AddSingleton<TerminalStatus>();
 
+        var uiSettings = configuration.GetSection("Ui").Get<UiSettings>() ?? new UiSettings();
+        services.AddSingleton(uiSettings);
+        services.AddSingleton<ThemeService>();
+
         var syncSettings = configuration.GetSection("Sync").Get<SyncSettings>() ?? new SyncSettings();
         if (terminalSettings.IsSatellite)
         {

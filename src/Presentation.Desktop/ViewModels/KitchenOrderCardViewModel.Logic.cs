@@ -5,6 +5,7 @@ using System.Threading.Tasks;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.Kitchen;
 using Core.Domain.Entities;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -56,6 +57,8 @@ public partial class KitchenOrderCardViewModel
         Station = e.Station;
         GeneralNotes = e.GeneralNotes;
         CreatedAt = e.CreatedAt;
+        OnPropertyChanged(nameof(WaiterLine));
+        OnPropertyChanged(nameof(GeneralNotesLine));
         Status = e.Status;
         PrintedAt = e.PrintedAt;
         DeliveredAt = e.DeliveredAt;
@@ -83,11 +86,12 @@ public partial class KitchenOrderCardViewModel
     {
         ElapsedMinutes = (int)Math.Max(0, (utcNow - CreatedAt).TotalMinutes);
         var urgency = KdsTiming.Urgency(CreatedAt, utcNow, _settings);
+        // Read from the current theme on every tick, so a theme switch repaints the cards within a second.
         UrgencyColorHex = urgency switch
         {
-            KdsUrgency.OnTime => "#10B981",
-            KdsUrgency.Warning => "#F59E0B",
-            _ => "#EF4444"
+            KdsUrgency.OnTime => ThemePalette.Success,
+            KdsUrgency.Warning => ThemePalette.Warning,
+            _ => ThemePalette.Danger
         };
         IsLate = urgency == KdsUrgency.Late && !IsArchived;
         BlinkPhase = IsLate && !BlinkPhase;
@@ -96,7 +100,7 @@ public partial class KitchenOrderCardViewModel
 
         var left = KdsTiming.ArchiveRemainingSeconds(delivered, utcNow, _settings);
         ArchiveProgress = _settings.ArchiveDelaySeconds <= 0 ? 0 : left / _settings.ArchiveDelaySeconds;
-        ArchiveText = $"Archivando en {Math.Ceiling(left)}s";
+        ArchiveText = T("Kds.Card.Archiving", Math.Ceiling(left));
         return left > 0;
     }
 }

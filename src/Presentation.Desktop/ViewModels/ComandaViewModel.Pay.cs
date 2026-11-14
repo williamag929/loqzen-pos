@@ -37,9 +37,8 @@ public partial class ComandaViewModel
     public bool IsLockedByThisRegister => IsOwnCode(Current?.PaymentLockedByTerminalCode);
     public bool IsLockBannerVisible => IsCurrentReadyToPay && (IsLockedByOtherRegister || IsLockedByThisRegister);
     public string LockBannerText => IsLockedByOtherRegister
-        ? $"💳 Cobrando en {Current!.PaymentLockedByTerminalCode!.Trim()}"
-        : IsLockedByThisRegister ? "🔒 Reservada para esta caja" : string.Empty;
-    public string LockBannerColor => IsLockedByOtherRegister ? "#B45309" : "#1D4ED8";
+        ? T("Comanda.Lock.Other", Current!.PaymentLockedByTerminalCode!.Trim())
+        : IsLockedByThisRegister ? T("Comanda.Lock.Mine") : string.Empty;
     /// <summary>Pay buttons: idle AND not being collected on another register.</summary>
     public bool CanPay => IsPayIdle && !IsLockedByOtherRegister;
 
@@ -49,7 +48,6 @@ public partial class ComandaViewModel
         OnPropertyChanged(nameof(IsLockedByThisRegister));
         OnPropertyChanged(nameof(IsLockBannerVisible));
         OnPropertyChanged(nameof(LockBannerText));
-        OnPropertyChanged(nameof(LockBannerColor));
         OnPropertyChanged(nameof(CanPay));
     }
 
@@ -73,7 +71,7 @@ public partial class ComandaViewModel
                 var fresh = await scope.ServiceProvider.GetRequiredService<IComandaService>().GetByIdAsync(id);
                 if (fresh != null && Current?.Id == id) Apply(fresh);
             }
-            catch (Exception ex) { ReportError(ex, "actualizando"); }
+            catch (Exception ex) { ReportError(ex, "Comanda.Doing.Refreshing"); }
         }
         return ok;
     }
@@ -155,7 +153,7 @@ public partial class ComandaViewModel
         if (Current == null) return;
         if (IsLockedByOtherRegister)
         {
-            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            StatusMessage = T("Comanda.Status.LockedBy", Current.PaymentLockedByTerminalCode);
             return;
         }
         var comanda = Current;
@@ -165,7 +163,7 @@ public partial class ComandaViewModel
                 await svc.UnlockPaymentAsync(comanda.Id, OwnTerminalCode); // UnlockPayment does not reopen by itself
             Apply(await svc.ReopenAsync(comanda.Id));
             PanelIndex = 1;
-            StatusMessage = "Comanda reabierta para agregar productos";
+            StatusMessage = T("Comanda.Status.Reopened");
         });
         await RefreshListOnlyAsync();
     }
@@ -175,7 +173,7 @@ public partial class ComandaViewModel
     {
         if (Current == null) return;
         var ok = await _printer.PrintReceiptAsync(ReceiptDtoFactory.FromComanda(Current, CashierName));
-        StatusMessage = ok ? "🖨️ Pre-cuenta impresa" : "⚠️ Impresora no disponible (guardada como TXT)";
+        StatusMessage = ok ? T("Comanda.Status.PreBillPrinted") : T("Comanda.Status.PrinterUnavailable");
     }
 
     /// <summary>"Cambio a entregar" screen after paying; null = hidden.</summary>
@@ -208,17 +206,17 @@ public partial class ComandaViewModel
         if (IsPaying || Current == null) return;
         if (!IsCurrentReadyToPay)
         {
-            StatusMessage = "⚠️ Cierre la comanda antes de cobrar en el datáfono.";
+            StatusMessage = T("Comanda.Status.CloseBeforeTerminal");
             return;
         }
         if (IsLockedByOtherRegister)
         {
-            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            StatusMessage = T("Comanda.Status.LockedBy", Current.PaymentLockedByTerminalCode);
             return;
         }
         if (_shiftId is not { } shiftId)
         {
-            StatusMessage = "❌ No hay turno de caja abierto. Ábralo en 'Turno de Caja'.";
+            StatusMessage = T("Comanda.Status.NoShiftOpen");
             return;
         }
         if (PayMethod != PaymentMethod.Card) PayMethod = PaymentMethod.Card;
@@ -236,12 +234,12 @@ public partial class ComandaViewModel
             }
             else if (outcome.FallbackToManual)
             {
-                StatusMessage = string.IsNullOrWhiteSpace(outcome.Message) ? "✍️ Tarjeta registrada manualmente" : $"✍️ Datáfono: {outcome.Message}";
+                StatusMessage = string.IsNullOrWhiteSpace(outcome.Message) ? T("Comanda.Status.CardManual") : T("Comanda.Status.TerminalMessage", outcome.Message);
                 await CloseAndPayCoreAsync(null);
             }
             else
             {
-                StatusMessage = $"⚠️ {outcome.Message ?? "El datáfono no aprobó el cobro."} · {comanda.TableName} sigue pendiente de pago";
+                StatusMessage = T("Comanda.Status.StillUnpaid", outcome.Message ?? T("Comanda.Status.TerminalDeclined"), comanda.TableName);
             }
         }
         finally
@@ -255,12 +253,12 @@ public partial class ComandaViewModel
         if (Current == null) return;
         if (IsLockedByOtherRegister)
         {
-            StatusMessage = $"⚠️ La mesa la está cobrando {Current.PaymentLockedByTerminalCode}.";
+            StatusMessage = T("Comanda.Status.LockedBy", Current.PaymentLockedByTerminalCode);
             return;
         }
         if (_shiftId is not { } shiftId)
         {
-            StatusMessage = "❌ No hay turno de caja abierto. Ábralo en 'Turno de Caja'.";
+            StatusMessage = T("Comanda.Status.NoShiftOpen");
             return;
         }
 
@@ -286,7 +284,7 @@ public partial class ComandaViewModel
         {
             StatusMessage = reference is null
                 ? $"❌ {result.ErrorMessage}"
-                : $"❌ {result.ErrorMessage} · el datáfono SÍ aprobó {reference}: registre la venta manualmente";
+                : T("Comanda.Status.PayFailedTerminalApproved", result.ErrorMessage, reference);
             return;
         }
 
@@ -294,8 +292,8 @@ public partial class ComandaViewModel
         _display.NotifySaleCompleted(result.OrderNumber, comanda.Total, result.ChangeAmount); // after ClearCurrent: "Completed" wins
         await RefreshListOnlyAsync();
         StatusMessage = reference is null
-            ? $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · Cambio {ReceiptFormatter.Cop(result.ChangeAmount)}"
-            : $"✅ {comanda.TableName} cerrada · Factura {result.OrderNumber} · {reference}";
+            ? T("Comanda.Status.ClosedCash", comanda.TableName, result.OrderNumber, ReceiptFormatter.Cop(result.ChangeAmount))
+            : T("Comanda.Status.ClosedRef", comanda.TableName, result.OrderNumber, reference);
         LastSale = new SaleSummaryViewModel(result.OrderNumber, comanda.Total,
             method == PaymentMethod.Cash ? tendered : comanda.Total, result.ChangeAmount, method, comanda.TableName, DismissSale);
 
@@ -305,7 +303,7 @@ public partial class ComandaViewModel
             var receipt = ReceiptDtoFactory.FromOrder(order, CashierName, comanda.TableName, method, tendered, result.ChangeAmount);
             CheckoutViewModel.ApplyTerminalCharge(receipt, charge, _terminalSettings.PrintVoucher);
             if (!await _printer.PrintReceiptAsync(receipt))
-                StatusMessage += " · ⚠️ impresora no disponible (TXT de respaldo)";
+                StatusMessage += T("Comanda.Status.PrinterBackup");
         }
         if (method == PaymentMethod.Cash) await _cashDrawer.OpenDrawerAsync();
     }

@@ -3,6 +3,7 @@ using System.Collections.ObjectModel;
 using System.Linq;
 using CommunityToolkit.Mvvm.ComponentModel;
 using Core.Application.DTOs;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -23,7 +24,13 @@ public enum CustomerDisplayState
 /// </summary>
 public partial class CustomerDisplayViewModel : ObservableObject
 {
-    private const string DefaultContextTitle = "Su compra";
+    private static Localizer L => Localizer.Instance;
+
+    /// <summary>"Su compra" / "Your purchase" (quick sale header), in the cashier's current language.</summary>
+    private static string DefaultContextTitle => L.T("Display.YourPurchase");
+
+    /// <summary>Comanda shown right now (table, number); null = quick-sale header. Kept so the title can be re-rendered on a language switch.</summary>
+    private (string TableName, int Number)? _comanda;
 
     /// <summary>Last checkout call, replayed when a comanda is cleared (see class remarks).</summary>
     private sealed record CheckoutSnapshot(ObservableCollection<CartItemDto> Items, decimal Subtotal, decimal TaxTotal,
@@ -32,13 +39,13 @@ public partial class CustomerDisplayViewModel : ObservableObject
 
     /// <summary>Header above the item list: "Su compra" (quick sale) or "Mesa 4 · Comanda #12".</summary>
     [ObservableProperty]
-    private string _contextTitle = DefaultContextTitle;
+    private string _contextTitle = L.T("Display.YourPurchase");
 
     [ObservableProperty]
     private string _storeName = "LOQZEN POS & RESTAURANT";
 
-    [ObservableProperty]
-    private string _storeTagline = "Terminal Volcora • Experiencia de Compra Transparente";
+    /// <summary>Marketing line under the store name; translated (the store name itself is data/brand and stays as-is).</summary>
+    public string StoreTagline => L.T("Display.Tagline");
 
     [ObservableProperty]
     private CustomerDisplayState _state = CustomerDisplayState.Idle;
@@ -72,6 +79,19 @@ public partial class CustomerDisplayViewModel : ObservableObject
 
     public ObservableCollection<CartItemDto> Items { get; } = new();
 
+    public CustomerDisplayViewModel()
+    {
+        // Second screen the customer reads: follows the cashier's ES/EN choice live (XAML labels re-bind on their own;
+        // the strings this VM composes are re-rendered here).
+        L.Changed += OnLanguageChanged;
+    }
+
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(StoreTagline));
+        ContextTitle = _comanda is { } c ? L.T("Display.ComandaTitle", c.TableName, c.Number) : DefaultContextTitle;
+    }
+
     public void UpdateFromCheckout(
         ObservableCollection<CartItemDto> cartItems, 
         decimal subtotal, 
@@ -84,6 +104,7 @@ public partial class CustomerDisplayViewModel : ObservableObject
         decimal discountTotal = 0m)
     {
         _checkout = new CheckoutSnapshot(cartItems, subtotal, taxTotal, total, isPaymentOpen, tendered, change, paymentMethod, discountTotal);
+        _comanda = null;
         ContextTitle = DefaultContextTitle;
 
         Items.Clear();
@@ -147,7 +168,8 @@ public partial class CustomerDisplayViewModel : ObservableObject
             });
         }
 
-        ContextTitle = $"{comanda.TableName} · Comanda #{comanda.Number}";
+        _comanda = (comanda.TableName, comanda.Number);
+        ContextTitle = L.T("Display.ComandaTitle", comanda.TableName, comanda.Number);
         Subtotal = comanda.Subtotal;
         TaxTotal = comanda.TaxTotal;
         DiscountTotal = 0m;
@@ -163,6 +185,7 @@ public partial class CustomerDisplayViewModel : ObservableObject
     private void ShowIdle()
     {
         Items.Clear();
+        _comanda = null;
         ContextTitle = DefaultContextTitle;
         Subtotal = TaxTotal = DiscountTotal = Total = 0m;
         ItemCount = 0;

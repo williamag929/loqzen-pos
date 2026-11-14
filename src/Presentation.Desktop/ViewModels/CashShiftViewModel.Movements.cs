@@ -31,10 +31,10 @@ public partial class CashShiftViewModel
 
     public string MovementTitle => $"{MovementIcon(MovementType)} {CashMovementTypes.Label(MovementType)}";
     public bool MovementIsIn => CashMovementTypes.Sign(MovementType) > 0;
-    public string MovementAccent => MovementIsIn ? "#10B981" : "#F87171";
+    public string MovementAccent => MovementIsIn ? ThemePalette.Success : ThemePalette.DangerBright;
     public string MovementAmountText => ReceiptFormatter.Cop(ParseAmount(MovementAmountStr));
     public bool MovementRequiresManager => _settings.MovementRequiresManager(MovementType);
-    public string MovementDirectionText => MovementIsIn ? "Entra al cajón" : "Sale del cajón";
+    public string MovementDirectionText => T(MovementIsIn ? "Cash.Movement.In" : "Cash.Movement.Out");
 
     private static string MovementIcon(CashMovementType t) => t switch
     {
@@ -46,21 +46,22 @@ public partial class CashShiftViewModel
         _ => "💵"
     };
 
-    private static string[] ReasonChips(CashMovementType t) => t switch
+    /// <summary>Quick-pick reasons per type: one i18n key per type, options separated by '|' (Cash.Movement.Chips.PaidIn …).</summary>
+    private static string[] ReasonChips(CashMovementType t) => CashMovementTypes.Manual.Contains(t)
+        ? T("Cash.Movement.Chips." + t).Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+        : Array.Empty<string>();
+
+    private void RefreshMovementChips()
     {
-        CashMovementType.PaidIn => new[] { "Sencillo", "Base adicional", "Préstamo" },
-        CashMovementType.PaidOut => new[] { "Pago a proveedor", "Devolución a cliente", "Compra mercancía" },
-        CashMovementType.Expense => new[] { "Aseo", "Domicilio", "Papelería", "Hielo", "Gas", "Transporte" },
-        CashMovementType.SafeDrop => new[] { "Sobre a bóveda", "Consignación banco" },
-        CashMovementType.TipPayout => new[] { "Propinas meseros", "Propinas cocina" },
-        _ => Array.Empty<string>()
-    };
+        MovementChips.Clear();
+        foreach (var c in ReasonChips(MovementType)) MovementChips.Add(new ChipViewModel(c, v => MovementReason = v));
+    }
 
     /// <summary>Movement buttons pass the CashMovementType name as a string parameter.</summary>
     [RelayCommand]
     public void StartMovement(string type)
     {
-        if (!IsShiftOpen) { Notification = "⚠️ Abra un turno primero."; return; }
+        if (!IsShiftOpen) { Notification = T("Cash.OpenFirst"); return; }
         if (!Enum.TryParse<CashMovementType>(type, out var t) || !CashMovementTypes.Manual.Contains(t)) return;
         MovementType = t;
         OnPropertyChanged(nameof(MovementDirectionText));
@@ -68,8 +69,7 @@ public partial class CashShiftViewModel
         MovementReason = string.Empty;
         MovementReference = string.Empty;
         MovementError = string.Empty;
-        MovementChips.Clear();
-        foreach (var c in ReasonChips(t)) MovementChips.Add(new ChipViewModel(c, v => MovementReason = v));
+        RefreshMovementChips();
         IsMovementDialogVisible = true;
     }
 
@@ -82,8 +82,8 @@ public partial class CashShiftViewModel
     {
         if (IsBusy) return;
         var amount = ParseAmount(MovementAmountStr);
-        if (amount <= 0) { MovementError = "⚠️ Ingrese el valor."; return; }
-        if (string.IsNullOrWhiteSpace(MovementReason)) { MovementError = "⚠️ Indique el motivo (toque una opción o escríbalo)."; return; }
+        if (amount <= 0) { MovementError = T("Cash.Movement.NeedAmount"); return; }
+        if (string.IsNullOrWhiteSpace(MovementReason)) { MovementError = T("Cash.Movement.NeedReason"); return; }
 
         var type = MovementType;
         var reason = MovementReason.Trim();
@@ -94,7 +94,7 @@ public partial class CashShiftViewModel
         {
             var approval = await RequiredOverride.RequestAsync(_authPrompt, _scopes, _session,
                 AuthorizedAction.CashMovement, $"{CashMovementTypes.Label(type)}: {reason}", amount, reference);
-            if (!approval.IsApproved) { MovementError = approval.Error ?? "❌ No autorizado"; return; }
+            if (!approval.IsApproved) { MovementError = approval.Error ?? T("Cash.NotAuthorized"); return; }
             overrideId = approval.Override!.Id;
         }
 
@@ -105,7 +105,7 @@ public partial class CashShiftViewModel
             var request = new CashMovementRequest(type, amount, reason, reference, user?.Id, UserName, overrideId);
             var dto = await WithShiftServiceAsync(s => s.RecordMovementAsync(request));
             IsMovementDialogVisible = false;
-            Notification = $"✅ {CashMovementTypes.Label(type)} registrada: {ReceiptFormatter.Cop(amount)}";
+            Notification = T("Cash.Movement.Saved", CashMovementTypes.Label(type), ReceiptFormatter.Cop(amount));
 
             // Always print the slip (signature / envelope); a printer failure only warns.
             var shiftNumber = Reconciliation?.ShiftNumber ?? CurrentShift?.ShiftNumber ?? 0;
@@ -131,12 +131,12 @@ public partial class CashShiftViewModel
     [ObservableProperty] private string _partialExpectedText = string.Empty;
     [ObservableProperty] private string _partialCountedText = string.Empty;
     [ObservableProperty] private string _partialDifferenceText = string.Empty;
-    [ObservableProperty] private string _partialDifferenceColor = "#34D399";
+    [ObservableProperty] private string _partialDifferenceColor = ThemePalette.SuccessBright;
 
     [RelayCommand]
     public void ShowPartialCount()
     {
-        if (!IsShiftOpen) { Notification = "⚠️ Abra un turno primero."; return; }
+        if (!IsShiftOpen) { Notification = T("Cash.OpenFirst"); return; }
         PartialCount.ResetCount();
         HasPartialResult = false;
         IsPartialCountVisible = true;
@@ -157,7 +157,7 @@ public partial class CashShiftViewModel
             PartialDifferenceText = SignedCop(result.Difference);
             PartialDifferenceColor = DifferenceColorFor(result.Difference, _settings.MaxDifferenceWithoutManager);
             HasPartialResult = true;
-            Notification = $"🔢 Arqueo parcial guardado · diferencia {PartialDifferenceText}";
+            Notification = T("Cash.Partial.Saved", PartialDifferenceText);
         }
         catch (Exception ex)
         {

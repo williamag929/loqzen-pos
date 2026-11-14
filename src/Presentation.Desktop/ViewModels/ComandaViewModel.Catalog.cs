@@ -18,6 +18,8 @@ public partial class ComandaViewModel
 {
     // ── Category navigation (touch): categories grid → products of that category → back ──
     private readonly List<Product> _allProducts = new();
+    /// <summary>Synthetic "Otros" tile for products without category (its name follows the UI language).</summary>
+    private CategoryTileViewModel? _othersTile;
 
     public ObservableCollection<CategoryTileViewModel> CategoryTiles { get; } = new();
     public ObservableCollection<ProductTileViewModel> ProductTiles { get; } = new();
@@ -28,7 +30,7 @@ public partial class ComandaViewModel
 
     public bool IsBrowsingCategories => SelectedCategory == null;
     public bool IsBrowsingProducts => SelectedCategory != null;
-    public string CatalogTitle => SelectedCategory == null ? "Categorías" : $"◀  {SelectedCategory.Name}";
+    public string CatalogTitle => SelectedCategory == null ? T("Comanda.Catalog.Categories") : $"◀  {SelectedCategory.Name}";
 
     private async Task LoadCatalogAsync()
     {
@@ -44,8 +46,12 @@ public partial class ComandaViewModel
             CategoryTiles.Add(new CategoryTileViewModel(c, OpenCategory));
 
         // Products without category stay reachable.
+        _othersTile = null;
         if (_allProducts.Any(p => p.CategoryId == null))
-            CategoryTiles.Add(new CategoryTileViewModel(new Category { Name = "Otros", ColorHex = "#475569" }, OpenCategory));
+        {
+            _othersTile = new CategoryTileViewModel(new Category { Name = T("Comanda.Catalog.Others") }, OpenCategory);
+            CategoryTiles.Add(_othersTile);
+        }
 
         SelectedCategory = null;
         ProductTiles.Clear();
@@ -54,7 +60,7 @@ public partial class ComandaViewModel
     private void OpenCategory(CategoryTileViewModel tile)
     {
         SelectedCategory = tile;
-        var isOther = tile.Name == "Otros" && !_allProducts.Any(p => p.CategoryId == tile.Category.Id);
+        var isOther = ReferenceEquals(tile, _othersTile);
         ProductTiles.Clear();
         foreach (var p in _allProducts.Where(p => isOther ? p.CategoryId == null : p.CategoryId == tile.Category.Id).OrderBy(p => p.Name))
             ProductTiles.Add(new ProductTileViewModel(p, AddProduct));
@@ -72,13 +78,13 @@ public partial class ComandaViewModel
     {
         if (Current == null || !IsCurrentOpen)
         {
-            StatusMessage = "⚠️ Abra o seleccione una comanda abierta primero";
+            StatusMessage = T("Comanda.Status.SelectFirst");
             return;
         }
         await RunAsync(async svc =>
         {
             Apply(await svc.AddItemAsync(Current.Id, tile.Product.Id));
-            StatusMessage = $"🟡 {tile.Name} agregado – se envía a cocina en {_settings.ConfirmationDelaySeconds}s";
+            StatusMessage = T("Comanda.Status.ItemAdded", tile.Name, _settings.ConfirmationDelaySeconds);
         });
     }
 
@@ -92,13 +98,13 @@ public partial class ComandaViewModel
         }
         if (!row.IsPending)
         {
-            StatusMessage = "⚠️ Este producto ya está anulado.";
+            StatusMessage = T("Comanda.Status.AlreadyCancelled");
             return;
         }
         await RunAsync(async svc =>
         {
             Apply(await svc.CancelPendingItemAsync(Current.Id, row.Dto.Id));
-            StatusMessage = $"Anulado: {row.Name}";
+            StatusMessage = T("Comanda.Status.Cancelled", row.Name);
         });
     }
 
@@ -107,13 +113,14 @@ public partial class ComandaViewModel
     {
         if (Current == null) return;
         var comanda = Current;
+        // Description + reference are persisted in the manager-override audit record: store language (Spanish), not UI language.
         var description = $"Anular {row.Name} (ya en cocina) · {comanda.TableName}";
         var reference = $"Comanda #{comanda.Number}";
 
         var auth = await _authPrompt.RequestAsync(AuthorizedAction.CancelKitchenItem, description, row.Dto.Total, reference);
         if (!auth.IsAllowed)
         {
-            StatusMessage = "❌ Anulación no autorizada";
+            StatusMessage = T("Comanda.Status.CancelNotAuthorized");
             return;
         }
 
@@ -125,7 +132,7 @@ public partial class ComandaViewModel
             var user = _session.CurrentUser;
             if (user is not { CanAuthorize: true })
             {
-                StatusMessage = "⚠️ Requiere gerente";
+                StatusMessage = T("Comanda.Status.NeedsManager");
                 return;
             }
             try
@@ -136,12 +143,12 @@ public partial class ComandaViewModel
             }
             catch (UnauthorizedAccessException)
             {
-                StatusMessage = "⚠️ Requiere gerente";
+                StatusMessage = T("Comanda.Status.NeedsManager");
                 return;
             }
             catch (Exception ex)
             {
-                StatusMessage = $"❌ Error: {ex.Message}";
+                StatusMessage = T("Comanda.Error.Generic", ex.Message);
                 return;
             }
         }
@@ -149,7 +156,7 @@ public partial class ComandaViewModel
         await RunAsync(async svc =>
         {
             Apply(await svc.CancelConfirmedItemAsync(comanda.Id, row.Dto.Id, overrideDto.Id));
-            StatusMessage = $"🗑️ Anulado en cocina: {row.Name} · autorizó {overrideDto.ManagerName}";
+            StatusMessage = T("Comanda.Status.CancelledInKitchen", row.Name, overrideDto.ManagerName);
         });
     }
 
@@ -160,7 +167,7 @@ public partial class ComandaViewModel
         await RunAsync(async svc =>
         {
             Apply(await svc.ConfirmPendingNowAsync(Current.Id));
-            StatusMessage = "🟢 Pendientes enviados a cocina";
+            StatusMessage = T("Comanda.Status.PendingSent");
         });
         await RefreshListOnlyAsync();
     }
@@ -212,7 +219,7 @@ public partial class ComandaViewModel
         }
         catch (Exception ex)
         {
-            StatusMessage = $"❌ Error: {ex.Message}";
+            StatusMessage = T("Comanda.Error.Generic", ex.Message);
         }
         return false;
     }

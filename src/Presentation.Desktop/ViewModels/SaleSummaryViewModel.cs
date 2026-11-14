@@ -2,6 +2,8 @@ using System;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.Receipts;
 using Core.Domain.Enums;
+using Presentation.Desktop.Localization;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -16,7 +18,7 @@ public sealed class SaleSummaryViewModel
         PaymentMethod method, string? tableName, Action onDismiss, string? title = null, string? dismissLabel = null)
     {
         _title = title;
-        DismissLabel = dismissLabel ?? "🛒 Nueva venta";
+        _dismissLabel = dismissLabel;
         OrderNumber = orderNumber;
         Total = total;
         Tendered = tendered;
@@ -38,20 +40,25 @@ public sealed class SaleSummaryViewModel
     public bool HasChange => IsCash && Change > 0;
 
     private readonly string? _title;
+    private readonly string? _dismissLabel;
+
+    // Short-lived VM (one per paid sale): texts are read from the i18n tables when the overlay opens; no live re-raise.
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
 
     /// <summary>Caption of the big button ("🛒 Nueva venta"; recaudos use "🧾 Nuevo recaudo").</summary>
-    public string DismissLabel { get; }
+    public string DismissLabel => _dismissLabel ?? T("Sale.Completed.NewSale");
 
     public string Title => _title ?? (string.IsNullOrWhiteSpace(TableName)
-        ? $"✅ Venta completada · Factura {OrderNumber}"
-        : $"✅ {TableName} cerrada · Factura {OrderNumber}");
+        ? T("Sale.Completed.Title", OrderNumber)
+        : T("Sale.Completed.TableTitle", TableName, OrderNumber));
 
     /// <summary>Big label above the figure.</summary>
-    public string Headline => HasChange ? "CAMBIO A ENTREGAR" : IsCash ? "PAGO EXACTO · SIN CAMBIO" : $"{ReceiptDtoFactory.PaymentName(Method).ToUpperInvariant()} · SIN CAMBIO";
+    public string Headline => HasChange ? T("Sale.Completed.Change") : IsCash ? T("Sale.Completed.Exact") : T("Sale.Completed.NoChange", ReceiptDtoFactory.PaymentName(Method).ToUpperInvariant());
 
     /// <summary>The figure the cashier must hand back (or the total when there is no change).</summary>
     public string BigFigure => ReceiptFormatter.Cop(HasChange ? Change : Total);
-    public string BigFigureColor => HasChange ? "#FACC15" : "#34D399";
+    /// <summary>Theme token (amber = change to hand back, green = nothing to return); read when the overlay opens.</summary>
+    public string BigFigureColor => HasChange ? ThemePalette.WarningBright : ThemePalette.SuccessBright;
 
     public string TotalText => ReceiptFormatter.Cop(Total);
     public string TenderedText => ReceiptFormatter.Cop(Tendered);

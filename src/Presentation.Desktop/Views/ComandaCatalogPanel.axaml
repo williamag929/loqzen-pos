@@ -5,13 +5,30 @@
              x:DataType="vm:ComandaViewModel"
              x:CompileBindings="True">
 
+    <!-- Category tiles keep the category's own colour (user data) with TextOnAccent; the colourless "Otros" tile ("neutral")
+         uses the theme's BorderStrong fill + TextPrimary. "selected" draws a TextPrimary frame. -->
+    <UserControl.Styles>
+        <Style Selector="Button.cat">
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.cat.selected">
+            <Setter Property="BorderBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.cat TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.cat.neutral TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+    </UserControl.Styles>
+
     <!-- Touch catalog, two levels: big category tiles → products of that category (◀ back). -->
     <Grid RowDefinitions="Auto, *">
         <Grid Margin="0,0,0,10">
-            <Button Height="56" Padding="18,0" CornerRadius="10" Background="#334155" Foreground="White"
+            <Button Height="56" Padding="18,0" CornerRadius="10" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
                     FontSize="18" FontWeight="Bold" Content="{Binding CatalogTitle}"
                     IsVisible="{Binding IsBrowsingProducts}" Command="{Binding BackToCategoriesCommand}"/>
-            <TextBlock Text="{Binding CatalogTitle}" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
+            <TextBlock Text="{Binding CatalogTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"
                        IsVisible="{Binding IsBrowsingCategories}"/>
         </Grid>
 
@@ -21,11 +38,11 @@
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:CategoryTileViewModel">
-                        <Button Width="200" Height="130" Margin="6" CornerRadius="14" Background="{Binding Background}"
-                                BorderBrush="{Binding SelectionBorder}" BorderThickness="3"
+                        <Button Classes="cat" Classes.selected="{Binding IsSelected}" Classes.neutral="{Binding IsNeutral}"
+                                Width="200" Height="130" Margin="6" CornerRadius="14" Background="{Binding Background}" BorderThickness="3"
                                 HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                 Command="{Binding SelectCommand}">
-                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="21" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <TextBlock Text="{Binding Name}" FontSize="21" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
                         </Button>
                     </DataTemplate>
                 </ItemsControl.ItemTemplate>
@@ -38,13 +55,13 @@
                 <ItemsControl.ItemsPanel><ItemsPanelTemplate><WrapPanel/></ItemsPanelTemplate></ItemsControl.ItemsPanel>
                 <ItemsControl.ItemTemplate>
                     <DataTemplate x:DataType="vm:ProductTileViewModel">
-                        <Button Width="180" Height="130" Margin="6" Padding="12" CornerRadius="12" Background="#1E293B"
-                                BorderBrush="#334155" BorderThickness="1"
+                        <Button Width="180" Height="130" Margin="6" Padding="12" CornerRadius="12" Background="{DynamicResource BgSurface}"
+                                BorderBrush="{DynamicResource Border}" BorderThickness="1"
                                 HorizontalContentAlignment="Stretch" VerticalContentAlignment="Stretch"
                                 Command="{Binding AddCommand}">
                             <Grid RowDefinitions="*, Auto">
-                                <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3"/>
-                                <TextBlock Grid.Row="1" Text="{Binding PriceText}" Foreground="#34D399" FontSize="18" FontWeight="Bold"/>
+                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="SemiBold" TextWrapping="Wrap" MaxLines="3"/>
+                                <TextBlock Grid.Row="1" Text="{Binding PriceText}" Foreground="{DynamicResource SuccessBright}" FontSize="18" FontWeight="Bold"/>
                             </Grid>
                         </Button>
                     </DataTemplate>

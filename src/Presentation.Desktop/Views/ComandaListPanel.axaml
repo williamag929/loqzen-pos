@@ -1,9 +1,57 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.ComandaListPanel"
              x:DataType="vm:ComandaViewModel"
              x:CompileBindings="True">
+
+    <!-- State colours are theme tokens applied through classes bound to VM booleans, so they follow a theme switch live.
+         Comanda card: "current" = TextPrimary frame · status strip/text: default Success, "pending" Warning, "ready" Accent.
+         Table tile: free = SuccessSurface/SuccessText · "busy" = WarningSurface/WarningText. -->
+    <UserControl.Styles>
+        <Style Selector="Button.card">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderBrush" Value="Transparent"/>
+        </Style>
+        <Style Selector="Button.card.current">
+            <Setter Property="BorderBrush" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.card Border.status">
+            <Setter Property="Background" Value="{DynamicResource Success}"/>
+        </Style>
+        <Style Selector="Button.card TextBlock.status">
+            <Setter Property="Foreground" Value="{DynamicResource Success}"/>
+        </Style>
+        <Style Selector="Button.card.pending Border.status">
+            <Setter Property="Background" Value="{DynamicResource Warning}"/>
+        </Style>
+        <Style Selector="Button.card.pending TextBlock.status">
+            <Setter Property="Foreground" Value="{DynamicResource Warning}"/>
+        </Style>
+        <Style Selector="Button.card.ready Border.status">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+        </Style>
+        <Style Selector="Button.card.ready TextBlock.status">
+            <Setter Property="Foreground" Value="{DynamicResource AccentBright}"/>
+        </Style>
+
+        <Style Selector="Button.tile">
+            <Setter Property="Background" Value="{DynamicResource SuccessSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Success}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.tile TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource SuccessText}"/>
+        </Style>
+        <Style Selector="Button.tile.busy">
+            <Setter Property="Background" Value="{DynamicResource WarningSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Warning}"/>
+        </Style>
+        <Style Selector="Button.tile.busy TextBlock">
+            <Setter Property="Foreground" Value="{DynamicResource WarningText}"/>
+        </Style>
+    </UserControl.Styles>
 
     <!-- PANEL IZQ: comandas abiertas + mapa de mesas -->
     <Grid ColumnDefinitions="*, *" Margin="16">
@@ -11,32 +59,32 @@
         <!-- Open comandas -->
         <Grid Grid.Column="0" RowDefinitions="Auto, *" Margin="0,0,8,0">
             <Grid ColumnDefinitions="*, Auto" Margin="0,0,0,10">
-                <TextBlock Text="Comandas abiertas" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="8" Background="#334155" Foreground="White"
-                        FontWeight="Bold" Content="⟳ Actualizar" Command="{Binding RefreshCommand}"/>
+                <TextBlock Text="{i18n:Loc Comanda.List.Header}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="8" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}"
+                        FontWeight="Bold" Content="{i18n:Loc Comanda.List.Refresh}" Command="{Binding RefreshCommand}"/>
             </Grid>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
                 <ItemsControl ItemsSource="{Binding Comandas}">
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:ComandaCardViewModel">
-                            <Button HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" MinHeight="92" Margin="0,0,0,10"
-                                    Padding="16,12" CornerRadius="12" Background="#1E293B"
-                                    BorderBrush="{Binding Border}" BorderThickness="2"
+                            <Button Classes="card" Classes.current="{Binding IsCurrent}" Classes.pending="{Binding HasPending}" Classes.ready="{Binding IsReadyToPay}"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Stretch" MinHeight="92" Margin="0,0,0,10"
+                                    Padding="16,12" CornerRadius="12" BorderThickness="2"
                                     Command="{Binding SelectCommand}">
                                 <Grid ColumnDefinitions="8, *, Auto">
-                                    <Border Grid.Column="0" CornerRadius="4" Background="{Binding StatusBrush}"/>
+                                    <Border Grid.Column="0" Classes="status" CornerRadius="4"/>
                                     <StackPanel Grid.Column="1" Margin="14,0" Spacing="4">
-                                        <TextBlock Text="{Binding Title}" Foreground="White" FontSize="19" FontWeight="Bold"/>
-                                        <TextBlock Text="{Binding Subtitle}" Foreground="#94A3B8" FontSize="13"/>
+                                        <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="19" FontWeight="Bold"/>
+                                        <TextBlock Text="{Binding Subtitle}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                                         <WrapPanel>
-                                            <TextBlock Text="{Binding StatusText}" Foreground="{Binding StatusBrush}" FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0"/>
+                                            <TextBlock Classes="status" Text="{Binding StatusText}" FontSize="14" FontWeight="SemiBold" Margin="0,0,8,0"/>
                                             <!-- Another register is collecting this table (payment lock) -->
-                                            <Border Background="#78350F" CornerRadius="6" Padding="8,2" IsVisible="{Binding HasLockTag}">
-                                                <TextBlock Text="{Binding LockTag}" Foreground="#FCD34D" FontSize="12" FontWeight="Bold"/>
+                                            <Border Background="{DynamicResource WarningSurface}" CornerRadius="6" Padding="8,2" IsVisible="{Binding HasLockTag}">
+                                                <TextBlock Text="{Binding LockTag}" Foreground="{DynamicResource WarningText}" FontSize="12" FontWeight="Bold"/>
                                             </Border>
                                         </WrapPanel>
                                     </StackPanel>
-                                    <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="#34D399" FontSize="22" FontWeight="Black" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="2" Text="{Binding TotalText}" Foreground="{DynamicResource SuccessBright}" FontSize="22" FontWeight="Black" VerticalAlignment="Center"/>
                                 </Grid>
                             </Button>
                         </DataTemplate>
@@ -47,9 +95,9 @@
 
         <!-- Tables -->
         <Grid Grid.Column="1" RowDefinitions="Auto, Auto, *" Margin="8,0,0,0">
-            <TextBlock Text="Mesas  (toque una libre para abrir comanda)" Foreground="White" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
+            <TextBlock Text="{i18n:Loc Comanda.Tables.Header}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" Margin="0,0,0,10"/>
             <Grid Grid.Row="1" ColumnDefinitions="Auto, *" Margin="0,0,0,10">
-                <TextBlock Text="Mesero:" Foreground="#94A3B8" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
+                <TextBlock Text="{i18n:Loc Comanda.Tables.Waiter}" Foreground="{DynamicResource TextMuted}" FontSize="15" VerticalAlignment="Center" Margin="0,0,10,0"/>
                 <TextBox Grid.Column="1" Height="52" FontSize="16" VerticalContentAlignment="Center" CornerRadius="8"
                          Text="{Binding WaiterName, Mode=TwoWay}"/>
             </Grid>
@@ -60,12 +108,12 @@
                     </ItemsControl.ItemsPanel>
                     <ItemsControl.ItemTemplate>
                         <DataTemplate x:DataType="vm:TableTileViewModel">
-                            <Button Width="140" Height="110" Margin="6" CornerRadius="12" Background="{Binding Background}"
+                            <Button Classes="tile" Classes.busy="{Binding IsBusy}" Width="140" Height="110" Margin="6" CornerRadius="12"
                                     HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
                                     Command="{Binding TapCommand}">
                                 <StackPanel Spacing="6">
-                                    <TextBlock Text="{Binding Name}" Foreground="White" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
-                                    <TextBlock Text="{Binding StateText}" Foreground="#E2E8F0" FontSize="13" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding Name}" FontSize="19" FontWeight="Bold" HorizontalAlignment="Center"/>
+                                    <TextBlock Text="{Binding StateText}" FontSize="13" HorizontalAlignment="Center"/>
                                 </StackPanel>
                             </Button>
                         </DataTemplate>

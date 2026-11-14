@@ -2,49 +2,71 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.ManagerAuthDialog"
              x:DataType="vm:ManagerAuthPromptViewModel"
              x:CompileBindings="True">
 
+    <UserControl.Styles>
+        <!-- Dialog buttons bound to tokens; :pointerover selectors keep the colour on hover (Fluent paints grey otherwise). -->
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BorderStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <!-- Amber "Autorizar": dark text on amber in Dark (BgBar = near-black), white text on the darker amber in Light. -->
+        <Style Selector="Button.warning">
+            <Setter Property="Background" Value="{DynamicResource Warning}"/>
+            <Setter Property="Foreground" Value="{DynamicResource BgBar}"/>
+        </Style>
+        <Style Selector="Button.warning:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource WarningStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource BgBar}"/>
+        </Style>
+    </UserControl.Styles>
+
     <!-- Modal: a manager types their PIN to approve a sensitive action (return, discount, cancel in kitchen). -->
-    <Border Background="#CC000000">
-        <Border Background="#0F172A" BorderBrush="#F59E0B" BorderThickness="2" CornerRadius="16" Padding="24"
+    <Border Background="{DynamicResource BgOverlay}">
+        <Border Background="{DynamicResource BgApp}" BorderBrush="{DynamicResource Warning}" BorderThickness="2" CornerRadius="16" Padding="24"
                 Width="520" HorizontalAlignment="Center" VerticalAlignment="Center">
             <StackPanel Spacing="14">
-                <TextBlock Text="{Binding Title}" Foreground="White" FontSize="22" FontWeight="Black"/>
+                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black"/>
 
-                <Border Background="#1E293B" CornerRadius="10" Padding="14,10">
+                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="14,10">
                     <StackPanel Spacing="6">
-                        <TextBlock Text="{Binding ActionLabel}" Foreground="#FCD34D" FontSize="16" FontWeight="Bold"/>
-                        <TextBlock Text="{Binding Description}" Foreground="#E2E8F0" FontSize="15" TextWrapping="Wrap"/>
-                        <TextBlock Text="{Binding AmountText}" Foreground="White" FontSize="20" FontWeight="Black"
+                        <TextBlock Text="{Binding ActionLabel}" Foreground="{DynamicResource WarningBright}" FontSize="16" FontWeight="Bold"/>
+                        <TextBlock Text="{Binding Description}" Foreground="{DynamicResource TextSecondary}" FontSize="15" TextWrapping="Wrap"/>
+                        <TextBlock Text="{Binding AmountText}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Black"
                                    IsVisible="{Binding HasAmount}"/>
                     </StackPanel>
                 </Border>
 
-                <TextBlock Text="PIN del gerente" Foreground="#94A3B8" FontSize="14" HorizontalAlignment="Center"/>
-                <Border Background="#020617" CornerRadius="10" Height="64" BorderBrush="#334155" BorderThickness="1">
-                    <TextBlock Text="{Binding PinDots}" Foreground="White" FontSize="36" FontWeight="Black"
+                <TextBlock Text="{i18n:Loc Auth.PinLabel}" Foreground="{DynamicResource TextMuted}" FontSize="14" HorizontalAlignment="Center"/>
+                <Border Background="{DynamicResource BgInput}" CornerRadius="10" Height="64" BorderBrush="{DynamicResource Border}" BorderThickness="1">
+                    <TextBlock Text="{Binding PinDots}" Foreground="{DynamicResource TextPrimary}" FontSize="36" FontWeight="Black"
                                HorizontalAlignment="Center" VerticalAlignment="Center"/>
                 </Border>
 
-                <TextBlock Text="{Binding ErrorMessage}" Foreground="#EF4444" FontSize="14" FontWeight="Bold"
+                <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBright}" FontSize="14" FontWeight="Bold"
                            TextWrapping="Wrap" HorizontalAlignment="Center" IsVisible="{Binding HasError}"/>
 
                 <!-- Disabled while the PIN limiter has approvals locked (countdown in ErrorMessage); Cancelar stays usable -->
                 <views:Numpad DigitCommand="{Binding AppendDigitCommand}"
                               ClearCommand="{Binding ClearCommand}"
                               ExactCommand="{Binding ConfirmCommand}"
-                              ExactLabel="OK"
+                              ExactLabel="{i18n:Loc Auth.Numpad.Ok}"
                               IsEnabled="{Binding IsInputEnabled}"/>
 
                 <Grid ColumnDefinitions="*, *">
-                    <Button Height="64" Margin="0,0,6,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                    <Button Classes="secondary" Height="64" Margin="0,0,6,0" CornerRadius="10" FontSize="16" FontWeight="Bold"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            Content="Cancelar" Command="{Binding CancelCommand}"/>
-                    <Button Grid.Column="1" Height="64" Margin="6,0,0,0" CornerRadius="10" Background="#F59E0B" Foreground="#0F172A" FontSize="18" FontWeight="Black"
+                            Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelCommand}"/>
+                    <Button Classes="warning" Grid.Column="1" Height="64" Margin="6,0,0,0" CornerRadius="10" FontSize="18" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            Content="✅ Autorizar" Command="{Binding ConfirmCommand}" IsEnabled="{Binding IsInputEnabled}"/>
+                            Content="{i18n:Loc Auth.Authorize}" Command="{Binding ConfirmCommand}" IsEnabled="{Binding IsInputEnabled}"/>
                 </Grid>
             </StackPanel>
         </Border>

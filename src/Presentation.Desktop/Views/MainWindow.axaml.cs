@@ -17,18 +17,16 @@ public partial class MainWindow : Window
             {
                 vm.RequestOpenCustomerDisplayWindow = OpenCustomerDisplay;
                 vm.RequestCopyKdsUrl = CopyToClipboard;
-                vm.IsCompact = Bounds.Width > 0 && Bounds.Width < CompactWidth;
+                vm.SetWidth(Bounds.Width);
             }
         };
 
-        // Nav bar degrades to short labels / icon-only tools below this width (see MainViewModel.IsCompact).
+        // Nav bar width tiers (short tabs / collapsed "⋯" tools / brand subtitle): see MainViewModel.SetWidth.
         SizeChanged += (_, e) =>
         {
-            if (DataContext is MainViewModel vm) vm.IsCompact = e.NewSize.Width < CompactWidth;
+            if (DataContext is MainViewModel vm) vm.SetWidth(e.NewSize.Width);
         };
     }
-
-    private const double CompactWidth = 1200;
 
     private void CopyToClipboard(string text)
     {

@@ -2,73 +2,86 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:conv="using:Presentation.Desktop.Converters"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.ComandaPayPanel"
              x:DataType="vm:ComandaViewModel"
              x:CompileBindings="True">
+
+    <UserControl.Resources>
+        <conv:BoolToResourceConverter x:Key="BoolToResource"/>
+    </UserControl.Resources>
 
     <!-- PANEL DER: tirilla final + medio de pago + numpad → genera la factura -->
     <Grid ColumnDefinitions="420, *" Margin="16">
 
         <Grid Grid.Column="0" RowDefinitions="Auto, *, Auto" Margin="0,0,16,0">
-            <TextBlock Text="🧾 Cuenta de la mesa" Foreground="White" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
+            <TextBlock Text="{i18n:Loc Comanda.Pay.BillHeader}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Bold" Margin="0,0,0,8"/>
             <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
             <Grid Grid.Row="2" ColumnDefinitions="*, *" Margin="0,10,0,0">
-                <Button Height="56" Margin="0,0,5,0" CornerRadius="10" Background="#334155" Foreground="White" FontWeight="Bold"
+                <Button Height="56" Margin="0,0,5,0" CornerRadius="10" Background="{DynamicResource Border}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        Content="🖨️ Pre-cuenta" Command="{Binding PrintPreBillCommand}"/>
-                <Button Grid.Column="1" Height="56" Margin="5,0,0,0" CornerRadius="10" Background="#92400E" Foreground="White" FontWeight="Bold"
+                        Content="{i18n:Loc Comanda.Pay.PreBill}" Command="{Binding PrintPreBillCommand}"/>
+                <Button Grid.Column="1" Height="56" Margin="5,0,0,0" CornerRadius="10" Background="{DynamicResource WarningSurface}" Foreground="{DynamicResource WarningText}" FontWeight="Bold"
                         HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                        Content="◀ Agregar más" Command="{Binding ReopenCommand}" IsVisible="{Binding IsCurrentReadyToPay}"/>
+                        Content="{i18n:Loc Comanda.Pay.AddMore}" Command="{Binding ReopenCommand}" IsVisible="{Binding IsCurrentReadyToPay}"/>
             </Grid>
         </Grid>
 
-        <Border Grid.Column="1" Background="#020617" CornerRadius="14" Padding="20">
+        <Border Grid.Column="1" Background="{DynamicResource BgBar}" CornerRadius="14" Padding="20">
             <StackPanel Spacing="14" MaxWidth="560">
                 <!-- Not-yet-frozen comanda: must go through "Cerrar" first -->
-                <Border Background="#78350F" CornerRadius="10" Padding="14" IsVisible="{Binding IsCurrentOpen}">
+                <Border Background="{DynamicResource WarningSurface}" CornerRadius="10" Padding="14" IsVisible="{Binding IsCurrentOpen}">
                     <StackPanel Spacing="10">
-                        <TextBlock Text="La comanda sigue abierta." Foreground="White" FontSize="16" FontWeight="Bold"/>
-                        <Button Height="60" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Black"
+                        <TextBlock Text="{i18n:Loc Comanda.Pay.StillOpen}" Foreground="{DynamicResource WarningText}" FontSize="16" FontWeight="Bold"/>
+                        <Button Height="60" CornerRadius="10" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="17" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                Content="💳 Cerrar comanda y cobrar" Command="{Binding ReadyToPayCommand}"/>
+                                Content="{i18n:Loc Comanda.Pay.CloseAndCharge}" Command="{Binding ReadyToPayCommand}"/>
                     </StackPanel>
                 </Border>
 
                 <StackPanel Spacing="14" IsVisible="{Binding IsCurrentReadyToPay}">
                     <!-- Payment lock between registers: amber "Cobrando en CAJA-02" (Cobrar disabled) or blue "Reservada para esta caja" -->
                     <Border CornerRadius="10" Padding="14,10" IsVisible="{Binding IsLockBannerVisible}"
-                            Background="{Binding LockBannerColor}">
-                        <TextBlock Text="{Binding LockBannerText}" Foreground="White" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                            Background="{Binding IsLockedByOtherRegister, Converter={StaticResource BoolToResource}, ConverterParameter='WarningStrong|AccentStrong'}">
+                        <TextBlock Text="{Binding LockBannerText}" Foreground="{DynamicResource TextOnAccent}" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
                     </Border>
 
                     <Grid ColumnDefinitions="*, Auto">
-                        <TextBlock Text="TOTAL" Foreground="#94A3B8" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
-                        <TextBlock Grid.Column="1" Text="{Binding CurrentTotalText}" Foreground="#34D399" FontSize="40" FontWeight="Black"/>
+                        <TextBlock Text="{i18n:Loc Comanda.Pay.Total}" Foreground="{DynamicResource TextMuted}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Grid.Column="1" Text="{Binding CurrentTotalText}" Foreground="{DynamicResource SuccessBright}" FontSize="40" FontWeight="Black"/>
                     </Grid>
 
+                    <!-- Selected method = Accent fill; the others = plain surface with a Border outline (visible on Light too) -->
                     <Grid ColumnDefinitions="*, *, *">
-                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="💵 Efectivo"
-                                Background="{Binding IsCash, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Comanda.Pay.Cash}"
+                                Background="{Binding IsCash, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|BgSurface'}"
+                                Foreground="{Binding IsCash, Converter={StaticResource BoolToResource}, ConverterParameter='TextOnAccent|TextPrimary'}"
+                                BorderBrush="{Binding IsCash, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|Border'}"
                                 Command="{Binding SelectPayMethodCommand}" CommandParameter="Cash"/>
-                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="💳 Tarjeta"
-                                Background="{Binding IsCard, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Comanda.Pay.Card}"
+                                Background="{Binding IsCard, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|BgSurface'}"
+                                Foreground="{Binding IsCard, Converter={StaticResource BoolToResource}, ConverterParameter='TextOnAccent|TextPrimary'}"
+                                BorderBrush="{Binding IsCard, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|Border'}"
                                 Command="{Binding SelectPayMethodCommand}" CommandParameter="Card"/>
-                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Foreground="White" FontWeight="Bold" FontSize="16"
-                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="📲 Transf."
-                                Background="{Binding IsTransfer, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
+                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" FontWeight="Bold" FontSize="16"
+                                HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Comanda.Pay.Transfer}"
+                                Background="{Binding IsTransfer, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|BgSurface'}"
+                                Foreground="{Binding IsTransfer, Converter={StaticResource BoolToResource}, ConverterParameter='TextOnAccent|TextPrimary'}"
+                                BorderBrush="{Binding IsTransfer, Converter={StaticResource BoolToResource}, ConverterParameter='Accent|Border'}"
                                 Command="{Binding SelectPayMethodCommand}" CommandParameter="Transfer"/>
                     </Grid>
 
                     <StackPanel Spacing="10" IsVisible="{Binding IsCash}">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Recibido" Foreground="#94A3B8" FontSize="16"/>
-                            <TextBlock Grid.Column="1" Text="{Binding TenderedText}" Foreground="#38BDF8" FontSize="26" FontWeight="Black"/>
+                            <TextBlock Text="{i18n:Loc Comanda.Pay.Tendered}" Foreground="{DynamicResource TextMuted}" FontSize="16"/>
+                            <TextBlock Grid.Column="1" Text="{Binding TenderedText}" Foreground="{DynamicResource Info}" FontSize="26" FontWeight="Black"/>
                         </Grid>
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Cambio" Foreground="#94A3B8" FontSize="16"/>
-                            <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Foreground="#FACC15" FontSize="26" FontWeight="Black"/>
+                            <TextBlock Text="{i18n:Loc Comanda.Pay.Change}" Foreground="{DynamicResource TextMuted}" FontSize="16"/>
+                            <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Foreground="{DynamicResource WarningBright}" FontSize="26" FontWeight="Black"/>
                         </Grid>
                         <views:Numpad DigitCommand="{Binding PayDigitCommand}" ClearCommand="{Binding PayClearCommand}"
                                       ExactCommand="{Binding PayExactCommand}"/>
@@ -76,15 +89,15 @@
 
                     <!-- Card + terminals enabled: send the total to the datáfono; the green button stays as the manual path -->
                     <StackPanel Spacing="6" IsVisible="{Binding IsTerminalChargeVisible}">
-                        <Button Height="64" CornerRadius="12" Background="#2563EB" Foreground="White" FontSize="20" FontWeight="Black"
+                        <Button Height="64" CornerRadius="12" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="20" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding CanPay}"/>
-                        <TextBlock Text="«Cobrar y facturar» registra la tarjeta sin pasar por el datáfono." Foreground="#64748B" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                Content="{i18n:Loc Comanda.Pay.ChargeOnTerminal}" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding CanPay}"/>
+                        <TextBlock Text="{i18n:Loc Comanda.Pay.ManualCardHint}" Foreground="{DynamicResource TextFaint}" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                     </StackPanel>
 
-                    <Button Height="72" CornerRadius="12" Background="#059669" Foreground="White" FontSize="22" FontWeight="Black"
+                    <Button Height="72" CornerRadius="12" Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="22" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Content="✅ COBRAR Y FACTURAR" Command="{Binding CloseAndPayCommand}" IsEnabled="{Binding CanPay}"/>
+                            Content="{i18n:Loc Comanda.Pay.ChargeAndInvoice}" Command="{Binding CloseAndPayCommand}" IsEnabled="{Binding CanPay}"/>
                 </StackPanel>
             </StackPanel>
         </Border>

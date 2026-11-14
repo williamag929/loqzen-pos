@@ -4,6 +4,7 @@ using Core.Application.DTOs;
 using Core.Application.Security;
 using Core.Application.Services;
 using Core.Domain.Enums;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.Services;
 
@@ -21,10 +22,16 @@ public partial class UserSession : ObservableObject, IUserSession
 
     public event Action? Changed;
 
+    public UserSession()
+    {
+        // "👤 name · role" follows the UI language (the role word itself comes from Core's UserPermissions.Label).
+        Localizer.Instance.Changed += () => OnPropertyChanged(nameof(ChipText));
+    }
+
     public bool IsLoggedIn => CurrentUser != null;
     public string DisplayName => CurrentUser?.Name ?? string.Empty;
     public string RoleLabel => CurrentUser?.RoleLabel ?? string.Empty;
-    public string ChipText => $"👤 {DisplayName} · {RoleLabel}";
+    public string ChipText => Localizer.Instance.T("Chip.User.Full", DisplayName, RoleLabel);
     public bool IsManager => CurrentUser?.CanAuthorize ?? false;
 
     /// <summary>Role used for permission checks; an open terminal (nobody signed in) behaves as Admin.</summary>

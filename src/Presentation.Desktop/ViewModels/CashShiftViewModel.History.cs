@@ -5,6 +5,8 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Receipts;
+using Presentation.Desktop.Localization;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -15,19 +17,18 @@ public partial class CashShiftViewModel
     [ObservableProperty] private bool _isZReportVisible;
     [ObservableProperty] private string _zReportTitle = string.Empty;
     [ObservableProperty] private string _zReportSummary = string.Empty;
-    [ObservableProperty] private string _zReportSummaryColor = "#34D399";
+    [ObservableProperty] private string _zReportSummaryColor = ThemePalette.SuccessBright;
     public ObservableCollection<ReceiptLine> ZReportLines { get; } = new();
     private int _zShiftNumber;
+    private ShiftReconciliationDto? _zRecon;
+    private bool _zFromClose;
 
     private void ShowZReport(ShiftReconciliationDto r, bool isFromClose)
     {
         _zShiftNumber = r.ShiftNumber;
-        ZReportTitle = isFromClose ? $"📊 Turno #{r.ShiftNumber} cerrado · Reporte Z" : $"📊 Reporte Z · Turno #{r.ShiftNumber}";
-        var diff = r.Difference ?? 0m;
-        ZReportSummary = r.CountedCash is null
-            ? "Turno sin conteo registrado"
-            : $"Esperado {ReceiptFormatter.Cop(r.ExpectedCash)} · Contado {ReceiptFormatter.Cop(r.CountedCash.Value)} · Diferencia {SignedCop(diff)}";
-        ZReportSummaryColor = DifferenceColorFor(diff, _settings.MaxDifferenceWithoutManager);
+        _zRecon = r;
+        _zFromClose = isFromClose;
+        ApplyZReportTexts();
 
         ZReportLines.Clear();
         try
@@ -36,9 +37,21 @@ public partial class CashShiftViewModel
         }
         catch (Exception ex)
         {
-            Notification = $"⚠️ No se pudo generar el reporte Z: {ex.Message}";
+            Notification = T("Cash.Z.GenerateFailed", ex.Message);
         }
         IsZReportVisible = true;
+    }
+
+    /// <summary>Title + one-line summary above the (Spanish, printed) Z lines; re-run when the language changes.</summary>
+    private void ApplyZReportTexts()
+    {
+        if (_zRecon is not { } r) return;
+        ZReportTitle = _zFromClose ? T("Cash.Z.TitleClosed", r.ShiftNumber) : T("Cash.Z.Title", r.ShiftNumber);
+        var diff = r.Difference ?? 0m;
+        ZReportSummary = r.CountedCash is null
+            ? T("Cash.Z.NoCount")
+            : T("Cash.Z.Summary", ReceiptFormatter.Cop(r.ExpectedCash), ReceiptFormatter.Cop(r.CountedCash.Value), SignedCop(diff));
+        ZReportSummaryColor = DifferenceColorFor(diff, _settings.MaxDifferenceWithoutManager);
     }
 
     [RelayCommand]
@@ -52,6 +65,7 @@ public partial class CashShiftViewModel
     public void DismissZReport()
     {
         IsZReportVisible = false;
+        _zRecon = null;
         ZReportLines.Clear();
     }
 
@@ -127,43 +141,59 @@ public partial class CashShiftViewModel
         OnPropertyChanged(nameof(HasDayRows));
     }
 
-    private static readonly string[] SpanishDays = { "domingo", "lunes", "martes", "miércoles", "jueves", "viernes", "sábado" };
-
     private async Task LoadDayAsync()
     {
         if (IsLoadingDay) return;
         IsLoadingDay = true;
         var today = DateOnly.FromDateTime(DateTime.Now);
         CanGoNextDay = _consolidationDay < today;
-        DayTitle = _consolidationDay == today
-            ? $"📊 Cierre del día · Hoy {_consolidationDay:dd/MM/yyyy}"
-            : $"📊 Cierre del día · {SpanishDays[(int)_consolidationDay.DayOfWeek]} {_consolidationDay:dd/MM/yyyy}";
+        UpdateDayTitle();
         DayWarning = string.Empty;
         try
         {
             var dto = await WithShiftServiceAsync(s => s.GetDayConsolidationAsync(_consolidationDay));
             _dayDto = dto;
-            DayRows.Clear();
-            foreach (var t in dto.Terminals) DayRows.Add(new TerminalDayRowViewModel(t, _settings.MaxDifferenceWithoutManager));
-            if (dto.Terminals.Count > 0) DayRows.Add(new TerminalDayRowViewModel(dto, _settings.MaxDifferenceWithoutManager));
-            DaySubtitle = dto.Terminals.Count == 0
-                ? "Sin turnos ni ventas en esta fecha."
-                : $"{dto.OrderCount} facturas · Ventas {ReceiptFormatter.Cop(dto.TotalSales)} · Recaudos {ReceiptFormatter.Cop(dto.BillPaymentsTotal)} · Diferencia {SignedCop(dto.Difference)}";
-            if (dto.OpenShiftCount > 0)
-                DayWarning = $"⚠️ {dto.OpenShiftCount} turno{(dto.OpenShiftCount == 1 ? "" : "s")} todavía abierto{(dto.OpenShiftCount == 1 ? "" : "s")}: las cifras de esa caja son parciales.";
+            RenderDay();
         }
         catch (Exception ex)
         {
             _dayDto = null;
             DayRows.Clear();
             DaySubtitle = string.Empty;
-            DayWarning = $"❌ No se pudo consolidar el día: {ex.Message}";
+            DayWarning = T("Cash.Day.LoadFailed", ex.Message);
         }
         finally
         {
             IsLoadingDay = false;
             OnPropertyChanged(nameof(HasDayRows));
         }
+    }
+
+    /// <summary>Day name comes from the UI culture (es-CO "miércoles" / en-US "Wednesday"); the date keeps dd/MM/yyyy.</summary>
+    private void UpdateDayTitle()
+    {
+        var today = DateOnly.FromDateTime(DateTime.Now);
+        var date = _consolidationDay.ToString("dd/MM/yyyy");
+        DayTitle = _consolidationDay == today
+            ? T("Cash.Day.TitleToday", date)
+            : T("Cash.Day.Title", _consolidationDay.ToString("dddd", Localizer.Instance.Culture), date);
+    }
+
+    /// <summary>Rows + subtitle + open-shift warning from the loaded day (also re-run on language change).</summary>
+    private void RenderDay()
+    {
+        UpdateDayTitle();
+        if (_dayDto is not { } dto) return;
+        DayRows.Clear();
+        foreach (var t in dto.Terminals) DayRows.Add(new TerminalDayRowViewModel(t, _settings.MaxDifferenceWithoutManager));
+        if (dto.Terminals.Count > 0) DayRows.Add(new TerminalDayRowViewModel(dto, _settings.MaxDifferenceWithoutManager));
+        DaySubtitle = dto.Terminals.Count == 0
+            ? T("Cash.Day.Empty")
+            : T("Cash.Day.Totals", dto.OrderCount, ReceiptFormatter.Cop(dto.TotalSales), ReceiptFormatter.Cop(dto.BillPaymentsTotal), SignedCop(dto.Difference));
+        DayWarning = dto.OpenShiftCount > 0
+            ? T(dto.OpenShiftCount == 1 ? "Cash.Day.OpenShifts.One" : "Cash.Day.OpenShifts.Many", dto.OpenShiftCount)
+            : string.Empty;
+        OnPropertyChanged(nameof(HasDayRows));
     }
 
     /// <summary>"🖨️ Imprimir": same printer path as the Z report.</summary>
@@ -178,7 +208,7 @@ public partial class CashShiftViewModel
         }
         catch (Exception ex)
         {
-            Notification = $"⚠️ No se pudo generar el cierre del día: {ex.Message}";
+            Notification = T("Cash.Day.GenerateFailed", ex.Message);
             return;
         }
         await PrintAsync(lines, $"Cierre-{dto.Day:yyyyMMdd}");

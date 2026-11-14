@@ -12,6 +12,7 @@ using Core.Application.Receipts;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -69,7 +70,19 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
 
     public bool IsEnabled => _settings.Enabled;
 
-    public string Title => "💳 Cobrar en datáfono";
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+
+    public string Title => T("Terminal.Title");
+
+    /// <summary>After a 🌐 toggle (called by MainViewModel): re-read the texts this VM computes in C#.
+    /// A result already on screen keeps its wording; the stage text is rebuilt from the last stage.</summary>
+    public void RefreshLanguage()
+    {
+        OnPropertyChanged(nameof(Title));
+        OnPropertyChanged(nameof(SelectedTerminalText));
+        if (IsCharging && _lastStage is { } st) ShowStage(st, null);
+    }
+    private TerminalChargeStage? _lastStage;
 
     [ObservableProperty] private bool _isOpen;
     [ObservableProperty] private string _amountText = string.Empty;
@@ -82,7 +95,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
     private TerminalChoiceViewModel? _selectedTerminal;
 
     public bool CanCharge => SelectedTerminal != null && IsSelecting;
-    public string SelectedTerminalText => SelectedTerminal is { } t ? $"{t.Name} · {t.Detail}" : "Elija el datáfono";
+    public string SelectedTerminalText => SelectedTerminal is { } t ? $"{t.Name} · {t.Detail}" : T("Terminal.Choose");
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(IsSelecting), nameof(IsCharging), nameof(IsApproved), nameof(IsFailed), nameof(CanCharge), nameof(BorderColor))]
@@ -100,10 +113,26 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
     /// <summary>Approved: "AUTH 123456 · VISA ****4242". Failed: the terminal's message.</summary>
     [ObservableProperty] private string _resultTitle = string.Empty;
     [ObservableProperty] private string _resultMessage = string.Empty;
-    [ObservableProperty] private string _resultColor = "#64748B";
+    /// <summary>Hex from ThemePalette (never a literal): muted while idle/cancelled, danger declined, warning timeout/error, success approved.</summary>
+    [ObservableProperty] private string _resultColor = ThemePalette.TextFaint;
+    private TerminalPaymentStatus? _lastStatus;
 
-    public string BorderColor => IsApproved ? "#10B981" : IsFailed ? ResultColor : "#38BDF8";
+    public string BorderColor => IsApproved ? ThemePalette.Success : IsFailed ? ResultColor : ThemePalette.Info;
     partial void OnResultColorChanged(string value) => OnPropertyChanged(nameof(BorderColor));
+
+    /// <summary>After a 🌙/☀️ toggle (called by MainViewModel): re-read the palette for the colours this VM exposes.</summary>
+    public void RefreshTheme()
+    {
+        ResultColor = IsApproved ? ThemePalette.Success : _lastStatus is { } st ? ColorFor(st) : ThemePalette.TextFaint;
+        OnPropertyChanged(nameof(BorderColor));
+    }
+
+    private static string ColorFor(TerminalPaymentStatus status) => status switch
+    {
+        TerminalPaymentStatus.Declined => ThemePalette.Danger,
+        TerminalPaymentStatus.Cancelled => ThemePalette.TextFaint,
+        _ => ThemePalette.Warning
+    };
 
     /// <summary>Last loading / charge problem shown under the terminal list (the dialog still works).</summary>
     [ObservableProperty]
@@ -115,8 +144,8 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         Guid? orderId = null, Guid? comandaId = null, Guid? billPaymentId = null, Guid? cashShiftId = null, string? description = null)
     {
         if (!_settings.Enabled) return TerminalChargeOutcome.Manual;
-        if (amount <= 0) return TerminalChargeOutcome.Aborted("El monto a cobrar debe ser mayor que cero.");
-        if (IsOpen) return TerminalChargeOutcome.Aborted("Ya hay un cobro en datáfono en curso."); // one charge at a time
+        if (amount <= 0) return TerminalChargeOutcome.Aborted(T("Terminal.Error.Amount"));
+        if (IsOpen) return TerminalChargeOutcome.Aborted(T("Terminal.Error.Busy")); // one charge at a time
 
         // Registry read on a worker thread with its own scope (DbContext is not thread-safe; singleton VM).
         System.Collections.Generic.IReadOnlyList<PaymentTerminalDto> terminals;
@@ -152,7 +181,8 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         ErrorMessage = string.Empty;
         ResultTitle = string.Empty;
         ResultMessage = string.Empty;
-        ResultColor = "#64748B";
+        ResultColor = ThemePalette.TextFaint;
+        _lastStatus = null;
         StageText = string.Empty;
 
         Terminals.Clear();
@@ -190,7 +220,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         _cts = new CancellationTokenSource();
         var token = _cts.Token;
         ErrorMessage = string.Empty;
-        ShowStage(TerminalChargeStage.Connecting, "Conectando con el datáfono…");
+        ShowStage(TerminalChargeStage.Connecting, T("Terminal.Stage.ConnectingTo"));
         Phase = (int)ChargePhase.Charging;
 
         var progress = new Progress<TerminalChargeProgress>(p =>
@@ -208,7 +238,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         }
         catch (OperationCanceledException)
         {
-            failure = "Cancelada desde el POS.";
+            failure = T("Terminal.Cancelled.FromPos");
         }
         catch (InvalidOperationException ex)
         {
@@ -216,7 +246,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         }
         catch (Exception ex)
         {
-            failure = $"No se pudo cobrar: {ex.Message}";
+            failure = T("Terminal.Error.Charge", ex.Message);
         }
         finally
         {
@@ -229,9 +259,9 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         _lastCharge = charge;
         if (charge is { IsApproved: true })
         {
-            ResultTitle = "✅ Aprobada";
+            ResultTitle = T("Terminal.Result.Approved");
             ResultMessage = charge.ReferenceText;
-            ResultColor = "#10B981";
+            ResultColor = ThemePalette.Success;
             Phase = (int)ChargePhase.Approved;
             await Task.Delay(ApprovedAutoClose);
             Complete(new TerminalChargeOutcome(charge, false));
@@ -241,25 +271,22 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         var status = charge?.Status ?? (token.IsCancellationRequested ? TerminalPaymentStatus.Cancelled : TerminalPaymentStatus.Error);
         ResultTitle = status switch
         {
-            TerminalPaymentStatus.Declined => "❌ Rechazada",
-            TerminalPaymentStatus.Cancelled => "⛔ Cancelada",
-            TerminalPaymentStatus.Timeout => "⏱️ Sin respuesta del datáfono",
-            _ => "⚠️ Error en el datáfono"
+            TerminalPaymentStatus.Declined => T("Terminal.Result.Declined"),
+            TerminalPaymentStatus.Cancelled => T("Terminal.Result.Cancelled"),
+            TerminalPaymentStatus.Timeout => T("Terminal.Result.Timeout"),
+            _ => T("Terminal.Result.Error")
         };
-        ResultMessage = charge?.Message ?? failure ?? "El datáfono no completó el cobro.";
-        ResultColor = status switch
-        {
-            TerminalPaymentStatus.Declined => "#EF4444",
-            TerminalPaymentStatus.Cancelled => "#64748B",
-            _ => "#F59E0B"
-        };
+        ResultMessage = charge?.Message ?? failure ?? T("Terminal.Result.Incomplete");
+        _lastStatus = status;
+        ResultColor = ColorFor(status);
         if (status == TerminalPaymentStatus.Error)
-            ResultMessage += " Verifique en el datáfono si la transacción quedó aprobada antes de reintentar.";
+            ResultMessage += T("Terminal.Result.VerifyBeforeRetry");
         Phase = (int)ChargePhase.Failed;
     }
 
-    private void ShowStage(TerminalChargeStage stage, string message)
+    private void ShowStage(TerminalChargeStage stage, string? message)
     {
+        _lastStage = stage;
         StageIcon = stage switch
         {
             TerminalChargeStage.Connecting => "📡",
@@ -270,10 +297,10 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         StageText = string.IsNullOrWhiteSpace(message)
             ? stage switch
             {
-                TerminalChargeStage.Connecting => "Conectando…",
-                TerminalChargeStage.WaitingForCard => "Acerque o inserte la tarjeta…",
-                TerminalChargeStage.Processing => "Procesando…",
-                _ => "Listo"
+                TerminalChargeStage.Connecting => T("Terminal.Stage.Connecting"),
+                TerminalChargeStage.WaitingForCard => T("Terminal.Stage.WaitingForCard"),
+                TerminalChargeStage.Processing => T("Terminal.Stage.Processing"),
+                _ => T("Terminal.Stage.Done")
             }
             : message;
     }
@@ -283,7 +310,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
     private void CancelCharge()
     {
         if (!IsCharging) return;
-        StageText = "Cancelando…";
+        StageText = T("Terminal.Stage.Cancelling");
         try { _cts?.Cancel(); } catch (ObjectDisposedException) { }
     }
 
@@ -313,7 +340,7 @@ public partial class TerminalChargePromptViewModel : ObservableObject, ITerminal
         if (IsApproved) return; // auto-closes with the approved charge
         var msg = IsFailed && !string.IsNullOrWhiteSpace(ResultMessage)
             ? $"{ResultTitle} · {ResultMessage}"
-            : "Cobro en datáfono cancelado.";
+            : T("Terminal.Cancelled.Message");
         Complete(new TerminalChargeOutcome(_lastCharge, false, msg));
     }
 

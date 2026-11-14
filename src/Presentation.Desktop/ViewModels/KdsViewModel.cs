@@ -12,6 +12,7 @@ using Core.Application.Kitchen;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -37,11 +38,16 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     private bool _loading;
     private bool _reloadRequested;
 
-    [ObservableProperty] private string _selectedStation = "Todas";
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+
+    /// <summary>Label of the "all stations" filter in the current language (Stations[0]); station names are data.</summary>
+    private string _allStationsLabel = T("Kds.Station.All");
+
+    [ObservableProperty] private string _selectedStation = T("Kds.Station.All");
     [ObservableProperty] private int _pendingCount;
     [ObservableProperty] private int _inPrepCount;
     [ObservableProperty] private int _readyCount;
-    [ObservableProperty] private string _kdsTitle = "KDS - Sistema de Pantallas de Cocina";
+    [ObservableProperty] private string _kdsTitle = T("Kds.WindowTitle");
     [ObservableProperty] private string _statusMessage = string.Empty;
 
     /// <summary>True while subscribed to the kitchen event bus: cards update instantly, the poll is only a fallback.
@@ -53,7 +59,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
 
     public const string MasterOfflineMessage = "Sin conexión con la caja principal";
 
-    public ObservableCollection<string> Stations { get; } = new() { "Todas", "Cocina Caliente", "Barra", "Parrilla" };
+    public ObservableCollection<string> Stations { get; } = new() { T("Kds.Station.All"), "Cocina Caliente", "Barra", "Parrilla" };
     public ObservableCollection<KitchenOrderCardViewModel> FilteredOrders { get; } = new();
     private readonly List<KitchenOrderCardViewModel> _allOrders = new();
 
@@ -88,6 +94,8 @@ public partial class KdsViewModel : ObservableObject, IDisposable
             IsLive = true;
         }
 
+        Localizer.Instance.Changed += OnLanguageChanged;
+
         _ = LoadOrdersAsync();
         _timer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(1) };
         _timer.Tick += async (_, _) => await TickAsync();
@@ -112,10 +120,23 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         });
     }
 
+    /// <summary>Language switched: "Todas" chip + every card's texts (badges, button, tooltip, waiter line) in place.
+    /// The status bar keeps its last message until the next action.</summary>
+    private void OnLanguageChanged()
+    {
+        var wasAll = SelectedStation == _allStationsLabel;
+        _allStationsLabel = T("Kds.Station.All");
+        Stations[0] = _allStationsLabel;
+        if (wasAll) SelectedStation = _allStationsLabel;
+        KdsTitle = T("Kds.WindowTitle");
+        foreach (var card in _allOrders) card.RefreshTexts();
+    }
+
     private DateTime UtcNow => _clock.GetUtcNow().UtcDateTime;
 
     public void Dispose()
     {
+        Localizer.Instance.Changed -= OnLanguageChanged;
         _timer.Stop();
         _eventDebounce.Stop();
         _eventSubscription.Dispose();
@@ -142,7 +163,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
             }
             return;
         }
-        StatusMessage = $"❌ Error leyendo órdenes: {ex.Message}";
+        StatusMessage = T("Kds.Status.ReadError", ex.Message);
     }
 
     private async Task TickAsync()
@@ -240,7 +261,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     private void FilterOrders()
     {
         var wanted = _allOrders
-            .Where(o => SelectedStation == "Todas" || o.Station.Equals(SelectedStation, StringComparison.OrdinalIgnoreCase))
+            .Where(o => SelectedStation == _allStationsLabel || o.Station.Equals(SelectedStation, StringComparison.OrdinalIgnoreCase))
             .ToList();
 
         // Minimal diff keeps existing card visuals alive.
@@ -264,11 +285,11 @@ public partial class KdsViewModel : ObservableObject, IDisposable
     // ── Card actions ─────────────────────────────────────────────────────────
     private Task AdvanceAsync(KitchenOrderCardViewModel card) =>
         RunAsync(card, svc => svc.AdvanceAsync(card.Id), updated => updated.Status == KitchenOrderStatus.Delivered
-            ? $"✔️ {card.TableNumber} entregada · se archiva en {_settings.ArchiveDelaySeconds}s"
+            ? T("Kds.Status.DeliveredArchiving", card.TableNumber, _settings.ArchiveDelaySeconds)
             : null);
 
     private Task UndoAsync(KitchenOrderCardViewModel card) =>
-        RunAsync(card, svc => svc.UndoDeliverAsync(card.Id), _ => $"↩ {card.TableNumber} restaurada");
+        RunAsync(card, svc => svc.UndoDeliverAsync(card.Id), _ => T("Kds.Status.Restored", card.TableNumber));
 
     private async Task PrintAsync(KitchenOrderCardViewModel card)
     {
@@ -286,10 +307,10 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         if (!await _printerService.PrintKitchenTicketAsync(receipt, card.Station))
         {
             // Don't mark as printed: the button stays green so the cook knows it didn't come out.
-            StatusMessage = $"⚠️ No se pudo imprimir {card.TableNumber} (guardado como TXT)";
+            StatusMessage = T("Kds.Status.PrintFailed", card.TableNumber);
             return;
         }
-        await RunAsync(card, svc => svc.MarkPrintedAsync(card.Id), _ => $"🖨️ {card.TableNumber} impresa");
+        await RunAsync(card, svc => svc.MarkPrintedAsync(card.Id), _ => T("Kds.Status.Printed", card.TableNumber));
     }
 
     private async Task RunAsync(KitchenOrderCardViewModel card,
@@ -308,7 +329,7 @@ public partial class KdsViewModel : ObservableObject, IDisposable
         catch (Exception ex) when (IsConnectivityError(ex))
         {
             IsMasterOffline = true; // header line; the card keeps its state until the master answers again
-            StatusMessage = $"⚠️ {MasterOfflineMessage} · {card.TableNumber} no se actualizó, reintente";
+            StatusMessage = T("Kds.Status.OfflineNotUpdated", card.TableNumber);
         }
         catch (Exception ex)
         {

@@ -8,7 +8,7 @@
 ## Build status
 - ✅ `dotnet build` passes (0 errors, 0 warnings).
 - ✅ `dotnet test` passes (42 tests, including 4 MVP E2E integration tests).
-- ✅ 1079 tests pass (`dotnet test`) — 2026-11-14 (segunda caja parte 2).
+- ✅ 1084 tests pass (`dotnet test`) — 2026-11-14 (temas + idiomas).
 - Toolchain: dotnet SDK 8.0.428 at `~/.dotnet/dotnet`; docker available.
 
 ## Done ✅
@@ -241,6 +241,11 @@
 - Desktop: satellite DI swaps IComandaService/IKitchenService for the remote ones + `MasterKitchenSocketClient` (started by SatelliteSyncWorker); Comandas/KDS tabs visible on satellites; `ComandaViewModel` reacts to ComandaChanged only, locks on "Cerrar"/select, unlocks on leave/reopen; lock banner + list tag; offline amber messages; KDS `IsMasterOffline`.
 - Known gaps: pay + ComandaClosedRemotely in two SaveChanges on the satellite; local re-pricing; remote cancel override has ManagerUserId = Guid.Empty; satellites cannot open/charge tables offline.
 
+### Themes (Dark/Light) + languages (es/en) + top bar (2026-11-14 tarde; verified: 1084 tests, screenshots dark/es + light/en)
+- `Styles/Theme.axaml` (ThemeDictionaries tokens), `Styles/Controls.axaml` (`Button.tab[.active|.compact]`, `Button.chip`, hover fix via `/template/ ContentPresenter#PART_ContentPresenter`), `Services/ThemeService.cs` (`UiSettings{Theme,Language}`, `ThemeService`, `ThemePalette`), `Converters/BoolToResourceConverter` (resource keys, live on theme change). Every view/VM uses tokens; `BoolToColorConverter` legacy.
+- `Localization/Localizer.cs` (`T`, indexer, `LocExtension`, merges `Assets/i18n/{lang}*.json`, persists `ui.json`), tables `es/en.{json,masters,cash,sales,kitchen}.json`; VMs re-raise texts on `Localizer.Changed`. `tests/Ui/I18nTablesTests.cs` guards parity. Documents/services/Core labels stay Spanish.
+- `MainViewModel.SetWidth` tiers (1200/1750/2100), "⋯" flyout, labelled chips, theme + language chips. Known: one-shot messages keep the language they were written in; `Numpad` default labels from keys.
+
 ## Next recommended steps
 1. ~~Refactor CheckoutViewModel to use ISalesService~~ ✅ Done
 2. ~~Implement in-cart return system (Fase 1)~~ ✅ Done
@@ -252,6 +257,7 @@
 8. ~~Second cash register (master/satellite)~~ ✅ 2026-11-13.
 9. ~~Payment terminal / pay-at-table~~ ✅ 2026-11-13.
 10. ~~Second register part 2 (shared comandas/KDS)~~ ✅ 2026-11-14.
-11. ERP integration phase A (`Docs/erp-integration-hooks.md`), real payment-terminal provider driver, or second register part 3 (mDNS, replicated customers/overrides).
+11. ~~Themes + languages + top bar~~ ✅ 2026-11-14.
+12. ERP integration phase A (`Docs/erp-integration-hooks.md`), real payment-terminal provider driver, or second register part 3 (mDNS, replicated customers/overrides).
 5. Add integration tests for printer output against Docker emulator.
 6. Embed Kestrel into desktop; WebSocket hardening; KDS fallback printing.

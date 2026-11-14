@@ -9,6 +9,7 @@ using Infrastructure.Data.Context;
 using Infrastructure.Data.Seed;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 using Presentation.Desktop.ViewModels;
 using Presentation.Desktop.Views;
@@ -44,6 +45,16 @@ public partial class App : Application
         var serviceCollection = new ServiceCollection();
         serviceCollection.AddLoqzenPosServices(configuration);
         Services = serviceCollection.BuildServiceProvider();
+
+        // ── Theme (Dark / Light token dictionaries) ──────────────────────────────
+        // Before any window exists: the saved choice (ui.json) or appsettings Ui:Theme, so the first frame
+        // already renders in the right palette and ThemePalette reads the right tokens in the ViewModels.
+        Services.GetRequiredService<ThemeService>().ApplySaved();
+
+        // ── UI language (es / en) ────────────────────────────────────────────────
+        // Same convention as the theme: appsettings Ui:Language, overridden by the user's last choice in ui.json
+        // (default data dir = <LocalApplicationData>/LoqzenPos). Documents (receipts, tickets) stay in Spanish.
+        Localizer.Instance.ApplySaved(Services.GetRequiredService<UiSettings>().Language);
 
         // ── Initialize Database ──────────────────────────────────────────────────
         using (var scope = Services.CreateScope())

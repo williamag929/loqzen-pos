@@ -3,129 +3,221 @@
         xmlns:vm="using:Presentation.Desktop.ViewModels"
         xmlns:views="using:Presentation.Desktop.Views"
         xmlns:converters="using:Presentation.Desktop.Converters"
+        xmlns:i18n="using:Presentation.Desktop.Localization"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
         x:Class="Presentation.Desktop.Views.MainWindow"
         x:DataType="vm:MainViewModel"
         Icon="/Assets/avalonia-logo.ico"
-        Title="Loqzen POS Standalone - Volcora Edition"
+        Title="{i18n:Loc App.Title}"
         WindowState="Maximized"
         MinWidth="900" MinHeight="600"
-        Background="#0F172A">
+        Background="{DynamicResource BgApp}">
 
     <Window.Resources>
+        <!-- Legacy converter, still looked up by StaticResource in older child views (also registered in App.axaml). -->
         <converters:BoolToColorConverter x:Key="BoolToColor"/>
     </Window.Resources>
+
+    <Window.Styles>
+        <!-- Rows inside the "⋯" flyout: the same chips at full size, left-aligned, wrapping long status texts. -->
+        <Style Selector="StackPanel.flyout > Button.chip">
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Left"/>
+            <Setter Property="Height" Value="NaN"/>
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="FontSize" Value="14"/>
+        </Style>
+        <Style Selector="StackPanel.flyout > Border.chipRow">
+            <Setter Property="MinHeight" Value="48"/>
+            <Setter Property="Padding" Value="14,10"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="StackPanel.flyout TextBlock">
+            <Setter Property="TextWrapping" Value="Wrap"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+        <!-- Terminal chip in the bar: a Border (not a button) that shares the chip geometry. -->
+        <Style Selector="Border.chipRow">
+            <Setter Property="Height" Value="48"/>
+            <Setter Property="MinWidth" Value="48"/>
+            <Setter Property="Padding" Value="10,0"/>
+            <Setter Property="Margin" Value="3"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="VerticalAlignment" Value="Center"/>
+        </Style>
+    </Window.Styles>
 
     <!-- Root Panel: app chrome + full-window overlays (manager PIN, login) that render on top. -->
     <Panel>
     <Grid RowDefinitions="Auto, *">
 
         <!-- ── GLOBAL NAV BAR ─────────────────────────────────────────
-             Responsive: tabs live in a WrapPanel (second row when narrow); below 1200 px the window
-             sets IsCompact → short tab labels, icon-only tools, brand subtitle hidden. MinWidth 900. -->
-        <Border Grid.Row="0" Background="#020617" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="16,10">
+             Responsive (MainViewModel.SetWidth): < 1200 px IsCompact → short tab labels + Button.tab.compact;
+             < 1750 px IsToolsCollapsed → the tool chips collapse into ONE "⋯" chip with a Flyout; ≥ 2100 px IsWide →
+             brand subtitle. The tabs live in a WrapPanel: if a role/terminal combination still does not fit, they
+             wrap to a second row instead of overlapping the tools. MinWidth 900. -->
+        <Border Grid.Row="0" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="16,10">
             <Grid ColumnDefinitions="Auto, *, Auto">
 
                 <!-- Brand -->
                 <StackPanel Grid.Column="0" Orientation="Horizontal" Spacing="10" VerticalAlignment="Center" Margin="0,0,12,0">
-                    <Border Background="#2563EB" CornerRadius="6" Padding="8,4">
-                        <TextBlock Text="LOQZEN" Foreground="White" FontWeight="Black" FontSize="13"/>
+                    <Border Background="{DynamicResource Accent}" CornerRadius="6" Padding="8,4">
+                        <TextBlock Text="{i18n:Loc App.Brand}" Foreground="{DynamicResource TextOnAccent}" FontWeight="Black" FontSize="13"/>
                     </Border>
-                    <TextBlock Text="Terminal POS Standalone" Foreground="White" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"
+                    <TextBlock Text="{i18n:Loc App.Subtitle}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" FontSize="16" VerticalAlignment="Center"
                                IsVisible="{Binding IsWide}"/>
-                    <Border Background="#1E293B" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" IsVisible="{Binding IsWide}">
-                        <TextBlock Text="OFFLINE-FIRST" Foreground="#10B981" FontSize="10" FontWeight="Bold"/>
+                    <Border Background="{DynamicResource SuccessSurface}" CornerRadius="4" Padding="6,2" Margin="6,0,0,0" IsVisible="{Binding IsWide}">
+                        <TextBlock Text="{i18n:Loc App.OfflineFirst}" Foreground="{DynamicResource SuccessText}" FontSize="10" FontWeight="Bold"/>
                     </Border>
                 </StackPanel>
 
-                <!-- Navigation Tabs – touch targets >= 44px; each tab hides for roles that may not use it
-                     AND on a satellite register (Comandas / KDS / Maestros live on the master).
-                     WrapPanel inside the * column wraps to a second row instead of overlapping the tools. -->
+                <!-- Navigation Tabs – Button.tab (48 px touch targets, hover fixed in Styles/Controls.axaml);
+                     .active = current screen, .compact = narrow window. Each tab hides for roles that may not use it
+                     AND on a satellite register (Maestros lives on the master). -->
                 <WrapPanel Grid.Column="1" Orientation="Horizontal" HorizontalAlignment="Center" VerticalAlignment="Center">
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsCheckoutActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding CheckoutTabLabel}" IsVisible="{Binding IsCheckoutTabVisible}"
-                            Background="{Binding IsCheckoutActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowCheckoutCommand}"/>
+                            Command="{Binding ShowCheckoutCommand}"/>
 
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsComandaActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding ComandasTabLabel}" IsVisible="{Binding IsComandasTabVisible}"
-                            Background="{Binding IsComandaActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowComandasCommand}"/>
+                            Command="{Binding ShowComandasCommand}"/>
 
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsKdsActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding KdsTabLabel}" IsVisible="{Binding IsKdsTabVisible}"
-                            Background="{Binding IsKdsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowKdsCommand}"/>
+                            Command="{Binding ShowKdsCommand}"/>
 
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsCashShiftActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding CashShiftTabLabel}" IsVisible="{Binding IsCashShiftTabVisible}"
-                            Background="{Binding IsCashShiftActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowCashShiftCommand}"/>
+                            Command="{Binding ShowCashShiftCommand}"/>
 
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsBillPaymentsActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding BillPaymentsTabLabel}" IsVisible="{Binding IsBillPaymentsTabVisible}"
-                            Background="{Binding IsBillPaymentsActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowBillPaymentsCommand}"/>
+                            Command="{Binding ShowBillPaymentsCommand}"/>
 
-                    <Button Height="44" Padding="18,0" Margin="4" CornerRadius="8" FontWeight="Bold" FontSize="14"
+                    <Button Classes="tab" Classes.active="{Binding IsMastersActive}" Classes.compact="{Binding IsCompact}"
                             Content="{Binding MastersTabLabel}" IsVisible="{Binding IsMastersTabVisible}"
-                            Background="{Binding IsMastersActive, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                            Foreground="White" Command="{Binding ShowMastersCommand}"/>
+                            Command="{Binding ShowMastersCommand}"/>
                 </WrapPanel>
 
-                <!-- Peripheral Tools (cashier and up) + LAN chip + signed-in user chip.
-                     Icon-only when compact; the full label is in the tooltip (secondary hint, not primary actions). -->
-                <WrapPanel Grid.Column="2" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
-                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" IsVisible="{Binding Session.CanAccessCheckout}"
-                            Background="#1E293B" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="8"
-                            Foreground="#38BDF8" FontWeight="Bold"
-                            Content="{Binding ScanLabel}"
-                            ToolTip.Tip="Scan: simular escáner USB HID (Código de Barras)"
-                            Command="{Binding TriggerBarcodeScanCommand}"/>
+                <!-- Tools: every chip has a SHORT visible label (no tooltip-only chips: tooltips do not exist on touch)
+                     and a distinct icon: ▣ scanner · 📺 customer display · 🌐 LAN · 🏪 this register · 👤 user · 🌙/☀️ theme · 🌐 language.
+                     Colour semantics (BorderBrush/Foreground): Info scanner, Success display, Purple LAN, register =
+                     TerminalChipColor (green ok / amber offline-pending / red error), Warning change-user. -->
+                <Panel Grid.Column="2" VerticalAlignment="Center" Margin="12,0,0,0">
 
-                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" IsVisible="{Binding Session.CanAccessCheckout}"
-                            Background="#1E293B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8"
-                            Foreground="#10B981" FontWeight="Bold"
-                            Content="{Binding CustomerDisplayLabel}"
-                            ToolTip.Tip="Visor Cliente: abrir pantalla secundaria del cliente"
-                            Command="{Binding OpenCustomerDisplayCommand}"/>
+                    <!-- Expanded (≥ 1750 px): chips side by side. -->
+                    <WrapPanel Orientation="Horizontal" VerticalAlignment="Center" IsVisible="{Binding IsToolsExpanded}">
+                        <Button Classes="chip" IsVisible="{Binding Session.CanAccessCheckout}"
+                                BorderBrush="{DynamicResource Info}" Foreground="{DynamicResource Info}"
+                                Content="{Binding ScanLabel}" ToolTip.Tip="{Binding ScanFullLabel}"
+                                Command="{Binding TriggerBarcodeScanCommand}"/>
 
-                    <!-- LAN server chip: browser-KDS URL for tablets + connected clients; tap = copy URL.
-                         Hidden when Server.Enabled=false; cashier and up. Trimmed so it never widens the bar. -->
-                    <Button Height="44" MinWidth="44" Padding="12,0" Margin="4" MaxWidth="260" IsVisible="{Binding IsLanChipVisible}"
-                            Background="#1E293B" BorderBrush="#A78BFA" BorderThickness="1" CornerRadius="8"
-                            Foreground="#C4B5FD" FontWeight="Bold" FontSize="12"
-                            HorizontalContentAlignment="Stretch"
-                            ToolTip.Tip="{Binding LanChipDisplayTooltip}"
-                            Command="{Binding CopyKdsUrlCommand}">
-                        <TextBlock Text="{Binding LanChipDisplayText}" TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                    </Button>
+                        <Button Classes="chip" IsVisible="{Binding Session.CanAccessCheckout}"
+                                BorderBrush="{DynamicResource SuccessBright}" Foreground="{DynamicResource SuccessBright}"
+                                Content="{Binding CustomerDisplayLabel}" ToolTip.Tip="{Binding CustomerDisplayFullLabel}"
+                                Command="{Binding OpenCustomerDisplayCommand}"/>
 
-                    <!-- Terminal chip: this register (CAJA-01 · Principal · N satélites) or, on a satellite, the link
-                         with the master (green synced / amber selling offline / red config error). Not a button. -->
-                    <Border Height="44" MinWidth="44" Padding="12,0" Margin="4" MaxWidth="300" IsVisible="{Binding IsTerminalChipVisible}"
-                            Background="#1E293B" BorderBrush="{Binding TerminalChipColor}" BorderThickness="1" CornerRadius="8"
-                            ToolTip.Tip="{Binding TerminalChipDisplayTooltip}" VerticalAlignment="Center">
-                        <TextBlock Text="{Binding TerminalChipDisplayText}" Foreground="{Binding TerminalChipColor}" FontWeight="Bold" FontSize="12"
-                                   TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
-                    </Border>
+                        <!-- LAN server chip: "🌐 LAN · n" (clients) / "🌐 LAN ⚠️"; tap = copy the browser-KDS URL.
+                             Hidden when Server.Enabled=false; cashier and up. -->
+                        <Button Classes="chip" IsVisible="{Binding IsLanChipVisible}"
+                                BorderBrush="{DynamicResource Purple}" Foreground="{DynamicResource Purple}"
+                                Content="{Binding LanChipDisplayText}" ToolTip.Tip="{Binding LanChipDisplayTooltip}"
+                                Command="{Binding CopyKdsUrlCommand}"/>
 
-                    <!-- User chip: who is signed in + change user (back to PIN screen) -->
-                    <StackPanel Orientation="Horizontal" IsVisible="{Binding Session.IsLoggedIn}">
-                        <Border Background="#1E293B" CornerRadius="8" Padding="12,0" Margin="4" Height="44" MaxWidth="200" VerticalAlignment="Center">
-                            <TextBlock Text="{Binding Session.ChipText}" Foreground="#E2E8F0" FontSize="13" FontWeight="Bold"
+                        <!-- Terminal chip: this register (CAJA-01) or, on a satellite, the link state with the master. Not a button. -->
+                        <Border Classes="chipRow" IsVisible="{Binding IsTerminalChipVisible}" MaxWidth="260"
+                                BorderBrush="{Binding TerminalChipColor}" ToolTip.Tip="{Binding TerminalChipDisplayTooltip}">
+                            <TextBlock Text="{Binding TerminalChipDisplayText}" Foreground="{Binding TerminalChipColor}" FontWeight="Bold" FontSize="12"
                                        TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
                         </Border>
-                        <Button Height="44" MinWidth="44" Padding="12,0" Margin="4"
-                                Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8"
-                                Foreground="#F59E0B" FontWeight="Bold"
-                                Content="{Binding LogoutLabel}"
-                                ToolTip.Tip="Cambiar usuario (volver a la pantalla de PIN)"
-                                Command="{Binding LogoutCommand}"/>
-                    </StackPanel>
-                </WrapPanel>
+
+                        <!-- User chip: who is signed in + change user (back to PIN screen) -->
+                        <StackPanel Orientation="Horizontal" IsVisible="{Binding Session.IsLoggedIn}">
+                            <Border Classes="chipRow" BorderBrush="{DynamicResource Border}" MaxWidth="160" ToolTip.Tip="{Binding Session.ChipText}">
+                                <TextBlock Text="{Binding UserChipText}" Foreground="{DynamicResource TextPrimary}" FontSize="12" FontWeight="Bold"
+                                           TextTrimming="CharacterEllipsis" VerticalAlignment="Center"/>
+                            </Border>
+                            <Button Classes="chip"
+                                    BorderBrush="{DynamicResource Warning}" Foreground="{DynamicResource WarningBright}"
+                                    Content="{Binding LogoutLabel}" ToolTip.Tip="{Binding LogoutFullLabel}"
+                                    Command="{Binding LogoutCommand}"/>
+                        </StackPanel>
+
+                        <!-- Theme chip (every role): 🌙 Oscuro / ☀️ Claro, tap toggles and persists. -->
+                        <Button Classes="chip"
+                                BorderBrush="{DynamicResource Border}" Foreground="{DynamicResource TextSecondary}"
+                                Content="{Binding ThemeLabel}" ToolTip.Tip="{Binding ThemeFullLabel}"
+                                Command="{Binding ToggleThemeCommand}"/>
+
+                        <!-- Language chip (every role): 🌐 ES / 🌐 EN, tap toggles and persists (ui.json). -->
+                        <Button Classes="chip"
+                                BorderBrush="{DynamicResource Border}" Foreground="{DynamicResource TextSecondary}"
+                                Content="{Binding LanguageLabel}" ToolTip.Tip="{Binding LanguageFullLabel}"
+                                Command="{Binding ToggleLanguageCommand}"/>
+                    </WrapPanel>
+
+                    <!-- Collapsed (< 1750 px): ONE 48 px "⋯" chip. Its border carries the register status colour so a
+                         red/amber state is still visible while collapsed. The Flyout lists the same chips at full size
+                         with their full labels (vertical StackPanel; DataContext is inherited from the button). -->
+                    <Button Classes="chip" IsVisible="{Binding IsToolsCollapsed}" Width="48" Padding="0" FontSize="20"
+                            HorizontalContentAlignment="Center"
+                            BorderBrush="{Binding TerminalChipColor}" Foreground="{DynamicResource TextPrimary}"
+                            Content="{Binding MoreChipLabel}" ToolTip.Tip="{Binding MoreChipTooltip}">
+                        <Button.Flyout>
+                            <Flyout Placement="BottomEdgeAlignedRight" ShowMode="Transient">
+                                <StackPanel Classes="flyout" Width="360" Spacing="2">
+                                    <Button Classes="chip" IsVisible="{Binding Session.CanAccessCheckout}"
+                                            BorderBrush="{DynamicResource Info}" Foreground="{DynamicResource Info}"
+                                            Content="{Binding ScanFullLabel}" Command="{Binding TriggerBarcodeScanCommand}"/>
+
+                                    <Button Classes="chip" IsVisible="{Binding Session.CanAccessCheckout}"
+                                            BorderBrush="{DynamicResource SuccessBright}" Foreground="{DynamicResource SuccessBright}"
+                                            Content="{Binding CustomerDisplayFullLabel}" Command="{Binding OpenCustomerDisplayCommand}"/>
+
+                                    <Button Classes="chip" IsVisible="{Binding IsLanChipVisible}"
+                                            BorderBrush="{DynamicResource Purple}" Foreground="{DynamicResource Purple}"
+                                            Command="{Binding CopyKdsUrlCommand}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding LanChipText}" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding LanChipTooltip}" FontSize="12" FontWeight="Normal" Foreground="{DynamicResource TextMuted}"/>
+                                        </StackPanel>
+                                    </Button>
+
+                                    <Border Classes="chipRow" IsVisible="{Binding IsTerminalChipVisible}" BorderBrush="{Binding TerminalChipColor}">
+                                        <StackPanel Spacing="2">
+                                            <TextBlock Text="{Binding TerminalChipText}" Foreground="{Binding TerminalChipColor}" FontWeight="Bold" FontSize="14"/>
+                                            <TextBlock Text="{Binding TerminalChipTooltip}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
+                                        </StackPanel>
+                                    </Border>
+
+                                    <Border Classes="chipRow" IsVisible="{Binding Session.IsLoggedIn}" BorderBrush="{DynamicResource Border}">
+                                        <TextBlock Text="{Binding Session.ChipText}" Foreground="{DynamicResource TextPrimary}" FontWeight="Bold" FontSize="14"/>
+                                    </Border>
+                                    <Button Classes="chip" IsVisible="{Binding Session.IsLoggedIn}"
+                                            BorderBrush="{DynamicResource Warning}" Foreground="{DynamicResource WarningBright}"
+                                            Content="{Binding LogoutFullLabel}" Command="{Binding LogoutCommand}"/>
+
+                                    <Button Classes="chip"
+                                            BorderBrush="{DynamicResource Border}" Foreground="{DynamicResource TextSecondary}"
+                                            Content="{Binding ThemeFullLabel}" Command="{Binding ToggleThemeCommand}"/>
+
+                                    <Button Classes="chip"
+                                            BorderBrush="{DynamicResource Border}" Foreground="{DynamicResource TextSecondary}"
+                                            Content="{Binding LanguageFullLabel}" Command="{Binding ToggleLanguageCommand}"/>
+                                </StackPanel>
+                            </Flyout>
+                        </Button.Flyout>
+                    </Button>
+                </Panel>
             </Grid>
         </Border>
 

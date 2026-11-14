@@ -103,6 +103,21 @@ Luego lee, en este orden:
 
 ---
 
+### 4.5 Temas (oscuro / claro)
+
+- Los colores viven **solo** en `src/Presentation.Desktop/Styles/Theme.axaml` (`ThemeDictionaries` Dark y Light). Las vistas usan `{DynamicResource Token}`; **nunca un literal hex**. Elige el token por **rol**, no por color: `BgApp` (página), `BgBar` (barra superior), `BgSurface` (tarjetas, botones, inputs), `BgSurface2` (tarjeta dentro de tarjeta), `Border`/`BorderSubtle`/`BorderStrong`, `TextPrimary`/`TextSecondary`/`TextMuted`/`TextFaint`, y semánticos `Accent`/`Success`/`Warning`/`Danger`/`Info`/`Purple` con variantes `Strong` (relleno), `Bright` (texto sobre fondo oscuro), `Surface` (fondo teñido) y `Text` (texto sobre `Surface`).
+- Estilos compartidos en `Styles/Controls.axaml`: `Button.tab` (+ `Classes.active="{Binding IsXActive}"`) y `Button.chip`. Los selectores `:pointerover /template/ ContentPresenter#PART_ContentPresenter` existen porque Fluent repinta el botón en gris al pasar el ratón si solo cambias `Background`.
+- Un ViewModel que expone un color usa `ThemePalette.Success` etc. (`Services/ThemeService.cs`), que lee el token del tema actual; tras cambiar de tema refresca el VM.
+- Conversores con colores: `BoolToResourceConverter` con **claves de recurso** (`ConverterParameter='Accent|BgSurface'`), no hex.
+- Cambiar de tema: chip 🌙/☀️ en la barra (`ThemeService.Toggle()`); se guarda en `<datos>/LoqzenPos/ui.json`; el valor inicial viene de `appsettings.json` → `Ui:Theme`.
+
+### 4.6 Idiomas (es / en)
+
+- Textos de la UI en `src/Presentation.Desktop/Assets/i18n/{es,en}.json` (mapa plano `"Area.Clave": "texto"`). En XAML: `Text="{i18n:Loc Tab.Checkout}"` (`xmlns:i18n="using:Presentation.Desktop.Localization"`); en ViewModels: `Localizer.Instance.T("Status.MasterOffline")` o con argumentos `T("Cash.Expected", monto)`.
+- Cambiar de idioma: chip ES/EN en la barra (`Localizer.Instance.Toggle()`); todo lo enlazado se actualiza en caliente (`PropertyChanged("Item[]")`); se guarda en `ui.json`; inicial desde `Ui:Language`.
+- Una clave que falta cae al español y luego a la propia clave (se registra una vez en consola): nunca rompe la pantalla. Toda clave nueva se agrega en **los dos** archivos.
+- **Los documentos no se traducen**: recibos, tickets de cocina, reporte Z, comprobantes y las páginas web del servidor siguen en el idioma de la tienda (español). Los mensajes de error de los servicios (`Core.Application`/`Infrastructure.*`) también, porque se imprimen y se auditan.
+
 ## 5. Trampas conocidas (todas ocurrieron de verdad)
 
 | Síntoma | Causa | Solución / protección |

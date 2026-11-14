@@ -7,6 +7,7 @@ using Core.Application.DTOs;
 using Core.Application.Security;
 using Core.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 using Presentation.Server;
 
@@ -18,6 +19,7 @@ public partial class MainViewModel : ObservableObject
     private readonly ServerSettings _serverSettings;
     private readonly LoqzenServer _server;
     private readonly LanServerStatus _serverStatus;
+    private readonly ThemeService _theme;
     private readonly DispatcherTimer? _lanChipTimer;
     private readonly DispatcherTimer _copiedTimer;
 
@@ -70,45 +72,134 @@ public partial class MainViewModel : ObservableObject
         await Comanda.ActivateAsync();
     }
 
-    public string AppTitle => "Loqzen POS Standalone - Volcora Edition";
+    private static Localizer L => Localizer.Instance;
+    private static string T(string key, params object?[] args) => L.T(key, args);
+
+    public string AppTitle => T("App.Title");
     public Action? RequestOpenCustomerDisplayWindow { get; set; }
 
     /// <summary>Set by MainWindow: copies the given text to the OS clipboard (needs a TopLevel).</summary>
     public Action<string>? RequestCopyKdsUrl { get; set; }
 
     // ── LAN server chip (browser KDS URL + connected tablets) ────────────────
-    [ObservableProperty] private string _lanChipText = "🌐 Iniciando servidor LAN…";
+    [ObservableProperty] private string _lanChipText = Localizer.Instance.T("Lan.Starting");
     [ObservableProperty] private string _lanChipTooltip = string.Empty;
 
     /// <summary>Chip hidden when the server is disabled in config; cashier+ only.</summary>
     public bool IsLanChipVisible => _serverSettings.Enabled && Session.CanAccessCashShift;
 
-    // ── Compact nav bar (window narrower than 1200 px; set by MainWindow.SizeChanged) ───
-    // Tabs get short labels and the right-hand tools become icon-only so nothing overlaps.
+    // ── Responsive nav bar (width tiers set by MainWindow.SizeChanged → SetWidth) ─────────────
+    // IsCompact        (< 1200 px): short tab labels + Button.tab.compact; the tool chips collapse into one "⋯" chip.
+    // IsToolsCollapsed (< 1750 px): tools in the "⋯" flyout even with full tab labels (six full tabs + the chip
+    //                               row do not fit side by side below that width; the WrapPanel is only a fallback).
+    // IsWide           (≥ 2100 px): brand subtitle + OFFLINE-FIRST badge.
+    public const double CompactWidth = 1200;
+    public const double ToolsCollapseWidth = 1750;
+    public const double WideWidth = 2100;
+
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CheckoutTabLabel), nameof(ComandasTabLabel), nameof(KdsTabLabel),
-        nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(BillPaymentsTabLabel), nameof(ScanLabel), nameof(CustomerDisplayLabel),
-        nameof(LogoutLabel), nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip), nameof(IsWide),
-        nameof(TerminalChipDisplayText), nameof(TerminalChipDisplayTooltip))]
+        nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(BillPaymentsTabLabel))]
     private bool _isCompact;
-    public bool IsWide => !IsCompact;
 
-    public string CheckoutTabLabel  => IsCompact ? "🛒 Venta"   : "🛒 Punto de Venta";
-    public string ComandasTabLabel  => IsCompact ? "🍽️ Mesas"   : "🍽️ Mesas / Comandas";
-    public string KdsTabLabel       => IsCompact ? "👨‍🍳 KDS"     : "👨‍🍳 KDS Cocina";
-    public string CashShiftTabLabel => IsCompact ? "💼 Caja"    : "💼 Turno de Caja";
-    public string MastersTabLabel   => "🗂️ Maestros";
-    public string BillPaymentsTabLabel => "🧾 Recaudos";
-    public string ScanLabel            => IsCompact ? "⚡"  : "⚡ Scan";
-    public string CustomerDisplayLabel => IsCompact ? "🖥️" : "🖥️ Visor Cliente";
-    public string LogoutLabel          => IsCompact ? "🔄" : "🔄 Cambiar usuario";
+    [ObservableProperty]
+    [NotifyPropertyChangedFor(nameof(IsToolsExpanded))]
+    private bool _isToolsCollapsed;
+    public bool IsToolsExpanded => !IsToolsCollapsed;
 
-    /// <summary>Compact: only the leading icon (🌐 / ✅); the full text moves to the tooltip.</summary>
-    public string LanChipDisplayText => IsCompact ? LanChipText.Split(' ')[0] : LanChipText;
-    public string LanChipDisplayTooltip => IsCompact ? $"{LanChipText}\n{LanChipTooltip}" : LanChipTooltip;
+    [ObservableProperty] private bool _isWide;
 
-    partial void OnLanChipTextChanged(string value) => OnPropertyChanged(nameof(LanChipDisplayText));
+    /// <summary>Called by MainWindow on every resize (and once the DataContext is set).</summary>
+    public void SetWidth(double width)
+    {
+        if (width <= 0) return;
+        IsCompact = width < CompactWidth;
+        IsToolsCollapsed = width < ToolsCollapseWidth;
+        IsWide = width >= WideWidth;
+    }
+
+    // Every label below is read from the i18n tables (Assets/i18n/{es,en}.json) and re-raised on language change.
+    public string CheckoutTabLabel  => T(IsCompact ? "Tab.Checkout"  : "Tab.Checkout.Long");
+    public string ComandasTabLabel  => T(IsCompact ? "Tab.Comandas"  : "Tab.Comandas.Long");
+    public string KdsTabLabel       => T(IsCompact ? "Tab.Kds"       : "Tab.Kds.Long");
+    public string CashShiftTabLabel => T(IsCompact ? "Tab.CashShift" : "Tab.CashShift.Long");
+    public string MastersTabLabel   => T("Tab.Masters");
+    public string BillPaymentsTabLabel => T("Tab.BillPayments");
+
+    // Tool chips: a SHORT visible label in the bar (tooltips do not exist on touch) and a FULL label inside the
+    // "⋯" flyout, where there is room. Distinct icons: ▣ scanner, 📺 customer display, 🌐 LAN, 🏪 register, 👤 user.
+    public string ScanLabel                 => T("Chip.Scan");
+    public string ScanFullLabel             => T("Chip.Scan.Full");
+    public string CustomerDisplayLabel      => T("Chip.CustomerDisplay");
+    public string CustomerDisplayFullLabel  => T("Chip.CustomerDisplay.Full");
+    public string LogoutLabel               => T("Chip.ChangeUser");
+    public string LogoutFullLabel           => T("Chip.ChangeUser.Full");
+    public string MoreChipLabel             => "⋯";
+    public string MoreChipTooltip           => T("Chip.Tools.Tooltip");
+
+    /// <summary>"👤 Ana" in the bar; the flyout shows Session.ChipText (name · role).</summary>
+    public string UserChipText => T("Chip.User", FirstWord(Session.DisplayName));
+
+    // ── Language chip (🌐 ES / 🌐 EN), visible for every role; tap toggles, persists in ui.json ────
+    public string LanguageLabel => T("Chip.Language", L.LanguageLabel);
+    public string LanguageFullLabel => T("Chip.Language.Full", L.LanguageLabel, L.NextLanguage.ToUpperInvariant());
+
+    [RelayCommand]
+    public void ToggleLanguage() => L.Toggle();
+
+    /// <summary>Language switched: every text this VM computes in C# is re-read ({i18n:Loc} bindings refresh on their own).</summary>
+    private void OnLanguageChanged()
+    {
+        Notify(nameof(AppTitle), nameof(LanguageLabel), nameof(LanguageFullLabel),
+            nameof(CheckoutTabLabel), nameof(ComandasTabLabel), nameof(KdsTabLabel),
+            nameof(CashShiftTabLabel), nameof(MastersTabLabel), nameof(BillPaymentsTabLabel),
+            nameof(ScanLabel), nameof(ScanFullLabel), nameof(CustomerDisplayLabel), nameof(CustomerDisplayFullLabel),
+            nameof(LogoutLabel), nameof(LogoutFullLabel), nameof(MoreChipTooltip), nameof(UserChipText),
+            nameof(ThemeLabel), nameof(ThemeFullLabel));
+        if (!_copiedTimer.IsEnabled) UpdateLanChip(); // LAN texts are stored strings: rebuild them in the new language
+        UpdateTerminalChip();
+        TerminalCharge.RefreshLanguage();
+    }
+
+    private static string FirstWord(string s)
+    {
+        var t = s.Trim();
+        var i = t.IndexOf(' ');
+        return i > 0 ? t[..i] : t;
+    }
+
+    /// <summary>Bar: "🌐 LAN · 2" (clients) / "🌐 LAN ⚠️" / "🌐 LAN …"; flyout: the full text with the URL.</summary>
+    public string LanChipDisplayText => LanChipShortText;
+    public string LanChipDisplayTooltip => $"{LanChipText}\n{LanChipTooltip}".Trim();
+    [ObservableProperty] private string _lanChipShortText = Localizer.Instance.T("Lan.Starting.Short");
+
+    partial void OnLanChipTextChanged(string value) => Notify(nameof(LanChipDisplayText), nameof(LanChipDisplayTooltip));
     partial void OnLanChipTooltipChanged(string value) => OnPropertyChanged(nameof(LanChipDisplayTooltip));
+
+    /// <summary>Raise several PropertyChanged at once. NOT named OnPropertyChanged: a params overload on the derived
+    /// class would hide the base OnPropertyChanged(string) in overload resolution and recurse into itself.</summary>
+    private void Notify(params string[] names)
+    {
+        foreach (var n in names) OnPropertyChanged(n);
+    }
+
+    // ── Theme chip (🌙 Oscuro / ☀️ Claro), visible for every role ─────────────────────────────
+    public string ThemeLabel => T(_theme.IsLight ? "Theme.Light" : "Theme.Dark");
+    public string ThemeFullLabel => T(_theme.IsLight ? "Theme.Light.Full" : "Theme.Dark.Full");
+
+    /// <summary>Raised after the palette switched and this VM re-read ThemePalette (shell/screens may refresh their colours).</summary>
+    public event Action? ThemeChanged;
+
+    [RelayCommand]
+    public void ToggleTheme() => _theme.Toggle();
+
+    private void OnThemeChanged()
+    {
+        Notify(nameof(ThemeLabel), nameof(ThemeFullLabel));
+        UpdateTerminalChip();          // TerminalChipColor comes from ThemePalette
+        TerminalCharge.RefreshTheme(); // BorderColor / ResultColor
+        ThemeChanged?.Invoke();
+    }
 
     public MainViewModel(
         CheckoutViewModel checkout,
@@ -131,7 +222,8 @@ public partial class MainViewModel : ObservableObject
         TerminalStatus terminalStatus,
         SatelliteSyncWorker satelliteSync,
         OutboxSyncWorker outboxSync,
-        IServiceScopeFactory scopes)
+        IServiceScopeFactory scopes,
+        ThemeService theme)
     {
         _checkout = checkout;
         _kds = kds;
@@ -148,6 +240,9 @@ public partial class MainViewModel : ObservableObject
         _serverSettings = serverSettings;
         _server = server;
         _serverStatus = serverStatus;
+        _theme = theme;
+        _theme.Changed += OnThemeChanged;
+        L.Changed += OnLanguageChanged;
 
         Checkout.CustomerDisplay = CustomerDisplay;
         Session.Changed += OnSessionChanged;
@@ -172,19 +267,22 @@ public partial class MainViewModel : ObservableObject
     {
         if (_serverStatus.HasFailed)
         {
-            LanChipText = $"🌐 Servidor LAN no disponible (puerto {_serverSettings.Port} en uso)";
+            LanChipText = T("Lan.Failed", _serverSettings.Port);
             LanChipTooltip = _serverStatus.Error ?? LanChipText;
+            LanChipShortText = T("Lan.Failed.Short");
         }
         else if (!_server.IsRunning)
         {
-            LanChipText = "🌐 Iniciando servidor LAN…";
+            LanChipText = T("Lan.Starting");
             LanChipTooltip = LanChipText;
+            LanChipShortText = T("Lan.Starting.Short");
         }
         else
         {
             var n = _server.ConnectedClients;
-            LanChipText = $"🌐 KDS web: {_server.KdsUrl} · {n} {(n == 1 ? "conectado" : "conectados")}";
-            LanChipTooltip = $"{_server.KdsUrl}\nToca para copiar la URL (ábrela en la tablet de cocina)";
+            LanChipText = n == 1 ? T("Lan.Running.One", _server.KdsUrl) : T("Lan.Running.Many", _server.KdsUrl, n);
+            LanChipTooltip = T("Lan.Running.Tooltip", _server.KdsUrl);
+            LanChipShortText = T("Lan.Running.Short", n);
         }
     }
 
@@ -194,7 +292,8 @@ public partial class MainViewModel : ObservableObject
     {
         if (!_server.IsRunning || RequestCopyKdsUrl == null) return;
         RequestCopyKdsUrl(_server.KdsUrl);
-        LanChipText = "✅ URL copiada";
+        LanChipText = T("Lan.Copied");
+        LanChipShortText = T("Lan.Copied.Short");
         _copiedTimer.Stop();
         _copiedTimer.Start();
     }
@@ -260,6 +359,7 @@ public partial class MainViewModel : ObservableObject
     {
         OnPropertyChanged(nameof(IsLoginVisible));
         OnPropertyChanged(nameof(IsLanChipVisible));
+        OnPropertyChanged(nameof(UserChipText));
         NotifyTabVisibility();
         if (!Session.IsLoggedIn) return;
 

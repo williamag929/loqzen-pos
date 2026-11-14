@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Security;
 using Core.Domain.Enums;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -36,10 +37,10 @@ public partial class MastersViewModel
     [NotifyPropertyChangedFor(nameof(UserFormTitle), nameof(UserPinHint))]
     private bool _isEditingUser = false;
 
-    public string UserFormTitle => IsEditingUser ? "👥 Editar Usuario" : "👥 Nuevo Usuario";
+    public string UserFormTitle => IsEditingUser ? T("Masters.Users.FormTitle.Edit") : T("Masters.Users.FormTitle.New");
     public string UserPinHint => IsEditingUser
-        ? $"PIN ({PinHasher.MinLength}-{PinHasher.MaxLength} dígitos) · deje vacío para conservar el actual"
-        : $"PIN * ({PinHasher.MinLength}-{PinHasher.MaxLength} dígitos)";
+        ? T("Masters.Users.PinHint.Edit", PinHasher.MinLength, PinHasher.MaxLength)
+        : T("Masters.Users.PinHint.New", PinHasher.MinLength, PinHasher.MaxLength);
 
     [ObservableProperty] private Guid _editUserId;
     [ObservableProperty] private string _userName = string.Empty;
@@ -64,7 +65,7 @@ public partial class MastersViewModel
             Users.Clear();
             foreach (var u in items.OrderBy(u => u.Role).ThenBy(u => u.Name)) Users.Add(u);
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     private void RebuildRoleOptions()
@@ -100,7 +101,7 @@ public partial class MastersViewModel
         RebuildRoleOptions();
         if (RoleOptions.All(r => r.Role != user.Role))
         {
-            Notification = $"⚠️ No puede editar a un {user.RoleLabel}.";
+            Notification = T("Masters.Users.CannotEditRole", user.RoleLabel);
             return;
         }
         IsEditingUser = true;
@@ -118,24 +119,24 @@ public partial class MastersViewModel
         var name = UserName.Trim();
         if (string.IsNullOrWhiteSpace(name))
         {
-            Notification = "⚠️ El nombre es obligatorio.";
+            Notification = T("Masters.Users.NameRequired");
             return;
         }
         if (UserRoleOption is not { } roleOption)
         {
-            Notification = "⚠️ Seleccione un rol.";
+            Notification = T("Masters.Users.SelectRole");
             return;
         }
         var pin = UserPin.Trim();
         var hasPin = !string.IsNullOrEmpty(pin);
         if (!IsEditingUser && !hasPin)
         {
-            Notification = "⚠️ El PIN es obligatorio para un usuario nuevo.";
+            Notification = T("Masters.Users.PinRequired");
             return;
         }
         if (hasPin && !PinHasher.IsValidPin(pin))
         {
-            Notification = $"⚠️ El PIN debe tener entre {PinHasher.MinLength} y {PinHasher.MaxLength} dígitos.";
+            Notification = T("Masters.Users.PinLength", PinHasher.MinLength, PinHasher.MaxLength);
             return;
         }
 
@@ -145,20 +146,20 @@ public partial class MastersViewModel
             {
                 var updated = await _users.UpdateAsync(EditUserId, name, roleOption.Role, UserIsActive);
                 if (hasPin) await _users.ChangePinAsync(EditUserId, pin);
-                Notification = hasPin ? $"✅ Usuario '{updated.Name}' actualizado (PIN cambiado)." : $"✅ Usuario '{updated.Name}' actualizado.";
+                Notification = hasPin ? T("Masters.Users.UpdatedPin", updated.Name) : T("Masters.Users.Updated", updated.Name);
             }
             else
             {
                 var created = await _users.CreateAsync(name, pin, roleOption.Role);
                 if (!UserIsActive) await _users.UpdateAsync(created.Id, created.Name, created.Role, false);
-                Notification = $"✅ Usuario '{created.Name}' creado.";
+                Notification = T("Masters.Users.Created", created.Name);
             }
 
             UserPin = string.Empty;
             IsUserFormVisible = false;
             await LoadUsersAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     /// <summary>Soft delete: users are never removed (audit trail), only deactivated / reactivated.</summary>
@@ -167,16 +168,16 @@ public partial class MastersViewModel
     {
         if (user.Id == _session.CurrentUser?.Id && user.IsActive)
         {
-            Notification = "⚠️ No puede desactivar su propio usuario.";
+            Notification = T("Masters.Users.CannotDeactivateSelf");
             return;
         }
         try
         {
             await _users.UpdateAsync(user.Id, user.Name, user.Role, !user.IsActive);
-            Notification = user.IsActive ? $"🚫 Usuario '{user.Name}' desactivado." : $"✅ Usuario '{user.Name}' reactivado.";
+            Notification = user.IsActive ? T("Masters.Users.Deactivated", user.Name) : T("Masters.Users.Reactivated", user.Name);
             await LoadUsersAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     [RelayCommand]

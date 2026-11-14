@@ -3,6 +3,7 @@
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:entities="using:Core.Domain.Entities"
              xmlns:controls="using:Presentation.Desktop.Controls"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -10,14 +11,41 @@
              x:DataType="vm:KdsViewModel"
              x:Name="KdsRoot">
 
+    <!-- Kitchen colours are theme tokens (Styles/Theme.axaml) so both themes stay readable at a glance:
+         card border + ⏱ badge + running light = urgency (Success on time · Warning · Danger late, blinking);
+         advance button: new = Accent, "inprep" = Success, "ready" = Purple tint; print button SuccessStrong until "printed". -->
+    <UserControl.Styles>
+        <Style Selector="Button.advance">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.advance.inprep">
+            <Setter Property="Background" Value="{DynamicResource SuccessStrong}"/>
+        </Style>
+        <Style Selector="Button.advance.ready">
+            <Setter Property="Background" Value="{DynamicResource PurpleSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource Purple}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Purple}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="Button.print">
+            <Setter Property="Background" Value="{DynamicResource SuccessStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.print.printed">
+            <Setter Property="Background" Value="{DynamicResource Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+    </UserControl.Styles>
+
     <Grid RowDefinitions="Auto, *, Auto">
         <!-- TOP TOOLBAR: STATIONS & STATS -->
-        <Border Grid.Row="0" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="20,14">
+        <Border Grid.Row="0" Background="{DynamicResource BgApp}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="20,14">
             <!-- WrapPanel: on narrow windows the counters and the live/refresh group drop to a second row instead of overlapping -->
             <WrapPanel Orientation="Horizontal" ItemHeight="54">
                 <!-- Title & Station Selector -->
                 <StackPanel Orientation="Horizontal" Spacing="16" Margin="0,0,16,0" VerticalAlignment="Center">
-                    <TextBlock Text="👨‍🍳 KDS COCINA" Foreground="#38BDF8" FontSize="20" FontWeight="Black" VerticalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Kds.Title}" Foreground="{DynamicResource Info}" FontSize="20" FontWeight="Black" VerticalAlignment="Center"/>
                     
                     <ItemsControl ItemsSource="{Binding Stations}">
                         <ItemsControl.ItemsPanel>
@@ -29,8 +57,10 @@
                             <DataTemplate x:DataType="x:String">
                                 <Button Height="42" 
                                         MinWidth="100" 
-                                        Background="#1E293B" 
-                                        Foreground="White" 
+                                        Background="{DynamicResource BgSurface}" 
+                                        Foreground="{DynamicResource TextPrimary}" 
+                                        BorderBrush="{DynamicResource Border}"
+                                        BorderThickness="1"
                                         FontWeight="SemiBold" 
                                         CornerRadius="8"
                                         Content="{Binding .}"
@@ -43,51 +73,51 @@
 
                 <!-- Status Summary Badges -->
                 <StackPanel Orientation="Horizontal" Spacing="12" Margin="0,0,16,0" VerticalAlignment="Center">
-                    <Border Background="#1E293B" BorderBrush="#3B82F6" BorderThickness="1" CornerRadius="8" Padding="12,6">
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource AccentBright}" BorderThickness="1" CornerRadius="8" Padding="12,6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Pendientes:" Foreground="#94A3B8" FontSize="13"/>
-                            <TextBlock Text="{Binding PendingCount}" Foreground="#3B82F6" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Text="{i18n:Loc Kds.Pending}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
+                            <TextBlock Text="{Binding PendingCount}" Foreground="{DynamicResource AccentBright}" FontSize="16" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="12,6">
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Warning}" BorderThickness="1" CornerRadius="8" Padding="12,6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="En Prep:" Foreground="#94A3B8" FontSize="13"/>
-                            <TextBlock Text="{Binding InPrepCount}" Foreground="#F59E0B" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Text="{i18n:Loc Kds.InPrep}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
+                            <TextBlock Text="{Binding InPrepCount}" Foreground="{DynamicResource Warning}" FontSize="16" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
-                    <Border Background="#1E293B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8" Padding="12,6">
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Success}" BorderThickness="1" CornerRadius="8" Padding="12,6">
                         <StackPanel Orientation="Horizontal" Spacing="6">
-                            <TextBlock Text="Listos:" Foreground="#94A3B8" FontSize="13"/>
-                            <TextBlock Text="{Binding ReadyCount}" Foreground="#10B981" FontSize="16" FontWeight="Bold"/>
+                            <TextBlock Text="{i18n:Loc Kds.Ready}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
+                            <TextBlock Text="{Binding ReadyCount}" Foreground="{DynamicResource Success}" FontSize="16" FontWeight="Bold"/>
                         </StackPanel>
                     </Border>
                 </StackPanel>
 
                 <!-- Live indicator (event bus subscribed) + Refresh Button -->
                 <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                    <Border Background="#1E293B" BorderBrush="#10B981" BorderThickness="1" CornerRadius="8" Padding="10,0"
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Success}" BorderThickness="1" CornerRadius="8" Padding="10,0"
                             Height="42" IsVisible="{Binding IsLive}">
-                        <TextBlock Text="🟢 En vivo" Foreground="#10B981" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Kds.Live}" Foreground="{DynamicResource Success}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                     </Border>
                     <!-- Satellite: the master's /api/kds did not answer; the last cards stay on screen, the poll keeps retrying -->
-                    <Border Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8" Padding="10,0"
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Warning}" BorderThickness="1" CornerRadius="8" Padding="10,0"
                             Height="42" IsVisible="{Binding IsMasterOffline}">
-                        <TextBlock Text="⚠️ Sin conexión con la caja principal" Foreground="#FBBF24" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Kds.MasterOffline}" Foreground="{DynamicResource WarningBright}" FontSize="12" FontWeight="Bold" VerticalAlignment="Center"/>
                     </Border>
                     <Button Height="42" 
                             Padding="16,0" 
-                            Background="#334155" 
-                            Foreground="White" 
+                            Background="{DynamicResource Border}" 
+                            Foreground="{DynamicResource TextPrimary}" 
                             CornerRadius="8" 
                             FontWeight="Bold"
-                            Content="🔄 Actualizar"
+                            Content="{i18n:Loc Kds.Refresh}"
                             Command="{Binding RefreshCommand}"/>
                 </StackPanel>
             </WrapPanel>
         </Border>
 
         <!-- KITCHEN ORDER CARDS WRAP PANEL -->
-        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="#020617" Padding="16">
+        <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto" Background="{DynamicResource BgBar}" Padding="16">
             <ItemsControl ItemsSource="{Binding FilteredOrders}">
                 <ItemsControl.ItemsPanel>
                     <ItemsPanelTemplate>
@@ -98,7 +128,7 @@
                     <DataTemplate x:DataType="vm:KitchenOrderCardViewModel">
                         <!-- Panel layers: card + running border light (new orders) on top. -->
                         <Panel Width="360" Margin="10">
-                        <Border Background="#0F172A"
+                        <Border Background="{DynamicResource BgSurface2}"
                                 BorderBrush="{Binding UrgencyColorHex}"
                                 BorderThickness="3"
                                 CornerRadius="12"
@@ -111,32 +141,32 @@
                             </Border.Styles>
                             <Grid RowDefinitions="Auto, Auto, *, Auto, Auto">
                                 <!-- Header -->
-                                <Border Grid.Row="0" Background="#1E293B" CornerRadius="10,10,0,0" Padding="14,10">
+                                <Border Grid.Row="0" Background="{DynamicResource BgSurface}" CornerRadius="10,10,0,0" Padding="14,10">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Grid.Column="0" Spacing="2">
                                             <StackPanel Orientation="Horizontal" Spacing="8">
-                                                <TextBlock Text="{Binding TableNumber}" Foreground="White" FontSize="18" FontWeight="Black"/>
-                                                <Border Background="#334155" CornerRadius="4" Padding="6,2">
-                                                    <TextBlock Text="{Binding Station}" Foreground="#38BDF8" FontSize="11" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding TableNumber}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Black"/>
+                                                <Border Background="{DynamicResource Border}" CornerRadius="4" Padding="6,2">
+                                                    <TextBlock Text="{Binding Station}" Foreground="{DynamicResource Info}" FontSize="11" FontWeight="Bold"/>
                                                 </Border>
-                                                <Border Background="#10B981" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsNew}">
-                                                    <TextBlock Text="NUEVA" Foreground="White" FontSize="11" FontWeight="Black"/>
+                                                <Border Background="{DynamicResource Accent}" CornerRadius="4" Padding="6,2" IsVisible="{Binding IsNew}">
+                                                    <TextBlock Text="{i18n:Loc Kds.Card.New}" Foreground="{DynamicResource TextOnAccent}" FontSize="11" FontWeight="Black"/>
                                                 </Border>
                                             </StackPanel>
-                                            <TextBlock Text="{Binding WaiterName, StringFormat='Atiende: {0}'}" Foreground="#94A3B8" FontSize="12"/>
+                                            <TextBlock Text="{Binding WaiterLine}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
                                         </StackPanel>
                                         <Border Grid.Column="1" Background="{Binding UrgencyColorHex}" CornerRadius="6" Padding="10,4" VerticalAlignment="Center">
                                             <StackPanel Orientation="Horizontal" Spacing="4">
                                                 <TextBlock Text="⏱️" FontSize="12"/>
-                                                <TextBlock Text="{Binding ElapsedMinutes, StringFormat='{}{0}m'}" Foreground="White" FontSize="14" FontWeight="Black"/>
+                                                <TextBlock Text="{Binding ElapsedText}" Foreground="{DynamicResource TextOnAccent}" FontSize="14" FontWeight="Black"/>
                                             </StackPanel>
                                         </Border>
                                     </Grid>
                                 </Border>
 
                                 <!-- General Notes if present -->
-                                <Border Grid.Row="1" Background="#332900" Padding="12,6" IsVisible="{Binding GeneralNotes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-                                    <TextBlock Text="{Binding GeneralNotes, StringFormat='Nota: {0}'}" Foreground="#FDE047" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                <Border Grid.Row="1" Background="{DynamicResource WarningSurface}" Padding="12,6" IsVisible="{Binding GeneralNotes, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
+                                    <TextBlock Text="{Binding GeneralNotesLine}" Foreground="{DynamicResource WarningText}" FontSize="12" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                 </Border>
 
                                 <!-- Items -->
@@ -144,25 +174,25 @@
                                     <ItemsControl.ItemTemplate>
                                         <DataTemplate x:DataType="vm:KitchenItemViewModel">
                                             <!-- Cancelled by a manager after reaching the kitchen: struck-through + red badge -->
-                                            <Border BorderBrush="#1E293B" BorderThickness="0,0,0,1" Padding="0,8" Classes.cancelled="{Binding IsCancelled}">
+                                            <Border BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1" Padding="0,8" Classes.cancelled="{Binding IsCancelled}">
                                                 <Border.Styles>
                                                     <Style Selector="Border.cancelled TextBlock.item">
                                                         <Setter Property="TextDecorations" Value="Strikethrough"/>
-                                                        <Setter Property="Foreground" Value="#EF4444"/>
+                                                        <Setter Property="Foreground" Value="{DynamicResource DangerBright}"/>
                                                     </Style>
                                                 </Border.Styles>
                                                 <Grid ColumnDefinitions="Auto, *, Auto">
-                                                    <Border Grid.Column="0" Background="#1E293B" CornerRadius="6" Width="32" Height="32" Margin="0,0,10,0">
-                                                        <TextBlock Classes="item" Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="16" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                                    <Border Grid.Column="0" Background="{DynamicResource BgSurface}" CornerRadius="6" Width="32" Height="32" Margin="0,0,10,0">
+                                                        <TextBlock Classes="item" Text="{Binding Quantity}" Foreground="{DynamicResource Info}" FontSize="16" FontWeight="Black" HorizontalAlignment="Center" VerticalAlignment="Center"/>
                                                     </Border>
                                                     <StackPanel Grid.Column="1" Spacing="2" VerticalAlignment="Center">
-                                                        <TextBlock Classes="item" Text="{Binding ProductName}" Foreground="White" FontSize="15" FontWeight="SemiBold"/>
-                                                        <TextBlock Classes="item" Text="{Binding Notes}" Foreground="#F59E0B" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
+                                                        <TextBlock Classes="item" Text="{Binding ProductName}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold"/>
+                                                        <TextBlock Classes="item" Text="{Binding Notes}" Foreground="{DynamicResource Warning}" FontSize="13" FontWeight="SemiBold" TextWrapping="Wrap"
                                                                    IsVisible="{Binding HasNotes}"/>
                                                     </StackPanel>
-                                                    <Border Grid.Column="2" Background="#7F1D1D" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" Margin="8,0,0,0"
+                                                    <Border Grid.Column="2" Background="{DynamicResource DangerStrong}" CornerRadius="4" Padding="8,3" VerticalAlignment="Center" Margin="8,0,0,0"
                                                             IsVisible="{Binding IsCancelled}">
-                                                        <TextBlock Text="ANULADO" Foreground="White" FontSize="11" FontWeight="Black"/>
+                                                        <TextBlock Text="{i18n:Loc Kds.Card.Cancelled}" Foreground="{DynamicResource TextOnAccent}" FontSize="11" FontWeight="Black"/>
                                                     </Border>
                                                 </Grid>
                                             </Border>
@@ -171,40 +201,42 @@
                                 </ItemsControl>
 
                                 <!-- Actions (active cards): advance + print (green = not printed yet, grey = printed) -->
-                                <Border Grid.Row="3" Background="#1E293B" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsActive}">
+                                <Border Grid.Row="3" Background="{DynamicResource BgSurface}" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsActive}">
                                     <Grid ColumnDefinitions="*, Auto">
-                                        <Button Grid.Column="0" Height="52" Margin="0,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                Background="{Binding ActionButtonColorHex}" Foreground="White" FontSize="15" FontWeight="Black" CornerRadius="8"
+                                        <Button Grid.Column="0" Classes="advance" Classes.inprep="{Binding IsInPreparation}" Classes.ready="{Binding IsReady}"
+                                                Height="52" Margin="0,0,8,0" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
+                                                FontSize="15" FontWeight="Black" CornerRadius="8"
                                                 Content="{Binding ActionButtonText}" Command="{Binding AdvanceStatusCommand}"/>
-                                        <Button Grid.Column="1" Height="52" Width="60" HorizontalContentAlignment="Center"
-                                                Background="{Binding PrintButtonColorHex}" Foreground="White" CornerRadius="8" Content="🖨️" FontSize="20"
+                                        <Button Grid.Column="1" Classes="print" Classes.printed="{Binding IsPrinted}"
+                                                Height="52" Width="60" HorizontalContentAlignment="Center"
+                                                CornerRadius="8" Content="🖨️" FontSize="20"
                                                 ToolTip.Tip="{Binding PrintTooltip}" Command="{Binding PrintTicketCommand}"/>
                                     </Grid>
                                 </Border>
 
                                 <!-- Archived: countdown bar + undo (like the comanda countdown) -->
-                                <Border Grid.Row="4" Background="#1E293B" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsArchived}">
+                                <Border Grid.Row="4" Background="{DynamicResource BgSurface}" CornerRadius="0,0,10,10" Padding="12" IsVisible="{Binding IsArchived}">
                                     <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto">
-                                        <TextBlock Text="{Binding ArchiveText}" Foreground="#CBD5E1" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
-                                        <Button Grid.Column="1" Grid.RowSpan="2" Height="52" Padding="16,0" CornerRadius="8" Background="#92400E" Foreground="White"
+                                        <TextBlock Text="{Binding ArchiveText}" Foreground="{DynamicResource TextSecondary}" FontSize="14" FontWeight="Bold" VerticalAlignment="Center"/>
+                                        <Button Grid.Column="1" Grid.RowSpan="2" Height="52" Padding="16,0" CornerRadius="8" Background="{DynamicResource WarningSurface}" Foreground="{DynamicResource WarningText}"
                                                 FontSize="15" FontWeight="Bold" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                                Content="↩ Deshacer" Command="{Binding UndoArchiveCommand}"/>
+                                                Content="{i18n:Loc Kds.Card.Undo}" Command="{Binding UndoArchiveCommand}"/>
                                         <ProgressBar Grid.Row="1" Minimum="0" Maximum="1" Value="{Binding ArchiveProgress}" Height="8" Margin="0,8,12,0"
-                                                     Foreground="#64748B"/>
+                                                     Foreground="{DynamicResource TextFaint}"/>
                                     </Grid>
                                 </Border>
                             </Grid>
                         </Border>
 
                         <!-- Late (> MaxPrepMinutes): red overlay border blinks every second -->
-                        <Border BorderBrush="#EF4444" BorderThickness="5" CornerRadius="12" IsHitTestVisible="False"
+                        <Border BorderBrush="{DynamicResource Danger}" BorderThickness="5" CornerRadius="12" IsHitTestVisible="False"
                                 IsVisible="{Binding IsLate}" Opacity="{Binding BorderOpacity}">
                             <Border.Transitions>
                                 <Transitions><DoubleTransition Property="Opacity" Duration="0:0:0.4"/></Transitions>
                             </Border.Transitions>
                         </Border>
 
-                        <!-- New (not yet PREPARAR): light running around the border in the card's colour -->
+                        <!-- New (not yet PREPARAR): light running around the border in the card's urgency colour -->
                         <controls:BorderRunnerLight IsRunning="{Binding IsNew}" IsVisible="{Binding IsNew}"
                                                     Color="{Binding UrgencyColorHex}" CornerRadiusValue="12" LapSeconds="2.4"/>
                         </Panel>
@@ -214,9 +246,9 @@
         </ScrollViewer>
 
         <!-- Status bar: print failures, undo confirmations -->
-        <Border Grid.Row="2" Background="#1E293B" Padding="16,8"
+        <Border Grid.Row="2" Background="{DynamicResource BgSurface}" Padding="16,8"
                 IsVisible="{Binding StatusMessage, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding StatusMessage}" Foreground="#CBD5E1" FontSize="14"/>
+            <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextSecondary}" FontSize="14"/>
         </Border>
     </Grid>
 </UserControl>

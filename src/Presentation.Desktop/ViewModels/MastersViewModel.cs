@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -65,7 +66,7 @@ public partial class MastersViewModel : ObservableObject
     [NotifyPropertyChangedFor(nameof(ProductFormTitle))]
     private bool _isEditingProduct = false;
 
-    public string ProductFormTitle => IsEditingProduct ? "Editar Producto" : "Nuevo Producto";
+    public string ProductFormTitle => IsEditingProduct ? T("Masters.Products.FormTitle.Edit") : T("Masters.Products.FormTitle.New");
     [ObservableProperty] private Guid _editProductId;
     [ObservableProperty] private string _productSku = string.Empty;
     [ObservableProperty] private string _productBarcode = string.Empty;
@@ -125,8 +126,34 @@ public partial class MastersViewModel : ObservableObject
         _users = users;
         _session = session;
         _session.Changed += OnSessionChangedForUsers;
+        Localizer.Instance.Changed += OnLanguageChanged;
 
         _ = LoadAllAsync();
+    }
+
+    /// <summary>Shortcut to <see cref="Localizer.T"/> for this VM and its partials.</summary>
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+
+    /// <summary>
+    /// ES/EN toggle: computed texts (form titles, hints, summaries) are re-read and the row VMs that cache
+    /// translated texts are rebuilt from their DTOs in memory (no database round-trip).
+    /// </summary>
+    private void OnLanguageChanged()
+    {
+        OnPropertyChanged(nameof(ProductFormTitle));
+        OnPropertyChanged(nameof(BillerFormTitle));
+        OnPropertyChanged(nameof(BillerExampleText));
+        OnPropertyChanged(nameof(UserFormTitle));
+        OnPropertyChanged(nameof(UserPinHint));
+        OnPropertyChanged(nameof(PaymentTerminalFormTitle));
+        OnPropertyChanged(nameof(PaymentTerminalAddressHint));
+        OnPropertyChanged(nameof(ThisTerminalText));
+        OnPropertyChanged(nameof(MasterUrlHint));
+        OnPropertyChanged(nameof(TerminalsSummary));
+        OnPropertyChanged(nameof(PaymentTerminalsSummary));
+        RefreshBillerRowsLanguage();
+        RefreshTerminalRowsLanguage();
+        RefreshPaymentTerminalRowsLanguage();
     }
 
     // ── Tab Navigation ───────────────────────────────────────────────────────
@@ -215,12 +242,12 @@ public partial class MastersViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(ProductName) || string.IsNullOrWhiteSpace(ProductSku))
         {
-            Notification = "⚠️ Nombre y SKU son obligatorios.";
+            Notification = T("Masters.Products.RequiredFields");
             return;
         }
         if (!decimal.TryParse(ProductPriceStr, out var price) || !decimal.TryParse(ProductCostStr, out var cost))
         {
-            Notification = "⚠️ Precio o costo inválidos.";
+            Notification = T("Masters.Products.InvalidPriceCost");
             return;
         }
         decimal.TryParse(ProductStockStr, out var stock);
@@ -242,7 +269,7 @@ public partial class MastersViewModel : ObservableObject
                 existing.CategoryId   = ProductCategory?.Id;
                 existing.TaxId        = ProductTax?.Id;
                 await _products.UpdateAsync(existing);
-                Notification = $"✅ Producto '{existing.Name}' actualizado.";
+                Notification = T("Masters.Products.Updated", existing.Name);
             }
             else
             {
@@ -261,7 +288,7 @@ public partial class MastersViewModel : ObservableObject
                     IsActive     = true
                 };
                 await _products.CreateAsync(product);
-                Notification = $"✅ Producto '{product.Name}' creado.";
+                Notification = T("Masters.Products.Created", product.Name);
             }
 
             IsProductFormVisible = false;
@@ -269,7 +296,7 @@ public partial class MastersViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification = $"❌ {ex.Message}";
+            Notification = T("Masters.Error", ex.Message);
         }
     }
 
@@ -277,7 +304,7 @@ public partial class MastersViewModel : ObservableObject
     public async Task DeleteProductAsync(Product product)
     {
         await _products.DeleteAsync(product.Id);
-        Notification = $"🗑️ Producto '{product.Name}' eliminado.";
+        Notification = T("Masters.Products.Deleted", product.Name);
         await LoadProductsAsync();
     }
 
@@ -311,7 +338,7 @@ public partial class MastersViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(CategoryName))
         {
-            Notification = "⚠️ El nombre de categoría es obligatorio.";
+            Notification = T("Masters.Categories.NameRequired");
             return;
         }
         try
@@ -324,26 +351,26 @@ public partial class MastersViewModel : ObservableObject
                 existing.ColorHex  = CategoryColorHex;
                 existing.SortOrder = CategorySortOrder;
                 await _categories.UpdateAsync(existing);
-                Notification = $"✅ Categoría '{existing.Name}' actualizada.";
+                Notification = T("Masters.Categories.Updated", existing.Name);
             }
             else
             {
                 var cat = new Category { Name = CategoryName.Trim(), ColorHex = CategoryColorHex, SortOrder = CategorySortOrder };
                 await _categories.CreateAsync(cat);
-                Notification = $"✅ Categoría '{cat.Name}' creada.";
+                Notification = T("Masters.Categories.Created", cat.Name);
             }
 
             IsCategoryFormVisible = false;
             await LoadCategoriesAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     [RelayCommand]
     public async Task DeleteCategoryAsync(Category category)
     {
         await _categories.DeleteAsync(category.Id);
-        Notification = $"🗑️ Categoría '{category.Name}' eliminada.";
+        Notification = T("Masters.Categories.Deleted", category.Name);
         await LoadCategoriesAsync();
     }
 
@@ -381,7 +408,7 @@ public partial class MastersViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(CustomerDocumentId) || string.IsNullOrWhiteSpace(CustomerFullName))
         {
-            Notification = "⚠️ Documento y nombre son obligatorios.";
+            Notification = T("Masters.Customers.RequiredFields");
             return;
         }
         try
@@ -397,7 +424,7 @@ public partial class MastersViewModel : ObservableObject
                 existing.PhoneNumber = string.IsNullOrWhiteSpace(CustomerPhone) ? null : CustomerPhone.Trim();
                 existing.Address    = string.IsNullOrWhiteSpace(CustomerAddress) ? null : CustomerAddress.Trim();
                 await _customers.UpdateAsync(existing);
-                Notification = $"✅ Cliente '{existing.FullName}' actualizado.";
+                Notification = T("Masters.Customers.Updated", existing.FullName);
             }
             else
             {
@@ -411,19 +438,19 @@ public partial class MastersViewModel : ObservableObject
                     IsActive    = true
                 };
                 await _customers.CreateAsync(customer);
-                Notification = $"✅ Cliente '{customer.FullName}' creado.";
+                Notification = T("Masters.Customers.Created", customer.FullName);
             }
             IsCustomerFormVisible = false;
             await LoadCustomersAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     [RelayCommand]
     public async Task DeleteCustomerAsync(Customer customer)
     {
         await _customers.DeleteAsync(customer.Id);
-        Notification = $"🗑️ Cliente '{customer.FullName}' archivado.";
+        Notification = T("Masters.Customers.Archived", customer.FullName);
         await LoadCustomersAsync();
     }
 

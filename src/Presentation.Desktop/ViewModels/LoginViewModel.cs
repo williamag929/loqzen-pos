@@ -7,6 +7,7 @@ using CommunityToolkit.Mvvm.Input;
 using Core.Application.Security;
 using Core.Application.Services;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -22,6 +23,8 @@ public partial class LoginViewModel : ObservableObject
     private readonly UserSession _session;
     private readonly IPinAttemptLimiter _limiter;
     private readonly DispatcherTimer _lockTimer;
+
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
 
     public LoginViewModel(IServiceScopeFactory scopes, UserSession session, IPinAttemptLimiter limiter)
     {
@@ -43,6 +46,13 @@ public partial class LoginViewModel : ObservableObject
         };
         UpdateLockout();
         _ = RefreshHintAsync();
+
+        // Language switch: static captions are {i18n:Loc} bindings; the hint and a running lockout countdown are rebuilt here.
+        Localizer.Instance.Changed += () =>
+        {
+            OnPropertyChanged(nameof(DefaultPinHint));
+            if (IsLocked) UpdateLockout();
+        };
     }
 
     /// <summary>Too many wrong PINs: numpad and "Entrar" are disabled until the countdown ends.</summary>
@@ -58,7 +68,7 @@ public partial class LoginViewModel : ObservableObject
         {
             IsLocked = true;
             Pin = string.Empty;
-            ErrorMessage = $"🔒 Demasiados intentos. Espere {left} s";
+            ErrorMessage = T("Login.Error.Locked", left);
             if (!_lockTimer.IsEnabled) _lockTimer.Start();
         }
         else if (IsLocked)
@@ -83,7 +93,7 @@ public partial class LoginViewModel : ObservableObject
 
     /// <summary>True only while the user table still holds exactly the three seeded demo users.</summary>
     [ObservableProperty] private bool _showDefaultPinHint;
-    public string DefaultPinHint => "PINs por defecto: Admin 1234 · Cajero 1111 · Mesero 2222";
+    public string DefaultPinHint => T("Login.DefaultPins");
 
     public async Task RefreshHintAsync()
     {
@@ -126,7 +136,7 @@ public partial class LoginViewModel : ObservableObject
         if (IsBusy || IsLocked) return;
         if (!PinHasher.IsValidPin(Pin))
         {
-            ErrorMessage = $"Ingrese un PIN de {PinHasher.MinLength} a {PinHasher.MaxLength} dígitos.";
+            ErrorMessage = T("Login.Error.Length", PinHasher.MinLength, PinHasher.MaxLength);
             return;
         }
 
@@ -139,7 +149,7 @@ public partial class LoginViewModel : ObservableObject
 
             if (user == null)
             {
-                ErrorMessage = "PIN incorrecto";
+                ErrorMessage = T("Login.Error.Wrong");
                 Pin = string.Empty;
                 UpdateLockout(); // the failing attempt may have been the one that triggered the lock
                 return;
@@ -155,7 +165,7 @@ public partial class LoginViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            ErrorMessage = $"Error: {ex.Message}";
+            ErrorMessage = T("Login.Error.Generic", ex.Message);
             Pin = string.Empty;
         }
         finally

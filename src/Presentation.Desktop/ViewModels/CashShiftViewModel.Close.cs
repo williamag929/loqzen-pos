@@ -37,10 +37,10 @@ public partial class CashShiftViewModel
     public bool CanGoBack => CloseStep > 1;
     public string StepTitle => CloseStep switch
     {
-        1 => "Paso 1 de 4 · Revisión",
-        2 => "Paso 2 de 4 · Conteo del efectivo",
-        3 => "Paso 3 de 4 · Resultado",
-        _ => "Paso 4 de 4 · Fondo para el siguiente turno"
+        1 => T("Cash.Close.Step1.Title"),
+        2 => T("Cash.Close.Step2.Title"),
+        3 => T("Cash.Close.Step3.Title"),
+        _ => T("Cash.Close.Step4.Title")
     };
 
     [ObservableProperty] private string _closeError = string.Empty;
@@ -54,9 +54,11 @@ public partial class CashShiftViewModel
     private ShiftReconciliationDto? _closeRecon;
 
     [ObservableProperty]
-    [NotifyPropertyChangedFor(nameof(HasOpenComandas), nameof(CanStartCount))]
+    [NotifyPropertyChangedFor(nameof(HasOpenComandas), nameof(CanStartCount), nameof(OpenComandasText))]
     private int _openComandasCount;
-    [ObservableProperty] private string _openComandasText = string.Empty;
+    private string _openComandaNames = string.Empty;
+    public string OpenComandasText => OpenComandasCount == 0 ? string.Empty
+        : T("Cash.Close.OpenComandas", T(OpenComandasCount == 1 ? "Cash.Close.OpenComandas.One" : "Cash.Close.OpenComandas.Many", OpenComandasCount), _openComandaNames);
     public bool HasOpenComandas => OpenComandasCount > 0;
     public bool CanStartCount => !HasOpenComandas && CloseRecon != null;
 
@@ -69,20 +71,21 @@ public partial class CashShiftViewModel
     public string CloseOtherSalesText => Cop(CloseRecon?.OtherSales);
     public bool HasOtherSales => (CloseRecon?.OtherSales ?? 0) != 0;
     public string CloseTotalSalesText => Cop(CloseRecon?.TotalSales);
-    public string CloseOrderCountText => $"{CloseRecon?.OrderCount ?? 0} facturas";
-    public string CloseCardExpectedText => $"Compare con el cierre del datáfono: {Cop(CloseRecon?.ExpectedCard)}";
-    public string CloseTransferExpectedText => $"Compare con las transferencias recibidas: {Cop(CloseRecon?.ExpectedTransfer)}";
+    public string CloseOrderCountText => T("Cash.Orders.Many", CloseRecon?.OrderCount ?? 0);
+    public string CloseCardExpectedText => T("Cash.Close.CompareCard", Cop(CloseRecon?.ExpectedCard));
+    public string CloseTransferExpectedText => T("Cash.Close.CompareTransfer", Cop(CloseRecon?.ExpectedTransfer));
     public string CloseBillPaymentsText => CloseRecon is { } r
-        ? $"{r.BillPaymentCount} recaudos · efectivo {Cop(r.BillPaymentsCash)} · por girar {Cop(r.BillPaymentsToRemit)}" : string.Empty;
+        ? T("Cash.Close.BillPayments", r.BillPaymentCount, Cop(r.BillPaymentsCash), Cop(r.BillPaymentsToRemit)) : string.Empty;
     public string CloseMovementsText => CloseRecon is { } r
-        ? $"Entradas {Cop(r.PaidIn)} · Salidas {Cop(r.PaidOut + r.Expenses + r.SafeDrops + r.TipPayouts + r.BillPaymentVoidsCash)}" : string.Empty;
+        ? T("Cash.Dash.MovementsDetail", Cop(r.PaidIn), Cop(r.PaidOut + r.Expenses + r.SafeDrops + r.TipPayouts + r.BillPaymentVoidsCash)) : string.Empty;
 
     private static string Cop(decimal? v) => ReceiptFormatter.Cop(v ?? 0m);
 
     // ── Step 2: count (blind) ────────────────────────────────────────────────
     /// <summary>Expected / difference on the count step only when blind count is OFF.</summary>
     public bool CanSeeExpectedInCount => !_settings.BlindCount;
-    public string CountExpectedText => Cop(CloseRecon?.ExpectedCash);
+    /// <summary>"Esperado $x" (label included: shown only when blind count is off).</summary>
+    public string CountExpectedText => T("Cash.Close.Step2.Expected", Cop(CloseRecon?.ExpectedCash));
     public string CountLiveDifferenceText => SignedCop(CloseCount.Total - (CloseRecon?.ExpectedCash ?? 0));
     public string CountLiveDifferenceColor => DifferenceColorFor(CloseCount.Total - (CloseRecon?.ExpectedCash ?? 0), _settings.MaxDifferenceWithoutManager);
 
@@ -93,17 +96,17 @@ public partial class CashShiftViewModel
     public string CloseCountedText => CloseCount.TotalText;
     public string CloseDifferenceText => SignedCop(CloseDifference);
     public string CloseDifferenceColor => DifferenceColorFor(CloseDifference, _settings.MaxDifferenceWithoutManager);
-    public string CloseVerdictText => CloseDifference == 0 ? "✅ Cuadre perfecto"
-        : !NeedsDifferenceApproval ? (CloseDifference > 0 ? "🟡 Sobrante dentro del margen permitido" : "🟡 Faltante dentro del margen permitido")
-        : (CloseDifference > 0 ? "🔴 Sobrante mayor al permitido" : "🔴 Faltante mayor al permitido");
+    public string CloseVerdictText => CloseDifference == 0 ? T("Cash.Close.Verdict.Exact")
+        : !NeedsDifferenceApproval ? T(CloseDifference > 0 ? "Cash.Close.Verdict.OverWithin" : "Cash.Close.Verdict.ShortWithin")
+        : T(CloseDifference > 0 ? "Cash.Close.Verdict.OverAbove" : "Cash.Close.Verdict.ShortAbove");
     public bool NeedsDifferenceApproval => Math.Abs(CloseDifference) > _settings.MaxDifferenceWithoutManager;
-    public string ThresholdText => $"Máximo sin gerente: {Cop(_settings.MaxDifferenceWithoutManager)}";
+    public string ThresholdText => T("Cash.Close.Threshold", Cop(_settings.MaxDifferenceWithoutManager));
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasDifferenceApproval), nameof(DifferenceApprovalText), nameof(CanLeaveResult))]
     private ManagerOverrideDto? _differenceApproval;
     public bool HasDifferenceApproval => DifferenceApproval != null;
-    public string DifferenceApprovalText => DifferenceApproval is { } a ? $"✔ Autorizado por {a.ManagerName}" : string.Empty;
+    public string DifferenceApprovalText => DifferenceApproval is { } a ? T("Cash.Close.AuthorizedBy", a.ManagerName) : string.Empty;
 
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(CanLeaveResult))]
@@ -119,7 +122,7 @@ public partial class CashShiftViewModel
     public decimal FloatAmount => ParseAmount(FloatAmountStr);
     public string FloatAmountText => Cop(FloatAmount);
     public string WithdrawText => Cop(Math.Max(0, CloseCount.Total - FloatAmount));
-    public string FloatError => FloatAmount > CloseCount.Total ? $"⚠️ El fondo no puede superar lo contado ({CloseCount.TotalText})" : string.Empty;
+    public string FloatError => FloatAmount > CloseCount.Total ? T("Cash.Close.FloatTooHigh", CloseCount.TotalText) : string.Empty;
 
     private void OnCloseCountChanged()
     {
@@ -159,11 +162,9 @@ public partial class CashShiftViewModel
             using var scope = _scopes.CreateScope();
             CloseRecon = await scope.ServiceProvider.GetRequiredService<ICashShiftService>().GetReconciliationAsync();
             var active = await scope.ServiceProvider.GetRequiredService<IComandaService>().GetActiveComandasAsync();
+            _openComandaNames = string.Join(", ", active.Take(6).Select(c => c.TableName)) + (active.Count > 6 ? "…" : "");
             OpenComandasCount = active.Count;
-            OpenComandasText = active.Count == 0 ? string.Empty
-                : $"🍽️ Hay {active.Count} {(active.Count == 1 ? "comanda abierta" : "comandas abiertas")}: " +
-                  string.Join(", ", active.Take(6).Select(c => c.TableName)) + (active.Count > 6 ? "…" : "") +
-                  ". Cóbrelas o anúlelas antes de cerrar el turno.";
+            OnPropertyChanged(nameof(OpenComandasText));
             NotifyResult();
         }
         catch (Exception ex)
@@ -181,20 +182,20 @@ public partial class CashShiftViewModel
         switch (CloseStep)
         {
             case 1:
-                if (!CanStartCount) { CloseError = HasOpenComandas ? OpenComandasText : "⚠️ No se pudo cargar el resumen."; return; }
+                if (!CanStartCount) { CloseError = HasOpenComandas ? OpenComandasText : T("Cash.Close.NoSummary"); return; }
                 CloseStep = 2;
                 break;
             case 2:
                 if (CloseCount.Total <= 0 && CloseExpected > 0)
                 {
-                    CloseError = "⚠️ Cuente el efectivo del cajón (toque + en cada billete / moneda).";
+                    CloseError = T("Cash.Close.CountFirst");
                     return;
                 }
                 NotifyResult();
                 CloseStep = 3;
                 break;
             case 3:
-                if (!CanLeaveResult) { CloseError = "⚠️ La diferencia requiere autorización de gerente y una nota."; return; }
+                if (!CanLeaveResult) { CloseError = T("Cash.Close.NeedsApproval"); return; }
                 var suggested = Math.Min(_settings.DefaultFloat, CloseCount.Total);
                 FloatAmountStr = suggested.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
                 _floatPristine = true;
@@ -223,7 +224,7 @@ public partial class CashShiftViewModel
         var result = await RequiredOverride.RequestAsync(_authPrompt, _scopes, _session, AuthorizedAction.CashDifference,
             $"Cierre turno #{shift} con diferencia {SignedCop(diff)}", diff, $"Turno #{shift}");
         if (result.IsApproved) DifferenceApproval = result.Override;
-        else CloseError = result.Error ?? "❌ No autorizado";
+        else CloseError = result.Error ?? T("Cash.NotAuthorized");
     }
 
     [RelayCommand]
@@ -248,7 +249,7 @@ public partial class CashShiftViewModel
         if (IsBusy) return;
         CloseError = string.Empty;
         if (FloatAmount > CloseCount.Total) { CloseError = FloatError; return; }
-        if (!CanLeaveResult) { CloseStep = 3; CloseError = "⚠️ La diferencia requiere autorización de gerente y una nota."; return; }
+        if (!CanLeaveResult) { CloseStep = 3; CloseError = T("Cash.Close.NeedsApproval"); return; }
 
         IsBusy = true;
         try
@@ -267,7 +268,7 @@ public partial class CashShiftViewModel
             UpdateShiftStatusDisplay();
             Reconciliation = null;
             Movements.Clear();
-            Notification = $"✅ Turno #{final.ShiftNumber} cerrado. Diferencia: {SignedCop(final.Difference ?? 0)}";
+            Notification = T("Cash.Close.Done", final.ShiftNumber, SignedCop(final.Difference ?? 0));
 
             ShowZReport(final, isFromClose: true);
             await PrintZReportAsync(); // printed once automatically; "Imprimir Z" reprints

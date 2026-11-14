@@ -10,6 +10,7 @@ using Core.Application.Receipts;
 using Core.Application.Services;
 using Core.Domain.Entities;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
@@ -36,8 +37,8 @@ public partial class CashShiftViewModel : ObservableObject
     // ── Current Shift State ──────────────────────────────────────────────────
     [ObservableProperty] private CashShift? _currentShift;
     [ObservableProperty] private bool _isShiftOpen = false;
-    [ObservableProperty] private string _shiftStatusText = "Sin turno abierto";
-    [ObservableProperty] private string _shiftStatusColor = "#EF4444";
+    [ObservableProperty] private string _shiftStatusText = Localizer.Instance.T("Cash.Status.NoShift.Short");
+    [ObservableProperty] private string _shiftStatusColor = ThemePalette.Danger;
 
     // ── Live dashboard (from GetReconciliationAsync) ────────────────────────
     [ObservableProperty]
@@ -53,26 +54,26 @@ public partial class CashShiftViewModel : ObservableObject
     public bool CanSeeExpected => !_settings.BlindCount || _session.CurrentUser == null || _session.CurrentUser.CanAuthorize;
     public bool IsBlindCount => _settings.BlindCount;
 
-    public string ExpectedCashText => !CanSeeExpected ? "🔒 Oculto (conteo a ciegas)"
+    public string ExpectedCashText => !CanSeeExpected ? T("Cash.Dash.Hidden")
         : Reconciliation is { } r ? ReceiptFormatter.Cop(r.ExpectedCash) : "—";
-    public string OpeningText => Reconciliation is { } r ? $"Fondo inicial {ReceiptFormatter.Cop(r.OpeningAmount)}" : string.Empty;
+    public string OpeningText => Reconciliation is { } r ? T("Cash.Dash.Opening", ReceiptFormatter.Cop(r.OpeningAmount)) : string.Empty;
     public string SalesText => Reconciliation is { } r ? ReceiptFormatter.Cop(r.TotalSales) : "—";
     public string SalesDetailText => Reconciliation is { } r
-        ? $"{r.OrderCount} facturas · Efectivo {ReceiptFormatter.Cop(r.CashSales)} · Tarjeta {ReceiptFormatter.Cop(r.CardSales)} · Transf. {ReceiptFormatter.Cop(r.TransferSales)}"
+        ? T("Cash.Dash.SalesDetail", r.OrderCount, ReceiptFormatter.Cop(r.CashSales), ReceiptFormatter.Cop(r.CardSales), ReceiptFormatter.Cop(r.TransferSales))
         : string.Empty;
     /// <summary>"Tarjeta por datáfono: $x (n)" — approved terminal charges of the shift (subset of card sales).</summary>
     public bool HasTerminalCharges => (Reconciliation?.TerminalChargeCount ?? 0) > 0;
     public string TerminalCardDetailText => Reconciliation is { } r && r.TerminalChargeCount > 0
-        ? $"💳 Tarjeta por datáfono: {ReceiptFormatter.Cop(r.TerminalCardTotal)} ({r.TerminalChargeCount})"
+        ? T("Cash.Dash.TerminalCard", ReceiptFormatter.Cop(r.TerminalCardTotal), r.TerminalChargeCount)
         : string.Empty;
     public string BillPaymentsText => Reconciliation is { } r
         ? ReceiptFormatter.Cop(r.BillPaymentsCash + r.BillPaymentsCard + r.BillPaymentsTransfer) : "—";
     public string BillPaymentsDetailText => Reconciliation is { } r
-        ? $"{r.BillPaymentCount} recaudos · Comisiones {ReceiptFormatter.Cop(r.BillPaymentCommissions)}" : string.Empty;
+        ? T("Cash.Dash.BillPaymentsDetail", r.BillPaymentCount, ReceiptFormatter.Cop(r.BillPaymentCommissions)) : string.Empty;
     public string MovementsText => Reconciliation is { } r
         ? SignedCop(r.PaidIn - r.PaidOut - r.Expenses - r.SafeDrops - r.TipPayouts) : "—";
     public string MovementsDetailText => Reconciliation is { } r
-        ? $"Entradas {ReceiptFormatter.Cop(r.PaidIn)} · Salidas {ReceiptFormatter.Cop(r.PaidOut + r.Expenses + r.SafeDrops + r.TipPayouts)}"
+        ? T("Cash.Dash.MovementsDetail", ReceiptFormatter.Cop(r.PaidIn), ReceiptFormatter.Cop(r.PaidOut + r.Expenses + r.SafeDrops + r.TipPayouts))
         : string.Empty;
 
     // ── Open Shift Dialog ────────────────────────────────────────────────────
@@ -81,8 +82,8 @@ public partial class CashShiftViewModel : ObservableObject
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(OpeningAmountText))]
     private string _openingAmountStr = "0";
-    [ObservableProperty] private string _suggestedOpeningText = string.Empty;
     private decimal _suggestedOpening;
+    public string SuggestedOpeningText => T("Cash.Open.Suggested", ReceiptFormatter.Cop(_suggestedOpening));
     private bool _openingPristine;
     public string OpeningAmountText => ReceiptFormatter.Cop(ParseAmount(OpeningAmountStr));
 
@@ -93,12 +94,13 @@ public partial class CashShiftViewModel : ObservableObject
     public bool IsViewActive { get; set; }
 
     // ── Outbox sync indicator (header) ───────────────────────────────────────
-    [ObservableProperty] private string _syncStatusText = "☁️ Sincronización: desactivada";
+    [ObservableProperty] private string _syncStatusText = Localizer.Instance.T("Cash.Sync.Disabled");
     [ObservableProperty] private bool _hasFailedSync;
     [ObservableProperty] private bool _isRetryingSync;
 
     public CashShiftViewModel(IServiceScopeFactory scopes, IUserSession session, OutboxSyncWorker sync,
-        CashShiftSettings settings, IManagerAuthPrompt authPrompt, IPrinterService printer, ICashDrawerService cashDrawer)
+        CashShiftSettings settings, IManagerAuthPrompt authPrompt, IPrinterService printer, ICashDrawerService cashDrawer,
+        ThemeService? theme = null)
     {
         _scopes = scopes;
         _session = session;
@@ -116,6 +118,13 @@ public partial class CashShiftViewModel : ObservableObject
         _sync.Changed += () => Dispatcher.UIThread.Post(UpdateSyncStatus); // worker already posts, this is belt and braces
         _session.Changed += () => Dispatcher.UIThread.Post(OnSessionChanged);
         UpdateSyncStatus();
+
+        // Colours exposed as hex strings come from ThemePalette (current theme); re-read them when the theme flips.
+        if (theme != null)
+            theme.Changed += () => Dispatcher.UIThread.Post(OnThemeChanged);
+
+        // Texts computed in the VM (status line, dashboard details, wizard texts) are re-read when the UI language flips.
+        Localizer.Instance.Changed += () => Dispatcher.UIThread.Post(OnLanguageChanged);
 
         _refreshTimer = new DispatcherTimer { Interval = TimeSpan.FromSeconds(30) };
         _refreshTimer.Tick += async (_, _) =>
@@ -137,6 +146,8 @@ public partial class CashShiftViewModel : ObservableObject
     }
 
     // ── Helpers shared by the partials ──────────────────────────────────────
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+
     private async Task<T> WithShiftServiceAsync<T>(Func<ICashShiftService, Task<T>> action)
     {
         using var scope = _scopes.CreateScope();
@@ -160,9 +171,9 @@ public partial class CashShiftViewModel : ObservableObject
         : amount < 0 ? "− " + ReceiptFormatter.Cop(-amount)
         : ReceiptFormatter.Cop(0);
 
-    /// <summary>Green = exact, amber = within the threshold, red = above it.</summary>
+    /// <summary>Green = exact, amber = within the threshold, red = above it (current theme's tokens, see ThemePalette).</summary>
     public static string DifferenceColorFor(decimal difference, decimal threshold) =>
-        difference == 0 ? "#34D399" : Math.Abs(difference) <= threshold ? "#FBBF24" : "#F87171";
+        difference == 0 ? ThemePalette.SuccessBright : Math.Abs(difference) <= threshold ? ThemePalette.WarningBright : ThemePalette.DangerBright;
 
     private string UserName => _session.CurrentUser?.Name ?? (CurrentShift?.CashierName ?? "Cajero");
 
@@ -171,11 +182,11 @@ public partial class CashShiftViewModel : ObservableObject
         try
         {
             if (!await _printer.PrintLinesAsync(lines, documentName))
-                Notification = $"⚠️ No se pudo imprimir {documentName} (copia guardada en FailedReceipts)";
+                Notification = T("Cash.Print.FailedSaved", documentName);
         }
         catch (Exception ex)
         {
-            Notification = $"⚠️ No se pudo imprimir {documentName}: {ex.Message}";
+            Notification = T("Cash.Print.Failed", documentName, ex.Message);
         }
     }
 
@@ -183,15 +194,15 @@ public partial class CashShiftViewModel : ObservableObject
     {
         if (!_sync.IsEnabled)
         {
-            SyncStatusText = "☁️ Sincronización: desactivada";
+            SyncStatusText = T("Cash.Sync.Disabled");
             HasFailedSync = false;
             return;
         }
 
         var (pending, failed, _) = _sync.Counts;
         var last = _sync.LastRunAt is { } t ? t.ToLocalTime().ToString("HH:mm") : "—";
-        var text = $"☁️ {pending} pendientes · {failed} {(failed == 1 ? "fallido" : "fallidos")} · última: {last}";
-        if (_sync.LastError != null) text += " · ⚠️ error de envío";
+        var text = T("Cash.Sync.Status", pending, failed, T(failed == 1 ? "Cash.Sync.Failed.One" : "Cash.Sync.Failed.Many"), last);
+        if (_sync.LastError != null) text += T("Cash.Sync.SendError");
         SyncStatusText = text;
         HasFailedSync = failed > 0;
     }
@@ -205,7 +216,7 @@ public partial class CashShiftViewModel : ObservableObject
         try
         {
             var reset = await _sync.RetryFailedAsync();
-            Notification = reset > 0 ? $"🔁 {reset} mensaje(s) vuelven a la cola de envío" : "No hay mensajes fallidos";
+            Notification = reset > 0 ? T("Cash.Sync.Requeued", reset) : T("Cash.Sync.NoFailed");
             if (reset > 0) _ = _sync.RunOnceAsync(); // don't wait for the next tick
         }
         finally
@@ -228,7 +239,7 @@ public partial class CashShiftViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification = $"Error al cargar turno: {ex.Message}";
+            Notification = T("Cash.Error.LoadShift", ex.Message);
         }
     }
 
@@ -250,8 +261,31 @@ public partial class CashShiftViewModel : ObservableObject
         }
         catch (Exception ex)
         {
-            Notification = $"⚠️ No se pudo actualizar el resumen: {ex.Message}";
+            Notification = T("Cash.Error.RefreshSummary", ex.Message);
         }
+    }
+
+    private void OnThemeChanged()
+    {
+        UpdateShiftStatusDisplay();
+        OnPropertyChanged(nameof(CountLiveDifferenceColor));
+        OnPropertyChanged(nameof(CloseDifferenceColor));
+    }
+
+    private void OnLanguageChanged()
+    {
+        UpdateShiftStatusDisplay();
+        UpdateSyncStatus();
+        foreach (var name in new[] { nameof(ExpectedCashText), nameof(OpeningText), nameof(SalesDetailText), nameof(TerminalCardDetailText),
+                     nameof(BillPaymentsDetailText), nameof(MovementsDetailText), nameof(SuggestedOpeningText), nameof(StepTitle),
+                     nameof(OpenComandasText), nameof(CloseOrderCountText), nameof(CloseCardExpectedText), nameof(CloseTransferExpectedText),
+                     nameof(CloseBillPaymentsText), nameof(CloseMovementsText), nameof(CountExpectedText), nameof(CloseVerdictText),
+                     nameof(ThresholdText), nameof(DifferenceApprovalText), nameof(FloatError), nameof(MovementDirectionText) })
+            OnPropertyChanged(name);
+        if (IsMovementDialogVisible) RefreshMovementChips();
+        if (IsZReportVisible) ApplyZReportTexts();
+        if (IsDayConsolidationVisible) RenderDay();
+        // Row VMs (movements, history, day rows other than RenderDay) keep their text until the next refresh.
     }
 
     private void UpdateShiftStatusDisplay()
@@ -260,15 +294,14 @@ public partial class CashShiftViewModel : ObservableObject
         {
             var elapsed = DateTime.UtcNow - CurrentShift.OpenedAt;
             var terminal = string.IsNullOrWhiteSpace(CurrentShift.TerminalCode) ? string.Empty : $"{CurrentShift.TerminalCode} · ";
-            ShiftStatusText = $"🟢 {terminal}Turno #{CurrentShift.ShiftNumber} abierto – {CurrentShift.CashierName} " +
-                              $"| Inicio: {CurrentShift.OpenedAt.ToLocalTime():HH:mm} " +
-                              $"| {(int)elapsed.TotalHours}h {elapsed.Minutes}m";
-            ShiftStatusColor = "#10B981";
+            ShiftStatusText = T("Cash.Status.Open", terminal, CurrentShift.ShiftNumber, CurrentShift.CashierName,
+                CurrentShift.OpenedAt.ToLocalTime().ToString("HH:mm"), (int)elapsed.TotalHours, elapsed.Minutes);
+            ShiftStatusColor = ThemePalette.Success;
         }
         else
         {
-            ShiftStatusText = "🔴 Sin turno abierto – Debe abrir turno para registrar ventas";
-            ShiftStatusColor = "#EF4444";
+            ShiftStatusText = "🔴 " + T("Status.NoShift");
+            ShiftStatusColor = ThemePalette.Danger;
         }
     }
 
@@ -287,7 +320,7 @@ public partial class CashShiftViewModel : ObservableObject
         }
         OpeningAmountStr = _suggestedOpening.ToString("0", System.Globalization.CultureInfo.InvariantCulture);
         _openingPristine = true;
-        SuggestedOpeningText = $"Fondo sugerido: {ReceiptFormatter.Cop(_suggestedOpening)} (dejado por el turno anterior)";
+        OnPropertyChanged(nameof(SuggestedOpeningText));
         IsOpenDialogVisible = true;
     }
 
@@ -314,13 +347,13 @@ public partial class CashShiftViewModel : ObservableObject
     {
         if (string.IsNullOrWhiteSpace(CashierName))
         {
-            Notification = "⚠️ Ingrese el nombre del cajero.";
+            Notification = T("Cash.Open.NeedCashier");
             return;
         }
         var amount = ParseAmount(OpeningAmountStr);
         if (amount < 0)
         {
-            Notification = "⚠️ Monto inicial inválido.";
+            Notification = T("Cash.Open.InvalidAmount");
             return;
         }
         try
@@ -331,7 +364,7 @@ public partial class CashShiftViewModel : ObservableObject
             IsShiftOpen = true;
             UpdateShiftStatusDisplay();
             IsOpenDialogVisible = false;
-            Notification = $"✅ Turno #{CurrentShift.ShiftNumber} abierto con {ReceiptFormatter.Cop(amount)} de fondo inicial.";
+            Notification = T("Cash.Open.Done", CurrentShift.ShiftNumber, ReceiptFormatter.Cop(amount));
             await RefreshReconciliationAsync();
         }
         catch (Exception ex)

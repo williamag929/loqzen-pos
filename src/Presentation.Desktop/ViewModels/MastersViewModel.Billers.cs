@@ -1,3 +1,4 @@
+using Presentation.Desktop.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -7,6 +8,7 @@ using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Receipts;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -22,11 +24,11 @@ public sealed class BillerRowViewModel
     public BillerDto Dto { get; }
     public IRelayCommand EditCommand { get; }
     public string Name => Dto.Name;
-    public string CodeText => string.IsNullOrWhiteSpace(Dto.Code) ? "Sin código" : $"Código {Dto.Code}";
+    public string CodeText => string.IsNullOrWhiteSpace(Dto.Code) ? Localizer.Instance.T("Masters.Billers.NoCode") : Localizer.Instance.T("Masters.Billers.Code", Dto.Code);
     public string CommissionText => BillerTileViewModel.CommissionLabel(Dto);
-    public string Color => string.IsNullOrWhiteSpace(Dto.ColorHex) ? "#334155" : Dto.ColorHex!;
+    public string Color => string.IsNullOrWhiteSpace(Dto.ColorHex) ? ThemePalette.Border : Dto.ColorHex!;
     public bool IsActive => Dto.IsActive;
-    public string OrderText => $"Orden {Dto.SortOrder}";
+    public string OrderText => Localizer.Instance.T("Masters.OrderText", Dto.SortOrder);
 }
 
 /// <summary>"🏢 Convenios": companies whose bills the store collects (recaudos) and their commission.</summary>
@@ -40,7 +42,7 @@ public partial class MastersViewModel
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(BillerFormTitle))]
     private bool _isEditingBiller;
-    public string BillerFormTitle => IsEditingBiller ? "🏢 Editar convenio" : "🏢 Nuevo convenio";
+    public string BillerFormTitle => IsEditingBiller ? T("Masters.Billers.FormTitle.Edit") : T("Masters.Billers.FormTitle.New");
 
     [ObservableProperty] private Guid _editBillerId;
     [ObservableProperty] private string _billerName = string.Empty;
@@ -58,7 +60,7 @@ public partial class MastersViewModel
     [ObservableProperty] private string _billerSortOrderStr = "0";
     [ObservableProperty] private bool _billerIsActive = true;
 
-    public string BillerColorPreview => IsHexColor(BillerColorHex) ? BillerColorHex : "#334155";
+    public string BillerColorPreview => IsHexColor(BillerColorHex) ? BillerColorHex : ThemePalette.Border;
 
     /// <summary>Live example so the cashier understands the commission before saving.</summary>
     public string BillerExampleText
@@ -66,7 +68,7 @@ public partial class MastersViewModel
         get
         {
             var dto = new BillerDto { CommissionFixed = ParseMoney(BillerFixedStr) ?? 0, CommissionPercent = (ParseMoney(BillerPercentStr) ?? 0) / 100m };
-            return $"Ejemplo: factura de {ReceiptFormatter.Cop(100000)} → comisión {ReceiptFormatter.Cop(dto.CommissionFor(100000))}";
+            return T("Masters.Billers.Example", ReceiptFormatter.Cop(100000), ReceiptFormatter.Cop(dto.CommissionFor(100000)));
         }
     }
 
@@ -97,7 +99,16 @@ public partial class MastersViewModel
             Billers.Clear();
             foreach (var b in items.OrderBy(b => b.SortOrder).ThenBy(b => b.Name)) Billers.Add(new BillerRowViewModel(b, EditBiller));
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
+    }
+
+    /// <summary>Language toggle: rows cache translated texts (code/order), so re-wrap the same DTOs.</summary>
+    private void RefreshBillerRowsLanguage()
+    {
+        if (Billers.Count == 0) return;
+        var dtos = Billers.Select(b => b.Dto).ToList();
+        Billers.Clear();
+        foreach (var b in dtos) Billers.Add(new BillerRowViewModel(b, EditBiller));
     }
 
     private void EnsureColorChips()
@@ -140,13 +151,13 @@ public partial class MastersViewModel
     [RelayCommand]
     public async Task SaveBillerAsync()
     {
-        if (string.IsNullOrWhiteSpace(BillerName)) { Notification = "⚠️ El nombre del convenio es obligatorio."; return; }
+        if (string.IsNullOrWhiteSpace(BillerName)) { Notification = T("Masters.Billers.NameRequired"); return; }
         var fixedAmount = ParseMoney(BillerFixedStr);
         var percent = ParseMoney(BillerPercentStr);
-        if (fixedAmount is null or < 0) { Notification = "⚠️ Comisión fija inválida."; return; }
-        if (percent is null or < 0 or > 20) { Notification = "⚠️ El porcentaje debe estar entre 0 y 20 %."; return; }
+        if (fixedAmount is null or < 0) { Notification = T("Masters.Billers.InvalidFixed"); return; }
+        if (percent is null or < 0 or > 20) { Notification = T("Masters.Billers.InvalidPercent"); return; }
         if (!int.TryParse(BillerSortOrderStr, out var order)) order = 0;
-        if (!IsHexColor(BillerColorHex)) { Notification = "⚠️ Color inválido (use #RRGGBB)."; return; }
+        if (!IsHexColor(BillerColorHex)) { Notification = T("Masters.Billers.InvalidColor"); return; }
 
         try
         {
@@ -162,10 +173,10 @@ public partial class MastersViewModel
                 IsActive = BillerIsActive
             });
             IsBillerFormVisible = false;
-            Notification = $"✅ Convenio \"{BillerName.Trim()}\" guardado";
+            Notification = T("Masters.Billers.Saved", BillerName.Trim());
             await LoadBillersAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     [RelayCommand] public void CancelBillerForm() => IsBillerFormVisible = false;

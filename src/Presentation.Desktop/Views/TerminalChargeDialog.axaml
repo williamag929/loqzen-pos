@@ -1,112 +1,184 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
-             xmlns:conv="using:Presentation.Desktop.Converters"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.TerminalChargeDialog"
              x:DataType="vm:TerminalChargePromptViewModel"
              x:CompileBindings="True">
 
+    <UserControl.Styles>
+        <!-- Dialog buttons on tokens. Every :pointerover selector exists because Fluent repaints a Button grey on hover
+             when only Background is set. -->
+        <Style Selector="Button.primary">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.primary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.secondary">
+            <Setter Property="Background" Value="{DynamicResource Border}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.secondary:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BorderStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.outline">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.outline:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.danger">
+            <Setter Property="Background" Value="{DynamicResource DangerSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource DangerText}"/>
+        </Style>
+        <Style Selector="Button.danger:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource Danger}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+
+        <!-- Terminal choice tile: Classes.active="{Binding IsSelected}" replaces the old BoolToColor hex pair. -->
+        <Style Selector="Button.choice">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="2"/>
+        </Style>
+        <Style Selector="Button.choice:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        </Style>
+        <Style Selector="Button.choice TextBlock.name">
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+        </Style>
+        <Style Selector="Button.choice TextBlock.detail">
+            <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+        </Style>
+        <Style Selector="Button.choice.active">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBright}"/>
+        </Style>
+        <Style Selector="Button.choice.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentBright}"/>
+        </Style>
+        <Style Selector="Button.choice.active TextBlock.name">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.choice.active TextBlock.detail">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="Opacity" Value="0.85"/>
+        </Style>
+    </UserControl.Styles>
+
     <!-- Modal: send an amount to a card terminal (datáfono) and wait for its answer.
          Phases: choose terminal → charging (stage + animated bar + Cancelar) → approved (auto-closes) / failed (Reintentar · Cobrar manual).
-         Hosted in MainWindow above every screen, same pattern as ManagerAuthDialog. -->
-    <Border Background="#CC000000">
-        <Border Background="#0F172A" BorderBrush="{Binding BorderColor}" BorderThickness="2" CornerRadius="16" Padding="24"
+         Hosted in MainWindow above every screen, same pattern as ManagerAuthDialog.
+         BorderColor / ResultColor are hex strings the VM reads from ThemePalette (refreshed on theme change). -->
+    <Border Background="{DynamicResource BgOverlay}">
+        <Border Background="{DynamicResource BgApp}" BorderBrush="{Binding BorderColor}" BorderThickness="2" CornerRadius="16" Padding="24"
                 Width="560" MaxWidth="700" HorizontalAlignment="Center" VerticalAlignment="Center">
             <StackPanel Spacing="14">
-                <TextBlock Text="{Binding Title}" Foreground="White" FontSize="22" FontWeight="Black"/>
+                <TextBlock Text="{Binding Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black"/>
 
                 <!-- Amount: label in Auto, figure in * right-aligned so a large total is never clipped -->
-                <Border Background="#1E293B" CornerRadius="10" Padding="16,12">
+                <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16,12">
                     <Grid ColumnDefinitions="Auto, *" RowDefinitions="Auto, Auto">
-                        <TextBlock Text="Total a cobrar" Foreground="#94A3B8" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0"/>
-                        <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="#34D399" FontSize="40" FontWeight="Black" TextAlignment="Right"/>
-                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ReferenceText}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap" Margin="0,4,0,0"/>
+                        <TextBlock Text="{i18n:Loc Terminal.TotalDue}" Foreground="{DynamicResource TextMuted}" FontSize="16" VerticalAlignment="Center" Margin="0,0,16,0"/>
+                        <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="{DynamicResource SuccessBright}" FontSize="40" FontWeight="Black" TextAlignment="Right"/>
+                        <TextBlock Grid.Row="1" Grid.ColumnSpan="2" Text="{Binding ReferenceText}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextWrapping="Wrap" Margin="0,4,0,0"/>
                     </Grid>
                 </Border>
 
                 <!-- ── Phase 1: choose the terminal ── -->
                 <StackPanel Spacing="10" IsVisible="{Binding IsSelecting}">
-                    <TextBlock Text="Datáfono" Foreground="#94A3B8" FontSize="14"/>
+                    <TextBlock Text="{i18n:Loc Terminal.Device}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
                     <ItemsControl ItemsSource="{Binding Terminals}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:TerminalChoiceViewModel">
-                                <Button MinHeight="56" MinWidth="150" Padding="16,8" Margin="0,0,8,8" CornerRadius="10"
-                                        Background="{Binding IsSelected, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"
-                                        BorderBrush="{Binding IsSelected, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#60A5FA|#334155'}"
-                                        BorderThickness="2" HorizontalContentAlignment="Left" Command="{Binding SelectCommand}">
+                                <Button Classes="choice" Classes.active="{Binding IsSelected}"
+                                        MinHeight="56" MinWidth="150" Padding="16,8" Margin="0,0,8,8" CornerRadius="10"
+                                        HorizontalContentAlignment="Left" Command="{Binding SelectCommand}">
                                     <StackPanel Spacing="2">
-                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="16" FontWeight="Bold"/>
-                                        <TextBlock Text="{Binding Detail}" Foreground="#CBD5E1" FontSize="12"/>
+                                        <TextBlock Classes="name" Text="{Binding Name}" FontSize="16" FontWeight="Bold"/>
+                                        <TextBlock Classes="detail" Text="{Binding Detail}" FontSize="12"/>
                                     </StackPanel>
                                 </Button>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
 
-                    <TextBlock Text="{Binding ErrorMessage}" Foreground="#F87171" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
+                    <TextBlock Text="{Binding ErrorMessage}" Foreground="{DynamicResource DangerBright}" FontSize="14" FontWeight="Bold" TextWrapping="Wrap" IsVisible="{Binding HasError}"/>
 
                     <Grid ColumnDefinitions="*, *, *">
-                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                        <Button Classes="secondary" Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" FontSize="16" FontWeight="Bold"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelCommand}"/>
-                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Background="#1E293B" BorderBrush="#475569" BorderThickness="1" Foreground="#E2E8F0" FontSize="15" FontWeight="Bold"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelCommand}"/>
+                        <Button Classes="outline" Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" FontSize="15" FontWeight="Bold"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="✍️ Cobrar manual" Command="{Binding UseManualCommand}"/>
-                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
+                                Content="{i18n:Loc Terminal.Manual}" Command="{Binding UseManualCommand}"/>
+                        <Button Classes="primary" Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" FontSize="18" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💳 Cobrar" Command="{Binding ChargeCommand}" IsEnabled="{Binding CanCharge}"/>
+                                Content="{i18n:Loc Terminal.Charge}" Command="{Binding ChargeCommand}" IsEnabled="{Binding CanCharge}"/>
                     </Grid>
                 </StackPanel>
 
                 <!-- ── Phase 2: charge in flight ── -->
                 <StackPanel Spacing="14" IsVisible="{Binding IsCharging}">
-                    <Border Background="#020617" CornerRadius="12" Padding="20" BorderBrush="#334155" BorderThickness="1">
+                    <Border Background="{DynamicResource BgBar}" CornerRadius="12" Padding="20" BorderBrush="{DynamicResource Border}" BorderThickness="1">
                         <StackPanel Spacing="12" HorizontalAlignment="Center">
                             <TextBlock Text="{Binding StageIcon}" FontSize="44" HorizontalAlignment="Center"/>
-                            <TextBlock Text="{Binding StageText}" Foreground="White" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
-                            <ProgressBar IsIndeterminate="True" Height="8" MinWidth="320" CornerRadius="4" Foreground="#38BDF8" Background="#1E293B"/>
-                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="#94A3B8" FontSize="13" TextAlignment="Center" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding StageText}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" TextWrapping="Wrap" TextAlignment="Center"/>
+                            <ProgressBar IsIndeterminate="True" Height="8" MinWidth="320" CornerRadius="4" Foreground="{DynamicResource Info}" Background="{DynamicResource BgSurface}"/>
+                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="{DynamicResource TextMuted}" FontSize="13" TextAlignment="Center" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="Siga las instrucciones del datáfono. No retire la tarjeta hasta que termine." Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
-                    <Button Height="64" CornerRadius="10" Background="#7F1D1D" Foreground="White" FontSize="17" FontWeight="Bold"
+                    <TextBlock Text="{i18n:Loc Terminal.Follow}" Foreground="{DynamicResource TextMuted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <Button Classes="danger" Height="64" CornerRadius="10" FontSize="17" FontWeight="Bold"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            Content="⛔ Cancelar" Command="{Binding CancelChargeCommand}"/>
+                            Content="{i18n:Loc Terminal.CancelCharge}" Command="{Binding CancelChargeCommand}"/>
                 </StackPanel>
 
                 <!-- ── Phase 3a: approved (auto-closes after 1.5 s) ── -->
-                <Border IsVisible="{Binding IsApproved}" Background="#064E3B" BorderBrush="#10B981" BorderThickness="2" CornerRadius="12" Padding="20">
+                <Border IsVisible="{Binding IsApproved}" Background="{DynamicResource SuccessSurface}" BorderBrush="{DynamicResource Success}" BorderThickness="2" CornerRadius="12" Padding="20">
                     <StackPanel Spacing="8" HorizontalAlignment="Center">
-                        <TextBlock Text="{Binding ResultTitle}" Foreground="#A7F3D0" FontSize="28" FontWeight="Black" TextAlignment="Center"/>
-                        <TextBlock Text="{Binding ResultMessage}" Foreground="White" FontSize="18" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap"/>
-                        <TextBlock Text="Registrando la venta…" Foreground="#6EE7B7" FontSize="13" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding ResultTitle}" Foreground="{DynamicResource SuccessText}" FontSize="28" FontWeight="Black" TextAlignment="Center"/>
+                        <TextBlock Text="{Binding ResultMessage}" Foreground="{DynamicResource SuccessText}" FontSize="18" FontWeight="Bold" TextAlignment="Center" TextWrapping="Wrap"/>
+                        <TextBlock Text="{i18n:Loc Terminal.Recording}" Foreground="{DynamicResource SuccessText}" FontSize="13" TextAlignment="Center" Opacity="0.85"/>
                     </StackPanel>
                 </Border>
 
                 <!-- ── Phase 3b: declined / timeout / cancelled / error ── -->
                 <StackPanel Spacing="14" IsVisible="{Binding IsFailed}">
-                    <Border Background="#1E293B" BorderBrush="{Binding ResultColor}" BorderThickness="2" CornerRadius="12" Padding="20">
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{Binding ResultColor}" BorderThickness="2" CornerRadius="12" Padding="20">
                         <StackPanel Spacing="8">
                             <TextBlock Text="{Binding ResultTitle}" Foreground="{Binding ResultColor}" FontSize="24" FontWeight="Black" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding ResultMessage}" Foreground="#E2E8F0" FontSize="15" TextWrapping="Wrap"/>
-                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding ResultMessage}" Foreground="{DynamicResource TextSecondary}" FontSize="15" TextWrapping="Wrap"/>
+                            <TextBlock Text="{Binding SelectedTerminalText}" Foreground="{DynamicResource TextMuted}" FontSize="13" TextWrapping="Wrap"/>
                         </StackPanel>
                     </Border>
-                    <TextBlock Text="No se cobró nada. Puede reintentar en el datáfono o registrar la tarjeta manualmente."
-                               Foreground="#94A3B8" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Terminal.NothingCharged}"
+                               Foreground="{DynamicResource TextMuted}" FontSize="13" TextWrapping="Wrap" TextAlignment="Center"/>
                     <Grid ColumnDefinitions="*, *, *">
-                        <Button Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                        <Button Classes="secondary" Grid.Column="0" Height="64" Margin="0,0,4,0" CornerRadius="10" FontSize="16" FontWeight="Bold"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelCommand}"/>
-                        <Button Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" Background="#1E293B" BorderBrush="#475569" BorderThickness="1" Foreground="#E2E8F0" FontSize="15" FontWeight="Bold"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelCommand}"/>
+                        <Button Classes="outline" Grid.Column="1" Height="64" Margin="4,0" CornerRadius="10" FontSize="15" FontWeight="Bold"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="✍️ Cobrar manual" Command="{Binding UseManualCommand}"/>
-                        <Button Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="17" FontWeight="Black"
+                                Content="{i18n:Loc Terminal.Manual}" Command="{Binding UseManualCommand}"/>
+                        <Button Classes="primary" Grid.Column="2" Height="64" Margin="4,0,0,0" CornerRadius="10" FontSize="17" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="🔁 Reintentar" Command="{Binding RetryCommand}"/>
+                                Content="{i18n:Loc Terminal.Retry}" Command="{Binding RetryCommand}"/>
                     </Grid>
                 </StackPanel>
             </StackPanel>

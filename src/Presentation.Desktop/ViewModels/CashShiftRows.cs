@@ -3,6 +3,8 @@ using System.Linq;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Receipts;
+using Presentation.Desktop.Localization;
+using Presentation.Desktop.Services;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -28,10 +30,11 @@ public sealed class CashMovementRowViewModel
 
     public CashMovementDto Dto { get; }
     public string TypeLabel => Dto.TypeLabel;
-    public string Reason => string.IsNullOrWhiteSpace(Dto.Reference) ? Dto.Reason : $"{Dto.Reason} · Ref. {Dto.Reference}";
-    public string Detail => $"{Dto.OccurredAt.ToLocalTime():HH:mm} · {Dto.UserName}" + (Dto.ManagerOverrideId != null ? " · ✔ gerente" : "");
+    public string Reason => string.IsNullOrWhiteSpace(Dto.Reference) ? Dto.Reason : T("Cash.Row.Ref", Dto.Reason, Dto.Reference);
+    public string Detail => $"{Dto.OccurredAt.ToLocalTime():HH:mm} · {Dto.UserName}" + (Dto.ManagerOverrideId != null ? " · " + T("Cash.ManagerBadge") : "");
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
     public string AmountText => (Dto.Sign > 0 ? "+ " : "− ") + ReceiptFormatter.Cop(Dto.Amount);
-    public string AmountColor => Dto.Sign > 0 ? "#34D399" : "#F87171";
+    public string AmountColor => Dto.Sign > 0 ? ThemePalette.SuccessBright : ThemePalette.DangerBright;
 }
 
 /// <summary>Row of the shift history; tap opens that shift's Z report.</summary>
@@ -52,7 +55,7 @@ public sealed class ShiftHistoryRowViewModel
     public string CashierName => Dto.CashierName;
     public string DatesText => Dto.ClosedAt is { } c
         ? $"{Dto.OpenedAt.ToLocalTime():dd/MM HH:mm} → {c.ToLocalTime():dd/MM HH:mm}"
-        : $"{Dto.OpenedAt.ToLocalTime():dd/MM HH:mm} → (abierto)";
+        : $"{Dto.OpenedAt.ToLocalTime():dd/MM HH:mm} → {Localizer.Instance.T("Cash.History.OpenMarker")}";
     public string ExpectedText => ReceiptFormatter.Cop(Dto.ExpectedAmount);
     public string CountedText => ReceiptFormatter.Cop(Dto.ClosingAmount);
     public string DifferenceText => CashShiftViewModel.SignedCop(Dto.Difference);
@@ -79,8 +82,8 @@ public sealed class TerminalDayRowViewModel
     /// <summary>Totals row.</summary>
     public TerminalDayRowViewModel(DayConsolidationDto day, decimal threshold)
     {
-        Code = "TOTAL";
-        Name = $"{day.Terminals.Count} {(day.Terminals.Count == 1 ? "caja" : "cajas")}";
+        Code = T("Cash.Day.TotalCode");
+        Name = T(day.Terminals.Count == 1 ? "Cash.Day.Registers.One" : "Cash.Day.Registers.Many", day.Terminals.Count);
         ShiftCount = day.Terminals.Sum(t => t.ShiftCount);
         OpenShiftCount = day.OpenShiftCount;
         OrderCount = day.OrderCount;
@@ -108,9 +111,10 @@ public sealed class TerminalDayRowViewModel
     public decimal Total => Cash + Card + Transfer + Other;
     public bool HasOpenShifts => OpenShiftCount > 0;
     /// <summary>"2 turnos" / "1 turno · 1 abierto" (open ones in amber via HasOpenShifts).</summary>
-    public string ShiftsText => $"{ShiftCount} {(ShiftCount == 1 ? "turno" : "turnos")}" + (OpenShiftCount > 0 ? $" · {OpenShiftCount} abierto{(OpenShiftCount == 1 ? "" : "s")}" : "");
-    public string ShiftsColor => OpenShiftCount > 0 ? "#FBBF24" : "#CBD5E1";
-    public string OrdersText => $"{OrderCount} {(OrderCount == 1 ? "factura" : "facturas")}";
+    public string ShiftsText => T(ShiftCount == 1 ? "Cash.Day.Shifts.One" : "Cash.Day.Shifts.Many", ShiftCount)
+        + (OpenShiftCount > 0 ? T(OpenShiftCount == 1 ? "Cash.Day.OpenCount.One" : "Cash.Day.OpenCount.Many", OpenShiftCount) : "");
+    public string ShiftsColor => OpenShiftCount > 0 ? ThemePalette.WarningBright : ThemePalette.TextSecondary;
+    public string OrdersText => T(OrderCount == 1 ? "Cash.Orders.One" : "Cash.Orders.Many", OrderCount);
     public string CashText => ReceiptFormatter.Cop(Cash);
     public string CardText => ReceiptFormatter.Cop(Card);
     public string TransferText => ReceiptFormatter.Cop(Transfer);
@@ -119,8 +123,7 @@ public sealed class TerminalDayRowViewModel
     public string TotalText => ReceiptFormatter.Cop(Total);
     public string DifferenceText => CashShiftViewModel.SignedCop(Difference);
     /// <summary>Compact (narrow window) second line.</summary>
-    public string CompactDetailText =>
-        $"Efectivo {CashText} · Tarjeta {CardText} · Transf. {TransferText} · Otros {OtherText} · Recaudos {BillPaymentsText}";
-    public string Background => IsTotal ? "#1E3A5F" : "#1E293B";
-    public string CodeColor => IsTotal ? "#93C5FD" : "White";
+    public string CompactDetailText => T("Cash.Day.Compact", CashText, CardText, TransferText, OtherText, BillPaymentsText);
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
+    // Row background / code colour are chosen in XAML from IsTotal (BoolToResourceConverter: AccentSurface|BgSurface, AccentText|TextPrimary).
 }

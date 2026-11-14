@@ -30,7 +30,7 @@ public partial class ComandaViewModel
                 ClearCurrent();
                 // Closed on the other register while we were looking at it: say so instead of silently vanishing.
                 if (fresh is { Status: ComandaStatus.Closed, PaidByTerminalCode: { } paidBy } && !IsOwnCode(paidBy))
-                    StatusMessage = $"💳 {table} ya fue cobrada en {paidBy}";
+                    StatusMessage = T("Comanda.Status.PaidElsewhere", table, paidBy);
             }
             else
             {
@@ -39,7 +39,7 @@ public partial class ComandaViewModel
         }
         catch (Exception ex)
         {
-            ReportError(ex, "actualizando");
+            ReportError(ex, "Comanda.Doing.Refreshing");
         }
     }
 
@@ -66,7 +66,7 @@ public partial class ComandaViewModel
         }
         catch (Exception ex)
         {
-            ReportError(ex, "leyendo comandas");
+            ReportError(ex, "Comanda.Doing.ReadingComandas");
             return false;
         }
 
@@ -108,7 +108,7 @@ public partial class ComandaViewModel
             Apply(await svc.OpenComandaAsync(table.Name, WaiterName, table.Dto.Id));
             BackToCategories();
             PanelIndex = 1;
-            StatusMessage = $"✅ Comanda abierta en {table.Name}";
+            StatusMessage = T("Comanda.Status.Opened", table.Name);
         });
         await RefreshListOnlyAsync();
     }

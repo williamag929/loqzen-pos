@@ -3,6 +3,7 @@
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:views="using:Presentation.Desktop.Views"
              xmlns:conv="using:Presentation.Desktop.Converters"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1280" d:DesignHeight="800"
@@ -10,35 +11,80 @@
              x:DataType="vm:BillPaymentsViewModel"
              x:CompileBindings="True">
 
-    <!-- Recaudos: billers (left) · form (center) · today's payments (right). -->
+    <!-- Recaudos: billers (left) · form (center) · today's payments (right).
+         Colours come ONLY from Styles/Theme.axaml tokens. Page = BgBar, cards = BgSurface2, rows/inputs = BgSurface
+         (same hierarchy as the original dark look; in Light the BorderSubtle outlines separate the levels).
+         Button.method.cash/.card/.transfer + Classes.active="{Binding IsX}" swap fill AND text so the unselected
+         state reads in both themes. The /template/ selectors keep Fluent from repainting hover grey. -->
     <UserControl.Styles>
         <Style Selector="TextBlock.label">
-            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
+
+        <Style Selector="Button.neutral">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.neutral:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        </Style>
+
         <Style Selector="Button.method">
             <Setter Property="Height" Value="60"/>
             <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Foreground" Value="White"/>
             <Setter Property="FontSize" Value="16"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="HorizontalAlignment" Value="Stretch"/>
             <Setter Property="HorizontalContentAlignment" Value="Center"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
             <Setter Property="Margin" Value="0,0,6,0"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.method:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        </Style>
+        <Style Selector="Button.method.active">
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+        </Style>
+        <Style Selector="Button.method.cash.active">
+            <Setter Property="Background" Value="{DynamicResource SuccessStrong}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource SuccessStrong}"/>
+        </Style>
+        <Style Selector="Button.method.card.active">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+        </Style>
+        <Style Selector="Button.method.transfer.active">
+            <Setter Property="Background" Value="{DynamicResource Purple}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Purple}"/>
+        </Style>
+        <Style Selector="Button.method.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{Binding $parent[Button].Background}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}"/>
         </Style>
     </UserControl.Styles>
 
-    <Grid RowDefinitions="Auto, *, Auto" Background="#020617">
+    <Grid RowDefinitions="Auto, *, Auto" Background="{DynamicResource BgBar}">
 
         <!-- No shift banner -->
-        <Border Grid.Row="0" Background="#7F1D1D" Padding="20,12" IsVisible="{Binding !HasOpenShift}">
+        <Border Grid.Row="0" Background="{DynamicResource DangerSurface}" Padding="20,12" IsVisible="{Binding !HasOpenShift}">
             <Grid ColumnDefinitions="*, Auto">
-                <TextBlock Text="🔴 Abra un turno para cobrar recaudos (pestaña 💼 Caja)." Foreground="White" FontSize="17" FontWeight="Bold"
+                <TextBlock Text="{i18n:Loc Bills.NoShift.Banner}" Foreground="{DynamicResource DangerText}" FontSize="17" FontWeight="Bold"
                            VerticalAlignment="Center" TextWrapping="Wrap"/>
-                <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="10" Background="#991B1B" Foreground="White"
-                        FontSize="15" FontWeight="Bold" Content="🔄 Revisar" Command="{Binding LoadCommand}"/>
+                <Button Grid.Column="1" Height="52" Padding="18,0" CornerRadius="10" Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}"
+                        FontSize="15" FontWeight="Bold" Content="{i18n:Loc Bills.NoShift.Check}" Command="{Binding LoadCommand}"/>
             </Grid>
         </Border>
 
@@ -46,20 +92,21 @@
 
             <!-- ── LEFT: billers ── -->
             <Grid Grid.Column="0" x:Name="BillersPanel" RowDefinitions="Auto, *" Margin="0,0,14,0">
-                <TextBlock Classes="label" Text="① Convenio" Margin="0,0,0,8"/>
+                <TextBlock Classes="label" Text="{i18n:Loc Bills.Step.Biller}" Margin="0,0,0,8"/>
                 <ScrollViewer Grid.Row="1">
                     <StackPanel>
-                        <TextBlock Text="No hay convenios activos. Créelos en 🗂️ Maestros → 🏢 Convenios." Foreground="#64748B" FontSize="14"
+                        <TextBlock Text="{i18n:Loc Bills.NoBillers}" Foreground="{DynamicResource TextFaint}" FontSize="14"
                                    TextWrapping="Wrap" IsVisible="{Binding !HasBillers}"/>
                         <ItemsControl ItemsSource="{Binding Billers}" IsEnabled="{Binding IsFormEnabled}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="vm:BillerTileViewModel">
+                                    <!-- Color is the biller's own colour (data; ThemePalette.Accent when unset): white text on a saturated fill -->
                                     <Button Command="{Binding SelectCommand}" Background="{Binding Color}" BorderBrush="{Binding BorderColor}" BorderThickness="4"
                                             CornerRadius="12" Padding="14,10" Margin="0,0,0,8" MinHeight="72"
                                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Left" VerticalContentAlignment="Center">
                                         <StackPanel Spacing="2">
-                                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="17" FontWeight="Black" TextWrapping="Wrap"/>
-                                            <TextBlock Text="{Binding CommissionText}" Foreground="#E2E8F0" FontSize="13" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextOnAccent}" FontSize="17" FontWeight="Black" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding CommissionText}" Foreground="{DynamicResource TextOnAccent}" Opacity="0.85" FontSize="13" FontWeight="SemiBold"/>
                                         </StackPanel>
                                     </Button>
                                 </DataTemplate>
@@ -72,50 +119,48 @@
             <!-- ── CENTER: form ── -->
             <ScrollViewer Grid.Column="1" Margin="0,0,14,0">
                 <StackPanel Spacing="10" IsEnabled="{Binding IsFormEnabled}">
-                    <Border Background="#0F172A" CornerRadius="12" Padding="14,10">
-                        <TextBlock Text="{Binding SelectedBillerText}" Foreground="#FACC15" FontSize="18" FontWeight="Black" TextWrapping="Wrap"/>
+                    <Border Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="12" Padding="14,10">
+                        <TextBlock Text="{Binding SelectedBillerText}" Foreground="{DynamicResource WarningBright}" FontSize="18" FontWeight="Black" TextWrapping="Wrap"/>
                     </Border>
 
-                    <TextBlock Classes="label" Text="② Referencia / N° de contrato (escriba o escanee el código de la factura)"/>
+                    <TextBlock Classes="label" Text="{i18n:Loc Bills.Step.Reference}"/>
                     <TextBox Text="{Binding Reference, Mode=TwoWay}" Height="64" FontSize="24" FontWeight="Bold" CornerRadius="10" Padding="14,0"
-                             VerticalContentAlignment="Center" Watermark="📷 Escanee o digite la referencia" MaxLength="60"/>
+                             VerticalContentAlignment="Center" Watermark="{i18n:Loc Bills.Reference.Watermark}" MaxLength="60"/>
                     <TextBox Text="{Binding CustomerName, Mode=TwoWay}" Height="52" FontSize="16" CornerRadius="10" Padding="12,0"
-                             VerticalContentAlignment="Center" Watermark="Nombre del cliente (opcional)" MaxLength="100"/>
+                             VerticalContentAlignment="Center" Watermark="{i18n:Loc Bills.Customer.Watermark}" MaxLength="100"/>
 
                     <Grid x:Name="FormGrid" ColumnDefinitions="*, 330" RowDefinitions="Auto, Auto">
                         <StackPanel x:Name="AmountPanel" Spacing="10" Margin="0,0,12,0">
-                            <TextBlock Classes="label" Text="③ Valor de la factura"/>
-                            <Button Command="{Binding EditAmountCommand}" Background="#1E293B" BorderBrush="{Binding AmountBorder}" BorderThickness="2"
+                            <TextBlock Classes="label" Text="{i18n:Loc Bills.Step.Amount}"/>
+                            <!-- AmountBorder / TenderedBorder come from ThemePalette (Info when the numpad edits that figure, Border otherwise) -->
+                            <Button Command="{Binding EditAmountCommand}" Background="{DynamicResource BgSurface}" BorderBrush="{Binding AmountBorder}" BorderThickness="2"
                                     CornerRadius="12" Padding="14,8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" MinHeight="64">
-                                <TextBlock Text="{Binding AmountText}" Foreground="#38BDF8" FontSize="32" FontWeight="Black"/>
+                                <TextBlock Text="{Binding AmountText}" Foreground="{DynamicResource Info}" FontSize="32" FontWeight="Black"/>
                             </Button>
-                            <Border Background="#0F172A" CornerRadius="10" Padding="12,8">
-                                <TextBlock Text="{Binding BreakdownText}" Foreground="#E2E8F0" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                            <Border Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="12,8">
+                                <TextBlock Text="{Binding BreakdownText}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
                             </Border>
                             <Grid ColumnDefinitions="*, Auto">
-                                <TextBlock Text="TOTAL A COBRAR" Foreground="#94A3B8" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
-                                <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="#34D399" FontSize="34" FontWeight="Black"/>
+                                <TextBlock Text="{i18n:Loc Bills.TotalDue}" Foreground="{DynamicResource TextMuted}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                                <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="{DynamicResource SuccessBright}" FontSize="34" FontWeight="Black"/>
                             </Grid>
 
-                            <TextBlock Classes="label" Text="④ Medio de pago"/>
+                            <TextBlock Classes="label" Text="{i18n:Loc Bills.Step.Method}"/>
                             <UniformGrid Columns="3">
-                                <Button Classes="method" Content="💵 Efectivo" Command="{Binding SetMethodCommand}" CommandParameter="Cash"
-                                        Background="{Binding IsCash, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#059669|#1E293B'}"/>
-                                <Button Classes="method" Content="💳 Tarjeta" Command="{Binding SetMethodCommand}" CommandParameter="Card"
-                                        Background="{Binding IsCard, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#2563EB|#1E293B'}"/>
-                                <Button Classes="method" Content="🏦 Transf." Command="{Binding SetMethodCommand}" CommandParameter="Transfer"
-                                        Background="{Binding IsTransfer, Converter={x:Static conv:BoolToColorConverter.Instance}, ConverterParameter='#7C3AED|#1E293B'}"/>
+                                <Button Classes="method cash" Classes.active="{Binding IsCash}" Content="{i18n:Loc Bills.Method.Cash}" Command="{Binding SetMethodCommand}" CommandParameter="Cash"/>
+                                <Button Classes="method card" Classes.active="{Binding IsCard}" Content="{i18n:Loc Bills.Method.Card}" Command="{Binding SetMethodCommand}" CommandParameter="Card"/>
+                                <Button Classes="method transfer" Classes.active="{Binding IsTransfer}" Content="{i18n:Loc Bills.Method.Transfer}" Command="{Binding SetMethodCommand}" CommandParameter="Transfer"/>
                             </UniformGrid>
 
                             <StackPanel Spacing="8" IsVisible="{Binding IsCash}">
-                                <TextBlock Classes="label" Text="Recibido"/>
-                                <Button Command="{Binding EditTenderedCommand}" Background="#1E293B" BorderBrush="{Binding TenderedBorder}" BorderThickness="2"
+                                <TextBlock Classes="label" Text="{i18n:Loc Bills.Tendered}"/>
+                                <Button Command="{Binding EditTenderedCommand}" Background="{DynamicResource BgSurface}" BorderBrush="{Binding TenderedBorder}" BorderThickness="2"
                                         CornerRadius="12" Padding="14,8" HorizontalAlignment="Stretch" HorizontalContentAlignment="Right" MinHeight="60">
-                                    <TextBlock Text="{Binding TenderedText}" Foreground="White" FontSize="28" FontWeight="Black"/>
+                                    <TextBlock Text="{Binding TenderedText}" Foreground="{DynamicResource TextPrimary}" FontSize="28" FontWeight="Black"/>
                                 </Button>
                                 <Grid ColumnDefinitions="*, Auto">
-                                    <TextBlock Text="Cambio" Foreground="#94A3B8" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
-                                    <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Foreground="#FACC15" FontSize="30" FontWeight="Black"/>
+                                    <TextBlock Text="{i18n:Loc Bills.Change}" Foreground="{DynamicResource TextMuted}" FontSize="15" FontWeight="Bold" VerticalAlignment="Center"/>
+                                    <TextBlock Grid.Column="1" Text="{Binding ChangeText}" Foreground="{DynamicResource SuccessStrong}" FontSize="30" FontWeight="Black"/>
                                 </Grid>
                             </StackPanel>
                         </StackPanel>
@@ -123,54 +168,55 @@
                         <StackPanel Grid.Column="1" x:Name="NumpadPanel" Spacing="8">
                             <views:Numpad DigitCommand="{Binding NumpadDigitCommand}" ClearCommand="{Binding NumpadClearCommand}"
                                           ExactCommand="{Binding NumpadExactCommand}" ExactLabel="{Binding NumpadExactLabel}"/>
-                            <Button Height="52" CornerRadius="10" Background="#334155" Foreground="White" FontSize="15" FontWeight="Bold"
-                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="↺ Limpiar formulario"
+                            <Button Classes="neutral" Height="52" CornerRadius="10" FontSize="15" FontWeight="Bold"
+                                    HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Bills.ResetForm}"
                                     Command="{Binding ResetFormCommand}"/>
                         </StackPanel>
                     </Grid>
 
-                    <TextBlock Text="{Binding ChargeHint}" Foreground="#FCD34D" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"
+                    <TextBlock Text="{Binding ChargeHint}" Foreground="{DynamicResource WarningBright}" FontSize="15" FontWeight="Bold" HorizontalAlignment="Center"
                                IsVisible="{Binding ChargeHint, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     <!-- Card + terminals enabled: send the total to the datáfono; the green button stays as the manual path -->
                     <StackPanel Spacing="6" IsVisible="{Binding IsTerminalChargeVisible}">
-                        <Button Height="64" CornerRadius="14" Background="#2563EB" Foreground="White" FontSize="20" FontWeight="Black"
+                        <Button Height="64" CornerRadius="14" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="20" FontWeight="Black"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                IsEnabled="{Binding CanCharge}" Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}"/>
-                        <TextBlock Text="«Cobrar recaudo» registra la tarjeta sin pasar por el datáfono." Foreground="#64748B" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
+                                IsEnabled="{Binding CanCharge}" Content="{i18n:Loc Bills.OnTerminal}" Command="{Binding ChargeOnTerminalCommand}"/>
+                        <TextBlock Text="{i18n:Loc Bills.ManualHint}" Foreground="{DynamicResource TextFaint}" FontSize="12" HorizontalAlignment="Center" TextWrapping="Wrap"/>
                     </StackPanel>
-                    <Button Height="72" CornerRadius="14" Background="#059669" Foreground="White" FontSize="22" FontWeight="Black"
+                    <Button Height="72" CornerRadius="14" Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="22" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                            IsEnabled="{Binding CanCharge}" Content="✅ Cobrar recaudo" Command="{Binding ChargeCommand}"/>
+                            IsEnabled="{Binding CanCharge}" Content="{i18n:Loc Bills.Charge}" Command="{Binding ChargeCommand}"/>
                 </StackPanel>
             </ScrollViewer>
 
             <!-- ── RIGHT: today's payments ── -->
-            <Border Grid.Column="2" x:Name="PaymentsPanel" Background="#0F172A" CornerRadius="12" Padding="14">
+            <Border Grid.Column="2" x:Name="PaymentsPanel" Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="12" Padding="14">
                 <Grid RowDefinitions="Auto, Auto, *">
-                    <TextBlock Text="Recaudos del turno" Foreground="White" FontSize="18" FontWeight="Black"/>
-                    <TextBlock Grid.Row="1" Text="{Binding PaymentsSummary}" Foreground="#94A3B8" FontSize="13" Margin="0,4,0,10" TextWrapping="Wrap"/>
+                    <TextBlock Text="{i18n:Loc Bills.Today.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Black"/>
+                    <TextBlock Grid.Row="1" Text="{Binding PaymentsSummary}" Foreground="{DynamicResource TextMuted}" FontSize="13" Margin="0,4,0,10" TextWrapping="Wrap"/>
                     <ScrollViewer Grid.Row="2">
                         <StackPanel>
-                            <TextBlock Text="Aún no hay recaudos en este turno." Foreground="#64748B" FontSize="14" IsVisible="{Binding !HasPayments}"/>
+                            <TextBlock Text="{i18n:Loc Bills.Today.Empty}" Foreground="{DynamicResource TextFaint}" FontSize="14" IsVisible="{Binding !HasPayments}"/>
                             <ItemsControl ItemsSource="{Binding Payments}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:BillPaymentRowViewModel">
-                                        <Border Background="#1E293B" CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
+                                        <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="12,10" Margin="0,0,0,8">
                                             <StackPanel Spacing="4">
                                                 <Grid ColumnDefinitions="*, Auto">
+                                                    <!-- TextColor: ThemePalette.TextFaint when voided, TextPrimary otherwise -->
                                                     <TextBlock Text="{Binding Header}" Foreground="{Binding TextColor}" FontSize="15" FontWeight="Bold"
                                                                TextWrapping="Wrap" TextDecorations="{Binding IsVoided, Converter={x:Static conv:StrikeConverter.Instance}}"/>
                                                     <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="{Binding TextColor}" FontSize="17" FontWeight="Black"
                                                                Margin="8,0,0,0" TextDecorations="{Binding IsVoided, Converter={x:Static conv:StrikeConverter.Instance}}"/>
                                                 </Grid>
-                                                <TextBlock Text="{Binding Detail}" Foreground="#CBD5E1" FontSize="13" TextWrapping="Wrap"/>
-                                                <TextBlock Text="{Binding TimeText}" Foreground="#64748B" FontSize="12"/>
-                                                <TextBlock Text="{Binding StatusText}" Foreground="#F87171" FontSize="12" FontWeight="Bold" IsVisible="{Binding IsVoided}" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextSecondary}" FontSize="13" TextWrapping="Wrap"/>
+                                                <TextBlock Text="{Binding TimeText}" Foreground="{DynamicResource TextFaint}" FontSize="12"/>
+                                                <TextBlock Text="{Binding StatusText}" Foreground="{DynamicResource DangerBright}" FontSize="12" FontWeight="Bold" IsVisible="{Binding IsVoided}" TextWrapping="Wrap"/>
                                                 <UniformGrid Columns="2" Margin="0,4,0,0">
-                                                    <Button Height="48" Margin="0,0,4,0" CornerRadius="8" Background="#1E3A5F" Foreground="White" FontSize="14" FontWeight="Bold"
-                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="🖨️ Reimprimir" Command="{Binding ReprintCommand}"/>
-                                                    <Button Height="48" Margin="4,0,0,0" CornerRadius="8" Background="#7F1D1D" Foreground="White" FontSize="14" FontWeight="Bold"
-                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="🗑️ Anular"
+                                                    <Button Height="48" Margin="0,0,4,0" CornerRadius="8" Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" FontSize="14" FontWeight="Bold"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Bills.Reprint}" Command="{Binding ReprintCommand}"/>
+                                                    <Button Height="48" Margin="4,0,0,0" CornerRadius="8" Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" FontSize="14" FontWeight="Bold"
+                                                            HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Bills.Void}"
                                                             IsVisible="{Binding CanVoid}" Command="{Binding VoidCommand}"/>
                                                 </UniformGrid>
                                             </StackPanel>
@@ -185,43 +231,43 @@
         </Grid>
 
         <!-- Notification -->
-        <Border Grid.Row="2" Background="#1E293B" Padding="16,10"
+        <Border Grid.Row="2" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,1,0,0" Padding="16,10"
                 IsVisible="{Binding Notification, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding Notification}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Notification}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextWrapping="Wrap"/>
         </Border>
 
         <!-- ══ VOID DIALOG ══ -->
-        <Border Grid.RowSpan="3" Background="#CC000000" IsVisible="{Binding IsVoidDialogVisible}">
-            <Border Width="620" Background="#0F172A" BorderBrush="#DC2626" BorderThickness="2" CornerRadius="16" Padding="24"
+        <Border Grid.RowSpan="3" Background="{DynamicResource BgOverlay}" IsVisible="{Binding IsVoidDialogVisible}">
+            <Border Width="620" Background="{DynamicResource BgApp}" BorderBrush="{DynamicResource DangerStrong}" BorderThickness="2" CornerRadius="16" Padding="24"
                     HorizontalAlignment="Center" VerticalAlignment="Center">
                 <StackPanel Spacing="14">
-                    <TextBlock Text="🗑️ Anular recaudo" Foreground="White" FontSize="22" FontWeight="Black"/>
-                    <TextBlock Text="{Binding VoidTitle}" Foreground="#FCA5A5" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
-                    <TextBlock Classes="label" Text="Motivo"/>
+                    <TextBlock Text="{i18n:Loc Bills.Void.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black"/>
+                    <TextBlock Text="{Binding VoidTitle}" Foreground="{DynamicResource DangerBright}" FontSize="16" FontWeight="Bold" TextWrapping="Wrap"/>
+                    <TextBlock Classes="label" Text="{i18n:Loc Bills.Void.Reason}"/>
                     <ItemsControl ItemsSource="{Binding VoidReasonChips}">
                         <ItemsControl.ItemsPanel>
                             <ItemsPanelTemplate><WrapPanel Orientation="Horizontal"/></ItemsPanelTemplate>
                         </ItemsControl.ItemsPanel>
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ChipViewModel">
-                                <Button Height="52" Padding="18,0" Margin="0,0,8,8" CornerRadius="26" Background="#1E293B" BorderBrush="#334155" BorderThickness="1"
-                                        Foreground="White" FontSize="15" FontWeight="SemiBold" VerticalContentAlignment="Center"
+                                <Button Classes="neutral" Height="52" Padding="18,0" Margin="0,0,8,8" CornerRadius="26"
+                                        FontSize="15" FontWeight="SemiBold" VerticalContentAlignment="Center"
                                         Content="{Binding Text}" Command="{Binding SelectCommand}"/>
                             </DataTemplate>
                         </ItemsControl.ItemTemplate>
                     </ItemsControl>
                     <TextBox Text="{Binding VoidReason, Mode=TwoWay}" Height="56" FontSize="16" CornerRadius="10" Padding="12,0"
-                             VerticalContentAlignment="Center" Watermark="Motivo de la anulación" MaxLength="200"/>
-                    <TextBlock Text="🔐 Requiere autorización de gerente" Foreground="#FCD34D" FontSize="14" FontWeight="Bold"/>
-                    <TextBlock Text="{Binding VoidError}" Foreground="#FCA5A5" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
+                             VerticalContentAlignment="Center" Watermark="{i18n:Loc Bills.Void.ReasonWatermark}" MaxLength="200"/>
+                    <TextBlock Text="{i18n:Loc Bills.Void.RequiresManager}" Foreground="{DynamicResource WarningBright}" FontSize="14" FontWeight="Bold"/>
+                    <TextBlock Text="{Binding VoidError}" Foreground="{DynamicResource DangerBright}" FontSize="15" FontWeight="Bold" TextWrapping="Wrap"
                                IsVisible="{Binding VoidError, Converter={x:Static StringConverters.IsNotNullOrEmpty}}"/>
                     <Grid ColumnDefinitions="*, 2*">
-                        <Button Height="64" Margin="0,0,8,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold" CornerRadius="12"
+                        <Button Classes="neutral" Height="64" Margin="0,0,8,0" FontSize="16" FontWeight="Bold" CornerRadius="12"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelVoidCommand}"/>
-                        <Button Grid.Column="1" Height="64" Background="#DC2626" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="12"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelVoidCommand}"/>
+                        <Button Grid.Column="1" Height="64" Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black" CornerRadius="12"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                IsEnabled="{Binding !IsBusy}" Content="🗑️ Anular recaudo" Command="{Binding ConfirmVoidCommand}"/>
+                                IsEnabled="{Binding !IsBusy}" Content="{i18n:Loc Bills.Void.Title}" Command="{Binding ConfirmVoidCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>

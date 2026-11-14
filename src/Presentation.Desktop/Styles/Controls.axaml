@@ -1,0 +1,69 @@
+<!-- Shared control styles bound to the theme tokens (Styles/Theme.axaml).
+     Button.tab: top navigation tab (Classes.active="{Binding IsXActive}"). The :pointerover / :pressed selectors
+     target the Fluent template's PART_ContentPresenter, otherwise Fluent repaints the button grey on hover. -->
+<Styles xmlns="https://github.com/avaloniaui"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+
+  <Style Selector="Button.tab">
+    <Setter Property="Height" Value="48"/>
+    <Setter Property="MinWidth" Value="48"/>
+    <Setter Property="Padding" Value="16,0"/>
+    <Setter Property="Margin" Value="3"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="FontSize" Value="14"/>
+    <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtle}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+  </Style>
+  <Style Selector="Button.tab:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+  </Style>
+  <Style Selector="Button.tab:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource Border}"/>
+  </Style>
+  <Style Selector="Button.tab.active">
+    <Setter Property="Background" Value="{DynamicResource Accent}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+  </Style>
+  <Style Selector="Button.tab.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource AccentStrong}"/>
+  </Style>
+  <Style Selector="Button.tab.active:pressed /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+  </Style>
+  <!-- Button.tab.compact: narrow window (MainViewModel.IsCompact, < 1200 px). Same 48 px touch height, tighter
+       padding and 13 px font so six tabs fit in one row at MinWidth 900. Bind Classes.compact="{Binding IsCompact}". -->
+  <Style Selector="Button.tab.compact">
+    <Setter Property="Padding" Value="12,0"/>
+    <Setter Property="Margin" Value="2"/>
+    <Setter Property="FontSize" Value="13"/>
+  </Style>
+
+  <!-- Button.chip: top-bar tool chip (scanner, customer display, LAN, register, user, theme). Always shows a short
+       label (tooltips do not exist on touch). Set BorderBrush/Foreground per chip to a semantic token. -->
+  <Style Selector="Button.chip">
+    <Setter Property="Height" Value="48"/>
+    <Setter Property="MinWidth" Value="48"/>
+    <Setter Property="Padding" Value="10,0"/>
+    <Setter Property="Margin" Value="3"/>
+    <Setter Property="CornerRadius" Value="8"/>
+    <Setter Property="FontWeight" Value="Bold"/>
+    <Setter Property="FontSize" Value="12"/>
+    <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+    <Setter Property="BorderThickness" Value="1"/>
+    <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+    <Setter Property="Foreground" Value="{DynamicResource TextSecondary}"/>
+  </Style>
+  <Style Selector="Button.chip:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+    <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+    <Setter Property="Foreground" Value="{Binding $parent[Button].Foreground}"/>
+    <Setter Property="BorderBrush" Value="{Binding $parent[Button].BorderBrush}"/>
+  </Style>
+</Styles>

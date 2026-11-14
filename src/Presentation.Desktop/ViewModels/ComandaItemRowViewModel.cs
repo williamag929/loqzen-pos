@@ -1,10 +1,10 @@
 using System;
-using Avalonia.Media;
 using CommunityToolkit.Mvvm.ComponentModel;
 using CommunityToolkit.Mvvm.Input;
 using Core.Application.DTOs;
 using Core.Application.Receipts;
 using Core.Domain.Enums;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -29,7 +29,10 @@ public sealed partial class ComandaItemRowViewModel : ObservableObject
     public IRelayCommand CancelCommand { get; }
     public IRelayCommand EditNotesCommand { get; }
     public bool IsOnHold => Dto.IsOnHold;
-    public string NotesButtonText => HasNotes ? "📝 Editar nota" : "📝 Nota";
+    public string NotesButtonText => Localizer.Instance.T(HasNotes ? "Comanda.Item.EditNote" : "Comanda.Item.Note");
+
+    /// <summary>Language switch: StateText is rebuilt by the next <see cref="Tick"/>; this covers the rest.</summary>
+    public void RefreshTexts() => OnPropertyChanged(nameof(NotesButtonText));
 
     public string Name => Dto.ProductName;
     public string QuantityText => Dto.WeightKg is { } kg ? $"{kg:0.###} kg" : $"{Dto.Quantity:0.##} x";
@@ -42,19 +45,8 @@ public sealed partial class ComandaItemRowViewModel : ObservableObject
     public bool IsConfirmed => Dto.Status == ComandaItemStatus.Confirmed;
     public bool IsCancelled => Dto.Status == ComandaItemStatus.Cancelled;
 
-    public IBrush Background => UiBrush.Parse(Dto.Status switch
-    {
-        ComandaItemStatus.Pending => "#713F12",    // amarillo oscuro
-        ComandaItemStatus.Confirmed => "#14532D",  // verde
-        _ => "#1E293B"
-    });
-
-    public IBrush Accent => UiBrush.Parse(Dto.Status switch
-    {
-        ComandaItemStatus.Pending => "#FACC15",
-        ComandaItemStatus.Confirmed => "#22C55E",
-        _ => "#64748B"
-    });
+    // Row colours live in ComandaOrderPanel.axaml as theme tokens: class "pending" = WarningSurface/Warning
+    // (amarillo), "confirmed" = SuccessSurface/Success (verde), otherwise BgSurface/TextFaint.
 
     [ObservableProperty] private string _stateText = string.Empty;
 
@@ -66,21 +58,21 @@ public sealed partial class ComandaItemRowViewModel : ObservableObject
         switch (Dto.Status)
         {
             case ComandaItemStatus.Pending when Dto.IsOnHold:
-                StateText = "✋ en pausa (editando nota)";
+                StateText = Localizer.Instance.T("Comanda.Item.OnHold");
                 Progress = 0;
                 break;
             case ComandaItemStatus.Pending:
                 var elapsed = (utcNow - Dto.AddedAt).TotalSeconds;
                 var left = Math.Max(0, (int)Math.Ceiling(_delaySeconds - elapsed));
-                StateText = left > 0 ? $"⏳ {left}s" : "⏳ enviando…";
+                StateText = left > 0 ? $"⏳ {left}s" : Localizer.Instance.T("Comanda.Item.Sending");
                 Progress = _delaySeconds <= 0 ? 1 : Math.Clamp(elapsed / _delaySeconds, 0, 1);
                 break;
             case ComandaItemStatus.Confirmed:
-                StateText = "🟢 En cocina";
+                StateText = Localizer.Instance.T("Comanda.Item.InKitchen");
                 Progress = 1;
                 break;
             default:
-                StateText = "Anulado";
+                StateText = Localizer.Instance.T("Comanda.Item.Cancelled");
                 Progress = 0;
                 break;
         }

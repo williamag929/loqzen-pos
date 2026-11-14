@@ -3,18 +3,24 @@
              x:Class="Presentation.Desktop.App"
              xmlns:local="using:Presentation.Desktop"
              xmlns:conv="using:Presentation.Desktop.Converters"
-             RequestedThemeVariant="Default">
-             <!-- "Default" ThemeVariant follows system theme variant. "Dark" or "Light" are other available options. -->
+             RequestedThemeVariant="Dark">
+             <!-- Dark is the default look; ThemeService switches to Light (Styles/Theme.axaml has both token sets). -->
 
     <Application.DataTemplates>
         <local:ViewLocator />
     </Application.DataTemplates>
 
     <Application.Resources>
-        <conv:BoolToColorConverter x:Key="BoolToColor"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceInclude Source="avares://Presentation.Desktop/Styles/Theme.axaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            <conv:BoolToColorConverter x:Key="BoolToColor"/>
+        </ResourceDictionary>
     </Application.Resources>
 
     <Application.Styles>
         <FluentTheme />
+        <StyleInclude Source="avares://Presentation.Desktop/Styles/Controls.axaml"/>
     </Application.Styles>
 </Application>

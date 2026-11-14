@@ -2,54 +2,81 @@
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              x:Class="Presentation.Desktop.Views.ComandaOrderPanel"
              x:DataType="vm:ComandaViewModel"
              x:CompileBindings="True">
+
+    <!-- Item rows: "pending" (amarillo, still editable) = WarningSurface + Warning accent · "confirmed" (verde, in the kitchen)
+         = SuccessSurface + Success accent · anything else (cancelled) = BgSurface + TextFaint. Tokens → both themes stay readable. -->
+    <UserControl.Styles>
+        <Style Selector="Border.row">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource TextFaint}"/>
+        </Style>
+        <Style Selector="Border.row TextBlock.state">
+            <Setter Property="Foreground" Value="{DynamicResource TextFaint}"/>
+        </Style>
+        <Style Selector="Border.row.pending">
+            <Setter Property="Background" Value="{DynamicResource WarningSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Warning}"/>
+        </Style>
+        <Style Selector="Border.row.pending TextBlock.state">
+            <Setter Property="Foreground" Value="{DynamicResource WarningText}"/>
+        </Style>
+        <Style Selector="Border.row.confirmed">
+            <Setter Property="Background" Value="{DynamicResource SuccessSurface}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Success}"/>
+        </Style>
+        <Style Selector="Border.row.confirmed TextBlock.state">
+            <Setter Property="Foreground" Value="{DynamicResource SuccessText}"/>
+        </Style>
+    </UserControl.Styles>
 
     <!-- PANEL CENTRO: catálogo táctil · productos de la mesa (amarillo/verde) · tirilla en vivo -->
     <Grid ColumnDefinitions="*, 400, 380" Margin="12">
 
         <views:ComandaCatalogPanel Grid.Column="0" Margin="0,0,10,0"/>
 
-        <Border Grid.Column="1" Background="#020617" CornerRadius="12" Padding="12" Margin="0,0,10,0">
+        <Border Grid.Column="1" Background="{DynamicResource BgBar}" CornerRadius="12" Padding="12" Margin="0,0,10,0">
             <Grid RowDefinitions="Auto, Auto, *, Auto">
-                <TextBlock Text="Productos de la mesa" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                <TextBlock Grid.Row="1" Text="{Binding DelayHint}" Foreground="#94A3B8" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,10"/>
+                <TextBlock Text="{i18n:Loc Comanda.Order.Header}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Bold"/>
+                <TextBlock Grid.Row="1" Text="{Binding DelayHint}" Foreground="{DynamicResource TextMuted}" FontSize="12" TextWrapping="Wrap" Margin="0,4,0,10"/>
                 <ScrollViewer Grid.Row="2" VerticalScrollBarVisibility="Auto">
                     <ItemsControl ItemsSource="{Binding Items}">
                         <ItemsControl.ItemTemplate>
                             <DataTemplate x:DataType="vm:ComandaItemRowViewModel">
-                                <Border Background="{Binding Background}" BorderBrush="{Binding Accent}" BorderThickness="0,0,0,4"
-                                        CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
+                                <Border Classes="row" Classes.pending="{Binding IsPending}" Classes.confirmed="{Binding IsConfirmed}"
+                                        BorderThickness="0,0,0,4" CornerRadius="8" Padding="10,8" Margin="0,0,0,8">
                                     <Grid ColumnDefinitions="*, Auto" RowDefinitions="Auto, Auto, Auto, Auto, Auto, Auto">
-                                        <TextBlock Text="{Binding Name}" Foreground="White" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
-                                        <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="White" FontSize="15" FontWeight="Bold" Margin="8,0,0,0"/>
+                                        <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                        <TextBlock Grid.Column="1" Text="{Binding TotalText}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="Bold" Margin="8,0,0,0"/>
                                         <StackPanel Grid.Row="1" Grid.ColumnSpan="2" Orientation="Horizontal" Spacing="10" Margin="0,4,0,0">
-                                            <TextBlock Text="{Binding QuantityText}" Foreground="#E2E8F0" FontSize="13"/>
-                                            <TextBlock Text="{Binding StateText}" Foreground="{Binding Accent}" FontSize="13" FontWeight="Bold"/>
-                                            <TextBlock Text="{Binding StationText}" Foreground="#94A3B8" FontSize="12"/>
+                                            <TextBlock Text="{Binding QuantityText}" Foreground="{DynamicResource TextSecondary}" FontSize="13"/>
+                                            <TextBlock Classes="state" Text="{Binding StateText}" FontSize="13" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding StationText}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
                                         </StackPanel>
                                         <!-- Note: always visible (yellow and green) so the cashier sees what the kitchen got -->
-                                        <Border Grid.Row="2" Grid.ColumnSpan="2" Background="#33000000" CornerRadius="6" Padding="8,4" Margin="0,6,0,0"
+                                        <Border Grid.Row="2" Grid.ColumnSpan="2" Background="{DynamicResource BgSurface2}" CornerRadius="6" Padding="8,4" Margin="0,6,0,0"
                                                 IsVisible="{Binding HasNotes}">
-                                            <TextBlock Text="{Binding Notes, StringFormat='📝 {0}'}" Foreground="#FDE68A" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
+                                            <TextBlock Text="{Binding Notes, StringFormat='📝 {0}'}" Foreground="{DynamicResource WarningText}" FontSize="14" FontWeight="SemiBold" TextWrapping="Wrap"/>
                                         </Border>
                                         <ProgressBar Grid.Row="3" Grid.ColumnSpan="2" Minimum="0" Maximum="1" Value="{Binding Progress}" Height="6" Margin="0,6,0,0"
-                                                     Foreground="{Binding Accent}" IsVisible="{Binding IsPending}"/>
+                                                     Foreground="{DynamicResource Warning}" IsVisible="{Binding IsPending}"/>
                                         <!-- Pending-only actions (52px touch targets) -->
                                         <Grid Grid.Row="4" Grid.ColumnSpan="2" ColumnDefinitions="*, 60" Margin="0,8,0,0" IsVisible="{Binding IsPending}">
-                                            <Button Height="52" CornerRadius="8" Background="#1E293B" Foreground="White" FontSize="15" FontWeight="Bold"
+                                            <Button Height="52" CornerRadius="8" Background="{DynamicResource BgSurface}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="Bold"
                                                     HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
                                                     Content="{Binding NotesButtonText}" Command="{Binding EditNotesCommand}"/>
                                             <Button Grid.Column="1" Width="52" Height="52" HorizontalAlignment="Right" CornerRadius="8"
-                                                    Background="#7F1D1D" Foreground="White" FontSize="18" Content="✕"
+                                                    Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" FontSize="18" Content="✕"
                                                     HorizontalContentAlignment="Center" Command="{Binding CancelCommand}"/>
                                         </Grid>
                                         <!-- Already in the kitchen: cancelling needs a manager PIN (same CancelCommand, VM decides) -->
                                         <Button Grid.Row="5" Grid.ColumnSpan="2" Height="52" Margin="0,8,0,0" CornerRadius="8"
-                                                Background="#7F1D1D" Foreground="White" FontSize="14" FontWeight="Bold"
+                                                Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" FontSize="14" FontWeight="Bold"
                                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                                                Content="✕ Anular (gerente)" IsVisible="{Binding IsConfirmed}"
+                                                Content="{i18n:Loc Comanda.Order.CancelManager}" IsVisible="{Binding IsConfirmed}"
                                                 Command="{Binding CancelCommand}"/>
                                     </Grid>
                                 </Border>
@@ -58,18 +85,18 @@
                     </ItemsControl>
                 </ScrollViewer>
                 <Grid Grid.Row="3" ColumnDefinitions="*, *" Margin="0,8,0,0">
-                    <Button Height="60" Margin="0,0,5,0" CornerRadius="10" Background="#15803D" Foreground="White" FontSize="15" FontWeight="Bold"
+                    <Button Height="60" Margin="0,0,5,0" CornerRadius="10" Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="15" FontWeight="Bold"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Content="🍳 Enviar ya" Command="{Binding SendToKitchenNowCommand}"/>
-                    <Button Grid.Column="1" Height="60" Margin="5,0,0,0" CornerRadius="10" Background="#2563EB" Foreground="White" FontSize="15" FontWeight="Black"
+                            Content="{i18n:Loc Comanda.Order.SendNow}" Command="{Binding SendToKitchenNowCommand}"/>
+                    <Button Grid.Column="1" Height="60" Margin="5,0,0,0" CornerRadius="10" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="15" FontWeight="Black"
                             HorizontalAlignment="Stretch" HorizontalContentAlignment="Center"
-                            Content="💳 Cerrar ▶" Command="{Binding ReadyToPayCommand}"/>
+                            Content="{i18n:Loc Comanda.Order.Close}" Command="{Binding ReadyToPayCommand}"/>
                 </Grid>
             </Grid>
         </Border>
 
         <Grid Grid.Column="2" RowDefinitions="Auto, *">
-            <TextBlock Text="🧾 Tirilla (así se imprimirá)" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+            <TextBlock Text="{i18n:Loc Comanda.Order.ReceiptHeader}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
             <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
         </Grid>
     </Grid>

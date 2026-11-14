@@ -1,6 +1,7 @@
 <UserControl xmlns="https://github.com/avaloniaui"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
              xmlns:vm="using:Presentation.Desktop.ViewModels"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              xmlns:views="using:Presentation.Desktop.Views"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
@@ -11,20 +12,20 @@
 
     <UserControl.Styles>
         <Style Selector="Border.card">
-            <Setter Property="Background" Value="#0F172A"/>
-            <Setter Property="BorderBrush" Value="#1E293B"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface2}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtle}"/>
             <Setter Property="BorderThickness" Value="1"/>
             <Setter Property="CornerRadius" Value="14"/>
             <Setter Property="Padding" Value="20,16"/>
             <Setter Property="Margin" Value="0,0,12,12"/>
         </Style>
         <Style Selector="TextBlock.cardLabel">
-            <Setter Property="Foreground" Value="#94A3B8"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextMuted}"/>
             <Setter Property="FontSize" Value="14"/>
             <Setter Property="FontWeight" Value="Bold"/>
         </Style>
         <Style Selector="TextBlock.cardDetail">
-            <Setter Property="Foreground" Value="#64748B"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextFaint}"/>
             <Setter Property="FontSize" Value="13"/>
             <Setter Property="TextWrapping" Value="Wrap"/>
         </Style>
@@ -33,8 +34,8 @@
             <Setter Property="Padding" Value="20,0"/>
             <Setter Property="Margin" Value="0,0,10,10"/>
             <Setter Property="CornerRadius" Value="12"/>
-            <Setter Property="Background" Value="#1E293B"/>
-            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
             <Setter Property="FontSize" Value="17"/>
             <Setter Property="FontWeight" Value="Bold"/>
             <Setter Property="VerticalContentAlignment" Value="Center"/>
@@ -44,7 +45,7 @@
     <Grid RowDefinitions="Auto, *, Auto">
 
         <!-- ── HEADER ──────────────────────────────────────────────────── -->
-        <Border Grid.Row="0" Background="#020617" Padding="24,12" BorderBrush="#1E293B" BorderThickness="0,0,0,1">
+        <Border Grid.Row="0" Background="{DynamicResource BgBar}" Padding="24,12" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="0,0,0,1">
             <Grid ColumnDefinitions="*, Auto">
                 <Border Grid.Column="0" BorderBrush="{Binding ShiftStatusColor}" BorderThickness="0,0,0,2" Padding="0,0,0,4" VerticalAlignment="Center">
                     <TextBlock Text="{Binding ShiftStatusText}" Foreground="{Binding ShiftStatusColor}"
@@ -53,94 +54,94 @@
 
                 <WrapPanel Grid.Column="1" Orientation="Horizontal" VerticalAlignment="Center" Margin="12,0,0,0">
                     <!-- Outbox sync (ERP webhook): counts + retry of Failed messages. -->
-                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="12,0" Height="48" Margin="4">
-                        <TextBlock Text="{Binding SyncStatusText}" Foreground="#94A3B8" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                    <Border Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="12,0" Height="48" Margin="4">
+                        <TextBlock Text="{Binding SyncStatusText}" Foreground="{DynamicResource TextMuted}" FontSize="13" FontWeight="SemiBold" VerticalAlignment="Center"/>
                     </Border>
                     <Button Height="48" Padding="14,0" Margin="4"
-                            Background="#1E293B" BorderBrush="#F59E0B" BorderThickness="1" CornerRadius="8"
-                            Foreground="#F59E0B" FontSize="13" FontWeight="Bold"
-                            Content="🔁 Reintentar fallidos"
+                            Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Warning}" BorderThickness="1" CornerRadius="8"
+                            Foreground="{DynamicResource Warning}" FontSize="13" FontWeight="Bold"
+                            Content="{i18n:Loc Cash.Sync.Retry}"
                             IsVisible="{Binding HasFailedSync}" IsEnabled="{Binding !IsRetryingSync}"
                             Command="{Binding RetryFailedSyncCommand}"/>
-                    <Button Height="52" Padding="18,0" Margin="4" Background="#1E293B" Foreground="White"
+                    <Button Height="52" Padding="18,0" Margin="4" Background="{DynamicResource BgSurface}" Foreground="{DynamicResource TextPrimary}"
                             FontSize="15" FontWeight="Bold" CornerRadius="8"
-                            Content="📜 Historial" Command="{Binding ShowHistoryCommand}"/>
-                    <Button Height="52" Padding="18,0" Margin="4" Background="#1E293B" Foreground="White"
+                            Content="{i18n:Loc Cash.History}" Command="{Binding ShowHistoryCommand}"/>
+                    <Button Height="52" Padding="18,0" Margin="4" Background="{DynamicResource BgSurface}" Foreground="{DynamicResource TextPrimary}"
                             FontSize="15" FontWeight="Bold" CornerRadius="8"
-                            Content="📊 Cierre del día" Command="{Binding ShowDayConsolidationCommand}"/>
-                    <Button Height="52" Padding="22,0" Margin="4" Background="#2563EB" Foreground="White"
+                            Content="{i18n:Loc Cash.Day.Button}" Command="{Binding ShowDayConsolidationCommand}"/>
+                    <Button Height="52" Padding="22,0" Margin="4" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}"
                             FontSize="15" FontWeight="Bold" CornerRadius="8"
-                            Content="🟢 Abrir Turno" IsVisible="{Binding !IsShiftOpen}"
+                            Content="{i18n:Loc Cash.Open.Header}" IsVisible="{Binding !IsShiftOpen}"
                             Command="{Binding ShowOpenDialogCommand}"/>
                 </WrapPanel>
             </Grid>
         </Border>
 
         <!-- ── MAIN PANEL ──────────────────────────────────────────────── -->
-        <ScrollViewer Grid.Row="1" Background="#020617" Padding="24,20">
+        <ScrollViewer Grid.Row="1" Background="{DynamicResource BgBar}" Padding="24,20">
             <StackPanel Spacing="8">
 
                 <!-- ═══ OPEN SHIFT: live dashboard ═══ -->
                 <StackPanel Spacing="8" IsVisible="{Binding IsShiftOpen}">
                     <UniformGrid Columns="4">
-                        <Border Classes="card" BorderBrush="#10B981">
+                        <Border Classes="card" BorderBrush="{DynamicResource Success}">
                             <StackPanel Spacing="6">
-                                <TextBlock Classes="cardLabel" Text="💵 Efectivo esperado en caja"/>
-                                <TextBlock Text="{Binding ExpectedCashText}" Foreground="#34D399" FontSize="30" FontWeight="Black" TextWrapping="Wrap"/>
+                                <TextBlock Classes="cardLabel" Text="{i18n:Loc Cash.Dash.ExpectedCash}"/>
+                                <TextBlock Text="{Binding ExpectedCashText}" Foreground="{DynamicResource SuccessBright}" FontSize="30" FontWeight="Black" TextWrapping="Wrap"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding OpeningText}"/>
                             </StackPanel>
                         </Border>
                         <Border Classes="card">
                             <StackPanel Spacing="6">
-                                <TextBlock Classes="cardLabel" Text="🛒 Ventas"/>
-                                <TextBlock Text="{Binding SalesText}" Foreground="White" FontSize="30" FontWeight="Black"/>
+                                <TextBlock Classes="cardLabel" Text="{i18n:Loc Cash.Dash.Sales}"/>
+                                <TextBlock Text="{Binding SalesText}" Foreground="{DynamicResource TextPrimary}" FontSize="30" FontWeight="Black"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding SalesDetailText}"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding TerminalCardDetailText}" IsVisible="{Binding HasTerminalCharges}"/>
                             </StackPanel>
                         </Border>
                         <Border Classes="card">
                             <StackPanel Spacing="6">
-                                <TextBlock Classes="cardLabel" Text="🧾 Recaudos"/>
-                                <TextBlock Text="{Binding BillPaymentsText}" Foreground="#38BDF8" FontSize="30" FontWeight="Black"/>
+                                <TextBlock Classes="cardLabel" Text="{i18n:Loc Cash.Dash.BillPayments}"/>
+                                <TextBlock Text="{Binding BillPaymentsText}" Foreground="{DynamicResource Info}" FontSize="30" FontWeight="Black"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding BillPaymentsDetailText}"/>
                             </StackPanel>
                         </Border>
                         <Border Classes="card">
                             <StackPanel Spacing="6">
-                                <TextBlock Classes="cardLabel" Text="🔄 Movimientos"/>
-                                <TextBlock Text="{Binding MovementsText}" Foreground="#FBBF24" FontSize="30" FontWeight="Black"/>
+                                <TextBlock Classes="cardLabel" Text="{i18n:Loc Cash.Dash.Movements}"/>
+                                <TextBlock Text="{Binding MovementsText}" Foreground="{DynamicResource WarningBright}" FontSize="30" FontWeight="Black"/>
                                 <TextBlock Classes="cardDetail" Text="{Binding MovementsDetailText}"/>
                             </StackPanel>
                         </Border>
                     </UniformGrid>
 
                     <!-- Actions: movements (64 px), partial count, close -->
-                    <TextBlock Text="Movimientos de efectivo" Foreground="#94A3B8" FontSize="15" FontWeight="Bold" Margin="0,4,0,0"/>
+                    <TextBlock Text="{i18n:Loc Cash.Movements.Title}" Foreground="{DynamicResource TextMuted}" FontSize="15" FontWeight="Bold" Margin="0,4,0,0"/>
                     <WrapPanel Orientation="Horizontal">
-                        <Button Classes="move" BorderBrush="#10B981" BorderThickness="1" Content="➕ Entrada" Command="{Binding StartMovementCommand}" CommandParameter="PaidIn"/>
-                        <Button Classes="move" BorderBrush="#F87171" BorderThickness="1" Content="➖ Salida" Command="{Binding StartMovementCommand}" CommandParameter="PaidOut"/>
-                        <Button Classes="move" BorderBrush="#F87171" BorderThickness="1" Content="🧾 Gasto" Command="{Binding StartMovementCommand}" CommandParameter="Expense"/>
-                        <Button Classes="move" BorderBrush="#F87171" BorderThickness="1" Content="🏦 Retiro a bóveda" Command="{Binding StartMovementCommand}" CommandParameter="SafeDrop"/>
-                        <Button Classes="move" BorderBrush="#F87171" BorderThickness="1" Content="💁 Propinas" Command="{Binding StartMovementCommand}" CommandParameter="TipPayout"/>
-                        <Button Classes="move" Background="#1E3A5F" Content="🔢 Arqueo parcial" Command="{Binding ShowPartialCountCommand}"/>
-                        <Button Classes="move" Background="#DC2626" FontSize="18" FontWeight="Black" Padding="28,0"
-                                Content="🔴 Cerrar turno" Command="{Binding ShowCloseWizardCommand}"/>
+                        <Button Classes="move" BorderBrush="{DynamicResource Success}" BorderThickness="1" Content="{i18n:Loc Cash.Movement.PaidIn}" Command="{Binding StartMovementCommand}" CommandParameter="PaidIn"/>
+                        <Button Classes="move" BorderBrush="{DynamicResource DangerBright}" BorderThickness="1" Content="{i18n:Loc Cash.Movement.PaidOut}" Command="{Binding StartMovementCommand}" CommandParameter="PaidOut"/>
+                        <Button Classes="move" BorderBrush="{DynamicResource DangerBright}" BorderThickness="1" Content="{i18n:Loc Cash.Movement.Expense}" Command="{Binding StartMovementCommand}" CommandParameter="Expense"/>
+                        <Button Classes="move" BorderBrush="{DynamicResource DangerBright}" BorderThickness="1" Content="{i18n:Loc Cash.Movement.SafeDrop}" Command="{Binding StartMovementCommand}" CommandParameter="SafeDrop"/>
+                        <Button Classes="move" BorderBrush="{DynamicResource DangerBright}" BorderThickness="1" Content="{i18n:Loc Cash.Movement.TipPayout}" Command="{Binding StartMovementCommand}" CommandParameter="TipPayout"/>
+                        <Button Classes="move" Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" Content="{i18n:Loc Cash.Partial.Button}" Command="{Binding ShowPartialCountCommand}"/>
+                        <Button Classes="move" Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black" Padding="28,0"
+                                Content="{i18n:Loc Cash.Close.Button}" Command="{Binding ShowCloseWizardCommand}"/>
                     </WrapPanel>
 
                     <!-- Today's movements -->
                     <Border Classes="card" Margin="0,4,0,0">
                         <StackPanel Spacing="8">
-                            <TextBlock Classes="cardLabel" Text="Movimientos del turno"/>
-                            <TextBlock Classes="cardDetail" Text="Aún no hay movimientos de efectivo en este turno." IsVisible="{Binding !HasMovements}"/>
+                            <TextBlock Classes="cardLabel" Text="{i18n:Loc Cash.Movements.ShiftTitle}"/>
+                            <TextBlock Classes="cardDetail" Text="{i18n:Loc Cash.Movements.Empty}" IsVisible="{Binding !HasMovements}"/>
                             <ItemsControl ItemsSource="{Binding Movements}">
                                 <ItemsControl.ItemTemplate>
                                     <DataTemplate x:DataType="vm:CashMovementRowViewModel">
-                                        <Border Background="#1E293B" CornerRadius="8" Padding="14,10" Margin="0,0,0,6">
+                                        <Border Background="{DynamicResource BgSurface}" CornerRadius="8" Padding="14,10" Margin="0,0,0,6">
                                             <Grid ColumnDefinitions="*, Auto">
                                                 <StackPanel Spacing="2">
-                                                    <TextBlock Text="{Binding TypeLabel}" Foreground="White" FontSize="15" FontWeight="Bold"/>
-                                                    <TextBlock Text="{Binding Reason}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap"/>
-                                                    <TextBlock Text="{Binding Detail}" Foreground="#64748B" FontSize="12"/>
+                                                    <TextBlock Text="{Binding TypeLabel}" Foreground="{DynamicResource TextPrimary}" FontSize="15" FontWeight="Bold"/>
+                                                    <TextBlock Text="{Binding Reason}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextWrapping="Wrap"/>
+                                                    <TextBlock Text="{Binding Detail}" Foreground="{DynamicResource TextFaint}" FontSize="12"/>
                                                 </StackPanel>
                                                 <TextBlock Grid.Column="1" Text="{Binding AmountText}" Foreground="{Binding AmountColor}"
                                                            FontSize="20" FontWeight="Black" VerticalAlignment="Center" Margin="12,0,0,0"/>
@@ -157,50 +158,50 @@
                 <Border Classes="card" Padding="40" IsVisible="{Binding !IsShiftOpen}">
                     <StackPanel Spacing="16" HorizontalAlignment="Center">
                         <TextBlock Text="💼" FontSize="52" HorizontalAlignment="Center"/>
-                        <TextBlock Text="No hay turno abierto" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
-                        <TextBlock Text="Abra un turno de caja para comenzar a registrar ventas y recaudos."
-                                   Foreground="#64748B" FontSize="15" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Cash.NoShift.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Cash.NoShift.Hint}"
+                                   Foreground="{DynamicResource TextFaint}" FontSize="15" HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center"/>
                         <Button Height="64" Padding="32,0" HorizontalAlignment="Center"
-                                Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Bold" CornerRadius="12"
-                                Content="🟢 Abrir turno" Command="{Binding ShowOpenDialogCommand}"/>
+                                Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Bold" CornerRadius="12"
+                                Content="{i18n:Loc Cash.Open.Button}" Command="{Binding ShowOpenDialogCommand}"/>
                     </StackPanel>
                 </Border>
             </StackPanel>
         </ScrollViewer>
 
         <!-- ── NOTIFICATION BAR ────────────────────────────────────────── -->
-        <Border Grid.Row="2" Background="#1E293B" Padding="16,10"
+        <Border Grid.Row="2" Background="{DynamicResource BgSurface}" Padding="16,10"
                 IsVisible="{Binding Notification, Converter={x:Static StringConverters.IsNotNullOrEmpty}}">
-            <TextBlock Text="{Binding Notification}" Foreground="#CBD5E1" FontSize="14" TextWrapping="Wrap"/>
+            <TextBlock Text="{Binding Notification}" Foreground="{DynamicResource TextSecondary}" FontSize="14" TextWrapping="Wrap"/>
         </Border>
 
         <!-- ══ MODAL: OPEN SHIFT ═════════════════════════════════════════ -->
-        <Border Grid.RowSpan="3" Background="#CC000000" IsVisible="{Binding IsOpenDialogVisible}">
-            <Border Width="540" Background="#0F172A" BorderBrush="#2563EB" BorderThickness="1"
+        <Border Grid.RowSpan="3" Background="{DynamicResource BgOverlay}" IsVisible="{Binding IsOpenDialogVisible}">
+            <Border Width="540" Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource Accent}" BorderThickness="1"
                     CornerRadius="16" Padding="28" VerticalAlignment="Center" HorizontalAlignment="Center">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="🟢 Apertura de turno de caja" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Cash.Open.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Cajero" Foreground="#94A3B8" FontSize="14" FontWeight="SemiBold"/>
+                        <TextBlock Text="{i18n:Loc Cash.Open.Cashier}" Foreground="{DynamicResource TextMuted}" FontSize="14" FontWeight="SemiBold"/>
                         <TextBox Text="{Binding CashierName, Mode=TwoWay}" Height="52" FontSize="16" CornerRadius="8" Padding="12,0"
-                                 Watermark="Ej. Carlos M." VerticalContentAlignment="Center"/>
+                                 Watermark="{i18n:Loc Cash.Open.CashierWatermark}" VerticalContentAlignment="Center"/>
                     </StackPanel>
                     <StackPanel Spacing="6">
-                        <TextBlock Text="Fondo inicial (efectivo en el cajón)" Foreground="#94A3B8" FontSize="14" FontWeight="SemiBold"/>
-                        <Border Background="#1E293B" BorderBrush="#38BDF8" BorderThickness="1" CornerRadius="10" Padding="16,10">
-                            <TextBlock Text="{Binding OpeningAmountText}" Foreground="#38BDF8" FontSize="36" FontWeight="Black" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{i18n:Loc Cash.Open.Float}" Foreground="{DynamicResource TextMuted}" FontSize="14" FontWeight="SemiBold"/>
+                        <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Info}" BorderThickness="1" CornerRadius="10" Padding="16,10">
+                            <TextBlock Text="{Binding OpeningAmountText}" Foreground="{DynamicResource Info}" FontSize="36" FontWeight="Black" HorizontalAlignment="Center"/>
                         </Border>
-                        <TextBlock Text="{Binding SuggestedOpeningText}" Foreground="#A7F3D0" FontSize="14" TextWrapping="Wrap" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding SuggestedOpeningText}" Foreground="{DynamicResource SuccessText}" FontSize="14" TextWrapping="Wrap" HorizontalAlignment="Center"/>
                     </StackPanel>
                     <views:Numpad DigitCommand="{Binding AppendOpeningNumpadCommand}" ClearCommand="{Binding ClearOpeningNumpadCommand}"
-                                  ExactCommand="{Binding UseSuggestedOpeningCommand}" ExactLabel="Sugerido"/>
+                                  ExactCommand="{Binding UseSuggestedOpeningCommand}" ExactLabel="{i18n:Loc Cash.Numpad.Suggested}"/>
                     <Grid ColumnDefinitions="*, 2*">
-                        <Button Grid.Column="0" Height="64" Margin="0,0,8,0" Background="#334155" Foreground="White" FontSize="16" FontWeight="Bold"
+                        <Button Grid.Column="0" Height="64" Margin="0,0,8,0" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource Border}" BorderThickness="1" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold"
                                 CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="Cancelar" Command="{Binding CancelOpenDialogCommand}"/>
-                        <Button Grid.Column="1" Height="64" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black"
+                                Content="{i18n:Loc Common.Cancel}" Command="{Binding CancelOpenDialogCommand}"/>
+                        <Button Grid.Column="1" Height="64" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black"
                                 CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                IsEnabled="{Binding !IsBusy}" Content="✅ Abrir turno" Command="{Binding ConfirmOpenShiftCommand}"/>
+                                IsEnabled="{Binding !IsBusy}" Content="{i18n:Loc Cash.Open.Confirm}" Command="{Binding ConfirmOpenShiftCommand}"/>
                     </Grid>
                 </StackPanel>
             </Border>
@@ -214,21 +215,21 @@
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsDayConsolidationVisible}"><views:DayConsolidationView/></Panel>
         <!-- Z report on top of the history (opened from a history row) -->
         <Panel Grid.RowSpan="3" IsVisible="{Binding IsZReportVisible}">
-            <Border Background="#D9000000">
-                <Border Background="#0F172A" BorderBrush="#10B981" BorderThickness="2" CornerRadius="16" Padding="24" Margin="24"
+            <Border Background="{DynamicResource BgOverlayStrong}">
+                <Border Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource Success}" BorderThickness="2" CornerRadius="16" Padding="24" Margin="24"
                         HorizontalAlignment="Center" VerticalAlignment="Center" MaxWidth="620">
                     <Grid RowDefinitions="Auto, Auto, *, Auto">
-                        <TextBlock Text="{Binding ZReportTitle}" Foreground="White" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
+                        <TextBlock Text="{Binding ZReportTitle}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Black" HorizontalAlignment="Center"/>
                         <TextBlock Grid.Row="1" Text="{Binding ZReportSummary}" Foreground="{Binding ZReportSummaryColor}" FontSize="15" FontWeight="Bold"
                                    HorizontalAlignment="Center" TextWrapping="Wrap" TextAlignment="Center" Margin="0,8,0,12"/>
                         <views:ReceiptPreviewControl Grid.Row="2" Lines="{Binding ZReportLines}" MaxHeight="520"/>
                         <Grid Grid.Row="3" ColumnDefinitions="*, *" Margin="0,16,0,0">
-                            <Button Grid.Column="0" Height="64" Margin="0,0,8,0" Background="#1E3A5F" Foreground="White" FontSize="17" FontWeight="Bold"
+                            <Button Grid.Column="0" Height="64" Margin="0,0,8,0" Background="{DynamicResource AccentSurface}" Foreground="{DynamicResource AccentText}" FontSize="17" FontWeight="Bold"
                                     CornerRadius="12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                    Content="🖨️ Imprimir Z" Command="{Binding PrintZReportCommand}"/>
-                            <Button Grid.Column="1" Height="64" Background="#059669" Foreground="White" FontSize="18" FontWeight="Black"
+                                    Content="{i18n:Loc Cash.Z.Print}" Command="{Binding PrintZReportCommand}"/>
+                            <Button Grid.Column="1" Height="64" Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black"
                                     CornerRadius="12" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                    Content="✅ Listo" Command="{Binding DismissZReportCommand}"/>
+                                    Content="{i18n:Loc Cash.Z.Done}" Command="{Binding DismissZReportCommand}"/>
                         </Grid>
                     </Grid>
                 </Border>

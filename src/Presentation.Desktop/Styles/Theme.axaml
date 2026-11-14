@@ -1,0 +1,105 @@
+<!-- Design tokens for both themes. Views reference ONLY these keys ({DynamicResource Key}); never a hex literal.
+     Dark = the original look (slate palette); Light = same hierarchy on white/slate-50.
+     Naming: Bg* = surfaces, Text* = foregrounds, Border*, semantic (Accent/Success/Warning/Danger/Info/Purple)
+     each with Base (strong fill / icon), Bright (text on dark surfaces), Surface (tinted background) and Text (text on Surface).
+     Mapping from the old literals: see CONTRIBUTING §4 "Temas". -->
+<ResourceDictionary xmlns="https://github.com/avaloniaui"
+                    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <ResourceDictionary.ThemeDictionaries>
+
+    <ResourceDictionary x:Key="Dark">
+      <!-- Surfaces -->
+      <SolidColorBrush x:Key="BgApp"          Color="#0F172A"/>   <!-- was #0F172A as window / page background -->
+      <SolidColorBrush x:Key="BgBar"          Color="#020617"/>   <!-- top bar, footers (#020617) -->
+      <SolidColorBrush x:Key="BgSurface"      Color="#1E293B"/>   <!-- cards, buttons, inputs (#1E293B) -->
+      <SolidColorBrush x:Key="BgSurfaceHover" Color="#273449"/>
+      <SolidColorBrush x:Key="BgSurface2"     Color="#0F172A"/>   <!-- card inside a card; comanda navy (#0B132B/#1C2541/#172554) -->
+      <SolidColorBrush x:Key="BgInput"        Color="#0F172A"/>
+      <SolidColorBrush x:Key="BgOverlay"      Color="#CC000000"/> <!-- modal scrim (#CC000000) -->
+      <SolidColorBrush x:Key="BgOverlayStrong" Color="#D9000000"/>
+      <!-- Borders -->
+      <SolidColorBrush x:Key="Border"         Color="#334155"/>   <!-- #334155 -->
+      <SolidColorBrush x:Key="BorderSubtle"   Color="#1E293B"/>   <!-- #1E293B when used as BorderBrush -->
+      <SolidColorBrush x:Key="BorderStrong"   Color="#475569"/>   <!-- #475569 / #3A506B -->
+      <!-- Text -->
+      <SolidColorBrush x:Key="TextPrimary"    Color="#F8FAFC"/>   <!-- White / #F8FAFC / #E2E8F0 -->
+      <SolidColorBrush x:Key="TextSecondary"  Color="#CBD5E1"/>   <!-- #CBD5E1 -->
+      <SolidColorBrush x:Key="TextMuted"      Color="#94A3B8"/>   <!-- #94A3B8 -->
+      <SolidColorBrush x:Key="TextFaint"      Color="#64748B"/>   <!-- #64748B -->
+      <SolidColorBrush x:Key="TextOnAccent"   Color="#FFFFFF"/>
+      <!-- Accent (blue) -->
+      <SolidColorBrush x:Key="Accent"         Color="#2563EB"/>
+      <SolidColorBrush x:Key="AccentStrong"   Color="#1D4ED8"/>
+      <SolidColorBrush x:Key="AccentBright"   Color="#3B82F6"/>
+      <SolidColorBrush x:Key="AccentSurface"  Color="#1E3A5F"/>   <!-- #1E3A5F / #172554 -->
+      <SolidColorBrush x:Key="AccentText"     Color="#BFDBFE"/>
+      <!-- Success (green) -->
+      <SolidColorBrush x:Key="Success"        Color="#10B981"/>
+      <SolidColorBrush x:Key="SuccessStrong"  Color="#059669"/>   <!-- #059669 / #047857 as fills -->
+      <SolidColorBrush x:Key="SuccessBright"  Color="#34D399"/>
+      <SolidColorBrush x:Key="SuccessSurface" Color="#064E3B"/>   <!-- #14532D / #047857 tinted panels -->
+      <SolidColorBrush x:Key="SuccessText"    Color="#A7F3D0"/>
+      <!-- Warning (amber) -->
+      <SolidColorBrush x:Key="Warning"        Color="#F59E0B"/>
+      <SolidColorBrush x:Key="WarningStrong"  Color="#D97706"/>   <!-- #CA8A04 -->
+      <SolidColorBrush x:Key="WarningBright"  Color="#FCD34D"/>   <!-- #FCD34D / #FDE68A / #FACC15 / #FBBF24 -->
+      <SolidColorBrush x:Key="WarningSurface" Color="#78350F"/>   <!-- #78350F / #92400E -->
+      <SolidColorBrush x:Key="WarningText"    Color="#FDE68A"/>
+      <!-- Danger (red) -->
+      <SolidColorBrush x:Key="Danger"         Color="#EF4444"/>
+      <SolidColorBrush x:Key="DangerStrong"   Color="#DC2626"/>
+      <SolidColorBrush x:Key="DangerBright"   Color="#F87171"/>   <!-- #F87171 / #FCA5A5 -->
+      <SolidColorBrush x:Key="DangerSurface"  Color="#7F1D1D"/>   <!-- #7F1D1D / #450A0A / #991B1B -->
+      <SolidColorBrush x:Key="DangerText"     Color="#FECACA"/>
+      <!-- Info (sky) / Purple -->
+      <SolidColorBrush x:Key="Info"           Color="#38BDF8"/>   <!-- #38BDF8 / #48CAE4 -->
+      <SolidColorBrush x:Key="InfoSurface"    Color="#0C4A6E"/>
+      <SolidColorBrush x:Key="Purple"         Color="#A78BFA"/>   <!-- #A78BFA / #C4B5FD -->
+      <SolidColorBrush x:Key="PurpleSurface"  Color="#2E1065"/>
+    </ResourceDictionary>
+
+    <ResourceDictionary x:Key="Light">
+      <SolidColorBrush x:Key="BgApp"          Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="BgBar"          Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="BgSurface"      Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="BgSurfaceHover" Color="#F1F5F9"/>
+      <SolidColorBrush x:Key="BgSurface2"     Color="#F8FAFC"/>
+      <SolidColorBrush x:Key="BgInput"        Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="BgOverlay"      Color="#99000000"/>
+      <SolidColorBrush x:Key="BgOverlayStrong" Color="#B3000000"/>
+      <SolidColorBrush x:Key="Border"         Color="#E2E8F0"/>
+      <SolidColorBrush x:Key="BorderSubtle"   Color="#E2E8F0"/>
+      <SolidColorBrush x:Key="BorderStrong"   Color="#CBD5E1"/>
+      <SolidColorBrush x:Key="TextPrimary"    Color="#0F172A"/>
+      <SolidColorBrush x:Key="TextSecondary"  Color="#334155"/>
+      <SolidColorBrush x:Key="TextMuted"      Color="#64748B"/>
+      <SolidColorBrush x:Key="TextFaint"      Color="#94A3B8"/>
+      <SolidColorBrush x:Key="TextOnAccent"   Color="#FFFFFF"/>
+      <SolidColorBrush x:Key="Accent"         Color="#2563EB"/>
+      <SolidColorBrush x:Key="AccentStrong"   Color="#1D4ED8"/>
+      <SolidColorBrush x:Key="AccentBright"   Color="#3B82F6"/>
+      <SolidColorBrush x:Key="AccentSurface"  Color="#DBEAFE"/>
+      <SolidColorBrush x:Key="AccentText"     Color="#1E40AF"/>
+      <SolidColorBrush x:Key="Success"        Color="#059669"/>
+      <SolidColorBrush x:Key="SuccessStrong"  Color="#047857"/>
+      <SolidColorBrush x:Key="SuccessBright"  Color="#047857"/>
+      <SolidColorBrush x:Key="SuccessSurface" Color="#DCFCE7"/>
+      <SolidColorBrush x:Key="SuccessText"    Color="#166534"/>
+      <SolidColorBrush x:Key="Warning"        Color="#D97706"/>
+      <SolidColorBrush x:Key="WarningStrong"  Color="#B45309"/>
+      <SolidColorBrush x:Key="WarningBright"  Color="#B45309"/>
+      <SolidColorBrush x:Key="WarningSurface" Color="#FEF3C7"/>
+      <SolidColorBrush x:Key="WarningText"    Color="#92400E"/>
+      <SolidColorBrush x:Key="Danger"         Color="#DC2626"/>
+      <SolidColorBrush x:Key="DangerStrong"   Color="#B91C1C"/>
+      <SolidColorBrush x:Key="DangerBright"   Color="#B91C1C"/>
+      <SolidColorBrush x:Key="DangerSurface"  Color="#FEE2E2"/>
+      <SolidColorBrush x:Key="DangerText"     Color="#991B1B"/>
+      <SolidColorBrush x:Key="Info"           Color="#0284C7"/>
+      <SolidColorBrush x:Key="InfoSurface"    Color="#E0F2FE"/>
+      <SolidColorBrush x:Key="Purple"         Color="#7C3AED"/>
+      <SolidColorBrush x:Key="PurpleSurface"  Color="#EDE9FE"/>
+    </ResourceDictionary>
+
+  </ResourceDictionary.ThemeDictionaries>
+</ResourceDictionary>

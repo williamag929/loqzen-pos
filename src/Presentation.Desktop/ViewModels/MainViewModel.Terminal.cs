@@ -12,7 +12,7 @@ using Presentation.Desktop.Services;
 namespace Presentation.Desktop.ViewModels;
 
 /// <summary>
-/// Multi-register part of the shell: the 🖥️ nav-bar chip (this register + master/satellite link state +
+/// Multi-register part of the shell: the 🏪 nav-bar chip (this register + master/satellite link state +
 /// kitchen socket), the satellite tab rules (only Maestros lives on the master) and the catalog-changed
 /// reload of the selling screens.
 /// </summary>
@@ -35,18 +35,22 @@ public partial class MainViewModel
     public bool IsSatellite => _terminalSettings.IsSatellite;
     public bool IsMaster => !_terminalSettings.IsSatellite;
 
-    // ── Terminal chip ────────────────────────────────────────────────────────
-    [ObservableProperty] private string _terminalChipText = "🖥️";
+    // ── Terminal chip (🏪 this register) ─────────────────────────────────────
+    /// <summary>Full text ("🏪 CAJA-02 · Satélite · sincronizado hace 5s …"), shown inside the "⋯" flyout.</summary>
+    [ObservableProperty] private string _terminalChipText = "🏪";
+    /// <summary>Short text for the bar: "🏪 CAJA-01" (+ " ⚠️" / " · sin conexión" / " · N pend." on a satellite).</summary>
+    [ObservableProperty] private string _terminalChipShortText = "🏪";
     [ObservableProperty] private string _terminalChipTooltip = string.Empty;
-    /// <summary>Green = fine, amber = selling offline / pending, red = configuration or registration error.</summary>
-    [ObservableProperty] private string _terminalChipColor = "#34D399";
+    /// <summary>Hex from ThemePalette (re-read on theme change): green = fine, amber = selling offline / pending,
+    /// red = configuration or registration error. Also paints the border of the collapsed "⋯" chip.</summary>
+    [ObservableProperty] private string _terminalChipColor = ThemePalette.SuccessBright;
 
-    /// <summary>Compact: only the icon; the full text moves to the tooltip (same rule as the LAN chip).</summary>
-    public string TerminalChipDisplayText => IsCompact ? "🖥️" : TerminalChipText;
-    public string TerminalChipDisplayTooltip => IsCompact ? $"{TerminalChipText}\n{TerminalChipTooltip}".TrimEnd() : TerminalChipTooltip;
+    public string TerminalChipDisplayText => TerminalChipShortText;
+    public string TerminalChipDisplayTooltip => $"{TerminalChipText}\n{TerminalChipTooltip}".Trim();
     public bool IsTerminalChipVisible => Session.IsLoggedIn || !_authSettings.RequireLogin;
 
-    partial void OnTerminalChipTextChanged(string value) => OnPropertyChanged(nameof(TerminalChipDisplayText));
+    partial void OnTerminalChipShortTextChanged(string value) => OnPropertyChanged(nameof(TerminalChipDisplayText));
+    partial void OnTerminalChipTextChanged(string value) => OnPropertyChanged(nameof(TerminalChipDisplayTooltip));
     partial void OnTerminalChipTooltipChanged(string value) => OnPropertyChanged(nameof(TerminalChipDisplayTooltip));
 
     // ── Tab rules: role permission AND terminal rule ─────────────────────────
@@ -118,28 +122,31 @@ public partial class MainViewModel
         var code = CodeLabel;
         if (_terminalStatus.ConfigError is { } cfg)
         {
-            TerminalChipText = $"🖥️ {code} · ⚠️ {cfg}";
-            TerminalChipTooltip = "Configure Terminal:MasterUrl en appsettings.json con la dirección de la caja principal (ej. http://192.168.1.10:5055).";
-            TerminalChipColor = "#F87171";
+            TerminalChipText = T("Register.ConfigError", code, cfg);
+            TerminalChipShortText = T("Register.Short.Warn", code);
+            TerminalChipTooltip = T("Register.ConfigError.Tooltip");
+            TerminalChipColor = ThemePalette.DangerBright;
             return;
         }
         if (_terminalStatus.RegistrationError is { } reg)
         {
-            TerminalChipText = $"🖥️ {code} · ⚠️ caja sin registrar";
-            TerminalChipTooltip = $"No se pudo registrar esta caja en la base de datos: {reg}";
-            TerminalChipColor = "#F87171";
+            TerminalChipText = T("Register.Unregistered", code);
+            TerminalChipShortText = T("Register.Short.Warn", code);
+            TerminalChipTooltip = T("Register.Unregistered.Tooltip", reg);
+            TerminalChipColor = ThemePalette.DangerBright;
             return;
         }
 
         if (IsMaster)
         {
             var online = _satellitesTotal == 0 ? string.Empty
-                : $" · {_satellitesOnline} {(_satellitesOnline == 1 ? "satélite" : "satélites")} en línea";
-            TerminalChipText = $"🖥️ {code} · Principal{online}";
+                : _satellitesOnline == 1 ? T("Register.Master.Online.One") : T("Register.Master.Online.Many", _satellitesOnline);
+            TerminalChipText = T("Register.Master", code, online);
+            TerminalChipShortText = T("Register.Short", code);
             TerminalChipTooltip = _satellitesTotal == 0
-                ? "Caja principal. Aún no hay cajas satélite registradas (ver Maestros → Cajas)."
-                : $"Caja principal · {_satellitesOnline} de {_satellitesTotal} satélites en línea (vistas en los últimos 90 s)";
-            TerminalChipColor = "#34D399";
+                ? T("Register.Master.Tooltip.None")
+                : T("Register.Master.Tooltip", _satellitesOnline, _satellitesTotal);
+            TerminalChipColor = ThemePalette.SuccessBright;
             return;
         }
 
@@ -147,38 +154,38 @@ public partial class MainViewModel
         var queued = pending + failed;
         // Kitchen socket (/ws/kds): comandas and KDS refresh live only while it is open.
         var kitchenLive = _satellite.IsKitchenLive;
-        var kitchen = kitchenLive ? "cocina en vivo" : "cocina sin conexión";
+        var kitchen = T(kitchenLive ? "Register.Kitchen.Live" : "Register.Kitchen.Offline");
         var kitchenTip = kitchenLive
-            ? "\nCocina: eventos en vivo desde la caja principal (comandas y KDS se actualizan al instante)."
-            : "\nCocina: sin canal en vivo" + (_satellite.KitchenSocketError is { } ke ? $" ({ke})" : string.Empty) +
-              "; comandas y KDS se actualizan por sondeo periódico.";
+            ? T("Register.Kitchen.Live.Tip")
+            : T("Register.Kitchen.Offline.Tip", _satellite.KitchenSocketError is { } ke ? $" ({ke})" : string.Empty);
         if (_satellite.IsMasterReachable)
         {
             var since = _satellite.LastPullAt ?? _satellite.LastHeartbeatAt;
             var ago = since is { } t ? Ago(DateTimeOffset.UtcNow - t) : "—";
-            var tail = queued > 0 ? $" · {queued} pendientes" : string.Empty;
-            TerminalChipText = $"🖥️ {code} · Satélite · sincronizado hace {ago}{tail} · {kitchen}";
-            TerminalChipTooltip = $"Caja principal: {_terminalSettings.MasterUrl}\nCatálogo: {Stamp(_satellite.LastPullAt)} · Latido: {Stamp(_satellite.LastHeartbeatAt)}" +
-                                  (_satellite.LastApply is { } a ? $"\nÚltima actualización: {a.Inserted} nuevos · {a.Updated} cambiados · {a.Deactivated} desactivados" : string.Empty) +
+            var tail = queued > 0 ? T("Register.Satellite.Pending", queued) : string.Empty;
+            TerminalChipText = T("Register.Satellite.Synced", code, ago, tail, kitchen);
+            TerminalChipShortText = queued > 0 ? T("Register.Short.Pending", code, queued) : T("Register.Short", code);
+            TerminalChipTooltip = T("Register.Satellite.Tooltip", _terminalSettings.MasterUrl, Stamp(_satellite.LastPullAt), Stamp(_satellite.LastHeartbeatAt)) +
+                                  (_satellite.LastApply is { } a ? T("Register.Satellite.LastApply", a.Inserted, a.Updated, a.Deactivated) : string.Empty) +
                                   kitchenTip;
-            TerminalChipColor = queued > 0 || !kitchenLive ? "#FBBF24" : "#34D399";
+            TerminalChipColor = queued > 0 || !kitchenLive ? ThemePalette.WarningBright : ThemePalette.SuccessBright;
         }
         else
         {
-            TerminalChipText = $"🖥️ {code} · Satélite · sin conexión con la caja principal · vendiendo sin conexión · {queued} pendientes · {kitchen}";
-            TerminalChipTooltip = $"No responde {_terminalSettings.MasterUrl}" +
-                                  (_satellite.LastError is { } e ? $" ({e})" : string.Empty) +
-                                  "\nLas ventas se guardan aquí y se envían cuando la caja principal vuelva." + kitchenTip;
-            TerminalChipColor = "#FBBF24";
+            TerminalChipText = T("Register.Satellite.Offline", code, queued, kitchen);
+            TerminalChipShortText = T("Register.Short.Offline", code);
+            TerminalChipTooltip = T("Register.Satellite.Offline.Tooltip", _terminalSettings.MasterUrl,
+                                      _satellite.LastError is { } e ? $" ({e})" : string.Empty) + kitchenTip;
+            TerminalChipColor = ThemePalette.WarningBright;
         }
     }
 
     private static string Ago(TimeSpan t) =>
-        t.TotalSeconds < 60 ? $"{Math.Max(0, (int)t.TotalSeconds)}s"
-        : t.TotalMinutes < 60 ? $"{(int)t.TotalMinutes}min"
-        : $"{(int)t.TotalHours}h";
+        t.TotalSeconds < 60 ? T("Register.Ago.Seconds", Math.Max(0, (int)t.TotalSeconds))
+        : t.TotalMinutes < 60 ? T("Register.Ago.Minutes", (int)t.TotalMinutes)
+        : T("Register.Ago.Hours", (int)t.TotalHours);
 
-    private static string Stamp(DateTimeOffset? t) => t is { } v ? v.ToLocalTime().ToString("HH:mm:ss") : "nunca";
+    private static string Stamp(DateTimeOffset? t) => t is { } v ? v.ToLocalTime().ToString("HH:mm:ss") : T("Register.Never");
 
     /// <summary>Master only: count satellites seen within the online window (own scope, worker thread).</summary>
     private async Task RefreshSatellitesAsync()

@@ -3,18 +3,60 @@
              xmlns:vm="using:Presentation.Desktop.ViewModels"
              xmlns:models="using:Core.Domain.Entities"
              xmlns:dtos="using:Core.Application.DTOs"
-             xmlns:conv="using:Presentation.Desktop.Converters"
              xmlns:views="using:Presentation.Desktop.Views"
+             xmlns:i18n="using:Presentation.Desktop.Localization"
              xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
              xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
              mc:Ignorable="d" d:DesignWidth="1200" d:DesignHeight="800"
              x:Class="Presentation.Desktop.Views.CheckoutView"
              x:DataType="vm:CheckoutViewModel"
              x:Name="CheckoutRoot">
-    
-    <UserControl.Resources>
-        <conv:BoolToColorConverter x:Key="BoolToColor"/>
-    </UserControl.Resources>
+
+    <!-- Colours come ONLY from Styles/Theme.axaml tokens ({DynamicResource}); see CONTRIBUTING §4 "Temas".
+         Button.neutral: secondary action (Cancelar, Volver, +/-, Abrir Cajón).
+         Button.pay (+ .active): payment-method selector; Classes.active="{Binding IsXPayment}" swaps fill AND text
+         so the unselected state reads in both themes. The /template/ selectors keep Fluent from repainting hover grey. -->
+    <UserControl.Styles>
+        <Style Selector="Button.neutral">
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderSubtle}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.neutral:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+        </Style>
+
+        <Style Selector="Button.pay">
+            <Setter Property="Height" Value="52"/>
+            <Setter Property="CornerRadius" Value="8"/>
+            <Setter Property="FontSize" Value="14"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="HorizontalAlignment" Value="Stretch"/>
+            <Setter Property="HorizontalContentAlignment" Value="Center"/>
+            <Setter Property="Background" Value="{DynamicResource BgSurface}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Border}"/>
+            <Setter Property="BorderThickness" Value="1"/>
+        </Style>
+        <Style Selector="Button.pay:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource BgSurfaceHover}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextPrimary}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource BorderStrong}"/>
+        </Style>
+        <Style Selector="Button.pay.active">
+            <Setter Property="Background" Value="{DynamicResource Accent}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource Accent}"/>
+        </Style>
+        <Style Selector="Button.pay.active:pointerover /template/ ContentPresenter#PART_ContentPresenter">
+            <Setter Property="Background" Value="{DynamicResource AccentStrong}"/>
+            <Setter Property="Foreground" Value="{DynamicResource TextOnAccent}"/>
+            <Setter Property="BorderBrush" Value="{DynamicResource AccentStrong}"/>
+        </Style>
+    </UserControl.Styles>
 
     <!-- Catalog | Tirilla (auto-hidden on narrow windows, see code-behind) | Ticket.
          Flexible widths with minimums so the view never grows wider than the window
@@ -26,13 +68,13 @@
             <ColumnDefinition Width="2*" MinWidth="340" MaxWidth="480"/>
         </Grid.ColumnDefinitions>
         <!-- LEFT PANEL: CATALOG & SEARCH -->
-        <Border Grid.Column="0" Background="#0F172A" Padding="16">
+        <Border Grid.Column="0" Background="{DynamicResource BgApp}" Padding="16">
             <Grid RowDefinitions="Auto, Auto, *, Auto">
                 <!-- Top Toolbar: Search & Scale Indicator -->
                 <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
                     <TextBox Grid.Column="0" 
                              Height="50"
-                             Watermark="🔍 Buscar por nombre, código de barras o SKU..." 
+                             Watermark="{i18n:Loc Sale.Search.Watermark}" 
                              Text="{Binding SearchQuery, Mode=TwoWay}"
                              FontSize="16"
                              VerticalContentAlignment="Center"
@@ -41,16 +83,16 @@
                     
                     <!-- CAS Scale Indicator Badge -->
                     <Border Grid.Column="1" 
-                            Background="#1E293B" 
-                            BorderBrush="#38BDF8" 
+                            Background="{DynamicResource BgSurface}" 
+                            BorderBrush="{DynamicResource Info}" 
                             BorderThickness="1" 
                             CornerRadius="8" 
                             Padding="16,8" 
                             Margin="12,0,0,0">
                         <StackPanel Orientation="Horizontal" Spacing="8" VerticalAlignment="Center">
-                            <TextBlock Text="⚖️ BALANZA:" Foreground="#94A3B8" FontWeight="SemiBold" VerticalAlignment="Center"/>
+                            <TextBlock Text="{i18n:Loc Sale.Scale}" Foreground="{DynamicResource TextMuted}" FontWeight="SemiBold" VerticalAlignment="Center"/>
                             <TextBlock Text="{Binding ScaleWeightKg, StringFormat='{}{0:F2} kg'}" 
-                                       Foreground="#38BDF8" 
+                                       Foreground="{DynamicResource Info}" 
                                        FontSize="18" 
                                        FontWeight="Bold" 
                                        VerticalAlignment="Center"/>
@@ -61,13 +103,12 @@
                 <!-- Category Pills (Horizontal Scroll) -->
                 <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Disabled" Margin="0,0,0,12">
                     <StackPanel Orientation="Horizontal" Spacing="8">
-                        <Button Height="48" 
+                        <Button Classes="neutral"
+                                Height="48" 
                                 MinWidth="100" 
-                                Background="#334155" 
-                                Foreground="White" 
                                 FontWeight="Bold" 
                                 CornerRadius="8"
-                                Content="Todos" 
+                                Content="{i18n:Loc Sale.Category.All}" 
                                 Command="{Binding SelectCategoryCommand}" 
                                 CommandParameter="{x:Null}"/>
                         
@@ -79,10 +120,11 @@
                             </ItemsControl.ItemsPanel>
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate x:DataType="models:Category">
+                                    <!-- ColorHex is the category's own colour (data, not a theme literal); white text sits on it in both themes -->
                                     <Button Height="48" 
                                             MinWidth="110" 
                                             Background="{Binding ColorHex}" 
-                                            Foreground="White" 
+                                            Foreground="{DynamicResource TextOnAccent}" 
                                             FontWeight="Bold" 
                                             CornerRadius="8"
                                             Content="{Binding Name}"
@@ -107,8 +149,8 @@
                                 <Button Width="170" 
                                         Height="130" 
                                         Margin="6" 
-                                        Background="#1E293B" 
-                                        BorderBrush="#334155" 
+                                        Background="{DynamicResource BgSurface}" 
+                                        BorderBrush="{DynamicResource Border}" 
                                         BorderThickness="1" 
                                         CornerRadius="10" 
                                         Padding="10"
@@ -117,7 +159,7 @@
                                     <Grid RowDefinitions="*, Auto, Auto">
                                         <TextBlock Grid.Row="0" 
                                                    Text="{Binding Name}" 
-                                                   Foreground="White" 
+                                                   Foreground="{DynamicResource TextPrimary}" 
                                                    FontWeight="SemiBold" 
                                                    FontSize="15" 
                                                    TextWrapping="Wrap" 
@@ -125,17 +167,17 @@
                                         
                                         <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="4" Margin="0,4,0,0">
                                             <Border IsVisible="{Binding IsWeighed}" 
-                                                    Background="#047857" 
+                                                    Background="{DynamicResource SuccessStrong}" 
                                                     CornerRadius="4" 
                                                     Padding="4,2">
-                                                <TextBlock Text="⚖️ Peso" FontSize="10" Foreground="White" FontWeight="Bold"/>
+                                                <TextBlock Text="{i18n:Loc Sale.Product.Weighed}" FontSize="10" Foreground="{DynamicResource TextOnAccent}" FontWeight="Bold"/>
                                             </Border>
-                                            <TextBlock Text="{Binding Sku}" Foreground="#64748B" FontSize="11" VerticalAlignment="Center"/>
+                                            <TextBlock Text="{Binding Sku}" Foreground="{DynamicResource TextFaint}" FontSize="11" VerticalAlignment="Center"/>
                                         </StackPanel>
 
                                         <TextBlock Grid.Row="2" 
                                                    Text="{Binding Price, StringFormat='${0:N0}'}" 
-                                                   Foreground="#34D399" 
+                                                   Foreground="{DynamicResource SuccessBright}" 
                                                    FontSize="16" 
                                                    FontWeight="Bold" 
                                                    Margin="0,4,0,0"/>
@@ -147,35 +189,33 @@
                 </ScrollViewer>
 
                 <!-- Status Bar -->
-                <Border Grid.Row="3" Background="#1E293B" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
-                    <TextBlock Text="{Binding StatusMessage}" Foreground="#94A3B8" FontSize="13"/>
+                <Border Grid.Row="3" Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="6" Padding="12,8" Margin="0,8,0,0">
+                    <TextBlock Text="{Binding StatusMessage}" Foreground="{DynamicResource TextMuted}" FontSize="13"/>
                 </Border>
             </Grid>
         </Border>
 
         <!-- MIDDLE: live receipt preview ("tirilla"), same formatter as the printer -->
-        <Border Grid.Column="1" Background="#0B1222" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="12"
+        <Border Grid.Column="1" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1,0,0,0" Padding="12"
                 Width="380" IsVisible="{Binding IsReceiptPreviewVisible}">
             <Grid RowDefinitions="Auto, *">
-                <TextBlock Text="🧾 Tirilla (así se imprimirá)" Foreground="White" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
+                <TextBlock Text="{i18n:Loc Sale.Receipt.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="16" FontWeight="Bold" Margin="0,0,0,8"/>
                 <views:ReceiptPreviewControl Grid.Row="1" Lines="{Binding ReceiptPreview}"/>
             </Grid>
         </Border>
 
         <!-- RIGHT PANEL: CART & CHECKOUT -->
-        <Border Grid.Column="2" Background="#020617" BorderBrush="#1E293B" BorderThickness="1,0,0,0" Padding="16">
+        <Border Grid.Column="2" Background="{DynamicResource BgBar}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1,0,0,0" Padding="16">
             <Grid RowDefinitions="Auto, *, Auto, Auto">
                 <!-- Cart Header -->
                 <Grid Grid.Row="0" ColumnDefinitions="*, Auto" Margin="0,0,0,12">
-                    <TextBlock Text="🛒 Ticket de Venta" Foreground="White" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Sale.Ticket.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="20" FontWeight="Bold" VerticalAlignment="Center"/>
                     <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="6">
-                    <Button Content="🧾" Height="48" Width="52" Background="#334155" Foreground="White" CornerRadius="6" FontSize="18"
-                            ToolTip.Tip="Mostrar/ocultar tirilla" Command="{Binding ToggleReceiptPreviewCommand}"/>
-                    <Button Content="Abrir Cajón" 
+                    <Button Classes="neutral" Content="🧾" Height="48" Width="52" CornerRadius="6" FontSize="18"
+                            ToolTip.Tip="{i18n:Loc Sale.Receipt.Toggle}" Command="{Binding ToggleReceiptPreviewCommand}"/>
+                    <Button Classes="neutral" Content="{i18n:Loc Sale.OpenDrawer}" 
                             Height="48" 
                             Padding="12,0" 
-                            Background="#334155" 
-                            Foreground="White" 
                             CornerRadius="6"
                             Command="{Binding OpenCashDrawerCommand}"/>
                     </StackPanel>
@@ -188,46 +228,46 @@
                             <DataTemplate x:DataType="dtos:CartItemDto">
                                 <Panel>
                                     <!-- Normal item -->
-                                    <Border Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding !IsReturn}">
+                                    <Border Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding !IsReturn}">
                                     <Grid ColumnDefinitions="*, Auto, Auto">
                                         <StackPanel Grid.Column="0" Spacing="2">
-                                            <TextBlock Text="{Binding Name}" Foreground="White" FontSize="14" FontWeight="SemiBold"/>
+                                            <TextBlock Text="{Binding Name}" Foreground="{DynamicResource TextPrimary}" FontSize="14" FontWeight="SemiBold"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#94A3B8" FontSize="12"/>
-                                                <TextBlock Text="x" Foreground="#64748B" FontSize="12"/>
-                                                <TextBlock Text="{Binding Quantity}" Foreground="#38BDF8" FontSize="12" FontWeight="Bold"/>
-                                                <TextBlock IsVisible="{Binding IsWeighed}" Text="{Binding WeightKg, StringFormat='({0:F2} kg)'}" Foreground="#10B981" FontSize="12"/>
+                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="{DynamicResource TextMuted}" FontSize="12"/>
+                                                <TextBlock Text="x" Foreground="{DynamicResource TextFaint}" FontSize="12"/>
+                                                <TextBlock Text="{Binding Quantity}" Foreground="{DynamicResource Info}" FontSize="12" FontWeight="Bold"/>
+                                                <TextBlock IsVisible="{Binding IsWeighed}" Text="{Binding WeightKg, StringFormat='({0:F2} kg)'}" Foreground="{DynamicResource Success}" FontSize="12"/>
                                             </StackPanel>
-                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#34D399" FontSize="14" FontWeight="Bold"/>
+                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="{DynamicResource SuccessBright}" FontSize="14" FontWeight="Bold"/>
                                         </StackPanel>
                                         <StackPanel Grid.Column="1" Orientation="Horizontal" Spacing="4" VerticalAlignment="Center" Margin="8,0">
-                                            <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="-" FontSize="20" FontWeight="Bold"
+                                            <Button Classes="neutral" Width="48" Height="48" CornerRadius="8" Content="-" FontSize="20" FontWeight="Bold"
                                                     Command="{Binding #CheckoutRoot.DataContext.DecrementItemCommand}" CommandParameter="{Binding .}"/>
-                                            <Button Width="48" Height="48" CornerRadius="8" Background="#334155" Foreground="White" Content="+" FontSize="20" FontWeight="Bold"
+                                            <Button Classes="neutral" Width="48" Height="48" CornerRadius="8" Content="+" FontSize="20" FontWeight="Bold"
                                                     Command="{Binding #CheckoutRoot.DataContext.IncrementItemCommand}" CommandParameter="{Binding .}"/>
                                         </StackPanel>
-                                        <Button Grid.Column="2" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="🔄" FontSize="18"
+                                        <Button Grid.Column="2" Width="48" Height="48" CornerRadius="8" Background="{DynamicResource DangerSurface}" Foreground="{DynamicResource DangerText}" Content="🔄" FontSize="18"
                                                 Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}" CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>
 
                                 <!-- Return item (credit note) -->
-                                <Border Background="#450A0A" BorderBrush="#991B1B" BorderThickness="2" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding IsReturn}">
+                                <Border Background="{DynamicResource DangerSurface}" BorderBrush="{DynamicResource Danger}" BorderThickness="2" CornerRadius="8" Padding="10" Margin="0,0,0,8" IsVisible="{Binding IsReturn}">
                                     <Grid ColumnDefinitions="*, Auto">
                                         <StackPanel Grid.Column="0" Spacing="2">
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="🔄 DEVOLUCIÓN:" Foreground="#FCA5A5" FontSize="13" FontWeight="Bold"/>
-                                                <TextBlock Text="{Binding Name}" Foreground="#FCA5A5" FontSize="13" FontWeight="SemiBold"/>
+                                                <TextBlock Text="{i18n:Loc Sale.Return.Label}" Foreground="{DynamicResource DangerBright}" FontSize="13" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding Name}" Foreground="{DynamicResource DangerBright}" FontSize="13" FontWeight="SemiBold"/>
                                             </StackPanel>
-                                            <TextBlock Text="(Nota crédito - ajuste en venta)" Foreground="#F87171" FontSize="11" FontStyle="Italic"/>
+                                            <TextBlock Text="{i18n:Loc Sale.Return.Note}" Foreground="{DynamicResource DangerBright}" FontSize="11" FontStyle="Italic"/>
                                             <StackPanel Orientation="Horizontal" Spacing="6">
-                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="12"/>
-                                                <TextBlock Text="x" Foreground="#DC2626" FontSize="12"/>
-                                                <TextBlock Text="{Binding Quantity}" Foreground="#FCA5A5" FontSize="12" FontWeight="Bold"/>
+                                                <TextBlock Text="{Binding UnitPrice, StringFormat='${0:N0}'}" Foreground="{DynamicResource DangerBright}" FontSize="12"/>
+                                                <TextBlock Text="x" Foreground="{DynamicResource Danger}" FontSize="12"/>
+                                                <TextBlock Text="{Binding Quantity}" Foreground="{DynamicResource DangerBright}" FontSize="12" FontWeight="Bold"/>
                                             </StackPanel>
-                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#FCA5A5" FontSize="14" FontWeight="Black"/>
+                                            <TextBlock Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="{DynamicResource DangerBright}" FontSize="14" FontWeight="Black"/>
                                         </StackPanel>
-                                        <Button Grid.Column="1" Width="48" Height="48" CornerRadius="8" Background="#7F1D1D" Foreground="White" Content="✕" FontSize="18"
+                                        <Button Grid.Column="1" Width="48" Height="48" CornerRadius="8" Background="{DynamicResource DangerStrong}" Foreground="{DynamicResource TextOnAccent}" Content="✕" FontSize="18"
                                                 Command="{Binding #CheckoutRoot.DataContext.RemoveItemCommand}" CommandParameter="{Binding .}"/>
                                     </Grid>
                                 </Border>
@@ -238,21 +278,22 @@
                 </ScrollViewer>
 
                 <!-- Totals Breakdown -->
-                <Border Grid.Row="2" Background="#0F172A" BorderBrush="#1E293B" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,12">
+                <Border Grid.Row="2" Background="{DynamicResource BgSurface2}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="8" Padding="14" Margin="0,12,0,12">
                     <StackPanel Spacing="6">
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Subtotal:" Foreground="#94A3B8" FontSize="14"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                            <TextBlock Text="{i18n:Loc Sale.Cart.Subtotal}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Subtotal, StringFormat='${0:N0}'}" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
                         </Grid>
                         
                         <!-- Discount Line -->
                         <Grid ColumnDefinitions="*, Auto, Auto" IsVisible="{Binding DiscountTotal, Converter={x:Static ObjectConverters.NotEqual}, ConverterParameter=0}">
-                            <TextBlock Text="Descuento:" Foreground="#F59E0B" FontSize="14"/>
-                            <TextBlock Grid.Column="1" Text="{Binding DiscountTotal, StringFormat='-${0:N0}'}" Foreground="#F59E0B" FontSize="14" Margin="0,0,8,0"/>
+                            <TextBlock Text="{i18n:Loc Sale.Cart.Discount}" Foreground="{DynamicResource Warning}" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding DiscountTotal, StringFormat='-${0:N0}'}" Foreground="{DynamicResource Warning}" FontSize="14" Margin="0,0,8,0"/>
                             <Button Grid.Column="2" 
                                     Width="20" 
                                     Height="20" 
-                                    Background="#EF4444" 
+                                    Background="{DynamicResource Danger}" 
+                                    Foreground="{DynamicResource TextOnAccent}" 
                                     Content="✖" 
                                     FontSize="10" 
                                     Padding="0"
@@ -261,23 +302,23 @@
                         </Grid>
                         
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="Impuestos (IVA 19%):" Foreground="#94A3B8" FontSize="14"/>
-                            <TextBlock Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="White" FontSize="14"/>
+                            <TextBlock Text="{i18n:Loc Sale.Cart.Tax}" Foreground="{DynamicResource TextMuted}" FontSize="14"/>
+                            <TextBlock Grid.Column="1" Text="{Binding TaxTotal, StringFormat='${0:N0}'}" Foreground="{DynamicResource TextPrimary}" FontSize="14"/>
                         </Grid>
-                        <Separator Background="#334155" Margin="0,4"/>
+                        <Separator Background="{DynamicResource Border}" Margin="0,4"/>
                         <Grid ColumnDefinitions="*, Auto">
-                            <TextBlock Text="TOTAL A PAGAR:" Foreground="White" FontSize="18" FontWeight="Bold"/>
-                            <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="24" FontWeight="Black"/>
+                            <TextBlock Text="{i18n:Loc Sale.Cart.TotalDue}" Foreground="{DynamicResource TextPrimary}" FontSize="18" FontWeight="Bold"/>
+                            <TextBlock Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="{DynamicResource Success}" FontSize="24" FontWeight="Black"/>
                         </Grid>
                         
                         <!-- Discount Button -->
                         <Button Height="42"
-                                Background="#F59E0B"
-                                Foreground="White"
+                                Background="{DynamicResource Warning}"
+                                Foreground="{DynamicResource TextOnAccent}"
                                 FontSize="14"
                                 FontWeight="Bold"
                                 CornerRadius="6"
-                                Content="🏷️ Aplicar Descuento"
+                                Content="{i18n:Loc Sale.ApplyDiscount}"
                                 Command="{Binding OpenDiscountModalCommand}"
                                 Margin="0,6,0,0"/>
                     </StackPanel>
@@ -285,25 +326,24 @@
 
                 <!-- Action Buttons -->
                 <Grid Grid.Row="3" ColumnDefinitions="*, 2*">
-                    <Button Grid.Column="0" 
+                    <Button Classes="neutral"
+                            Grid.Column="0" 
                             Height="60" 
                             Margin="0,0,8,0" 
-                            Background="#334155" 
-                            Foreground="White" 
                             FontSize="16" 
                             FontWeight="Bold" 
                             CornerRadius="8" 
-                            Content="Cancelar"
+                            Content="{i18n:Loc Common.Cancel}"
                             Command="{Binding ClearCartCommand}"/>
                     
                     <Button Grid.Column="1" 
                             Height="60" 
-                            Background="#059669" 
-                            Foreground="White" 
+                            Background="{DynamicResource SuccessStrong}" 
+                            Foreground="{DynamicResource TextOnAccent}" 
                             FontSize="20" 
                             FontWeight="Black" 
                             CornerRadius="8" 
-                            Content="💳 COBRAR"
+                            Content="{i18n:Loc Sale.Charge}"
                             Command="{Binding StartPaymentCommand}"/>
                 </Grid>
             </Grid>
@@ -311,90 +351,75 @@
 
         <!-- MODAL OVERLAY: PAYMENT DIALOG WITH NUMPAD -->
         <Border Grid.ColumnSpan="3" 
-                Background="#CC000000" 
+                Background="{DynamicResource BgOverlay}" 
                 IsVisible="{Binding IsPaymentModalOpen}"
                 HorizontalAlignment="Stretch"
                 VerticalAlignment="Stretch">
             <Border Width="540" 
-                    Background="#0F172A" 
-                    BorderBrush="#38BDF8" 
+                    Background="{DynamicResource BgApp}" 
+                    BorderBrush="{DynamicResource Info}" 
                     BorderThickness="1" 
                     CornerRadius="16" 
                     Padding="24" 
                     VerticalAlignment="Center" 
                     HorizontalAlignment="Center">
                 <StackPanel Spacing="16">
-                    <TextBlock Text="Finalizar Cobro" Foreground="White" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
+                    <TextBlock Text="{i18n:Loc Sale.Pay.Title}" Foreground="{DynamicResource TextPrimary}" FontSize="22" FontWeight="Bold" HorizontalAlignment="Center"/>
                     
                     <!-- Payment Method Selector (52px height ensures 48px+ touch target) -->
                     <Grid ColumnDefinitions="*, *, *" Margin="0,0,0,8">
-                        <Button Grid.Column="0" 
-                                Height="52" 
+                        <Button Classes="pay" Classes.active="{Binding IsCashPayment}"
+                                Grid.Column="0" 
                                 Margin="0,0,4,0" 
-                                CornerRadius="8"
-                                Background="{Binding IsCashPayment, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                                Foreground="White" 
-                                FontSize="14" 
-                                FontWeight="Bold" 
-                                Content="💵 Efectivo"
+                                Content="{i18n:Loc Sale.Pay.Cash}"
                                 Command="{Binding SelectPaymentMethodCommand}"
                                 CommandParameter="Cash"/>
-                        <Button Grid.Column="1" 
-                                Height="52" 
+                        <Button Classes="pay" Classes.active="{Binding IsCardPayment}"
+                                Grid.Column="1" 
                                 Margin="4,0,4,0" 
-                                CornerRadius="8"
-                                Background="{Binding IsCardPayment, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                                Foreground="White" 
-                                FontSize="14" 
-                                FontWeight="Bold" 
-                                Content="💳 Tarjeta"
+                                Content="{i18n:Loc Sale.Pay.Card}"
                                 Command="{Binding SelectPaymentMethodCommand}"
                                 CommandParameter="Card"/>
-                        <Button Grid.Column="2" 
-                                Height="52" 
+                        <Button Classes="pay" Classes.active="{Binding IsTransferPayment}"
+                                Grid.Column="2" 
                                 Margin="4,0,0,0" 
-                                CornerRadius="8"
-                                Background="{Binding IsTransferPayment, Converter={StaticResource BoolToColor}, ConverterParameter='#2563EB|#1E293B'}"
-                                Foreground="White" 
-                                FontSize="14" 
-                                FontWeight="Bold" 
-                                Content="🏦 Transfer."
+                                Content="{i18n:Loc Sale.Pay.Transfer}"
                                 Command="{Binding SelectPaymentMethodCommand}"
                                 CommandParameter="Transfer"/>
                     </Grid>
                     
                     <!-- Amount info -->
-                    <Border Background="#1E293B" CornerRadius="10" Padding="16">
+                    <Border Background="{DynamicResource BgSurface}" BorderBrush="{DynamicResource BorderSubtle}" BorderThickness="1" CornerRadius="10" Padding="16">
                         <Grid RowDefinitions="Auto, Auto, Auto" ColumnDefinitions="Auto, *">
-                            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0" Text="Total:" Foreground="#94A3B8" FontSize="16"/>
-                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="#10B981" FontSize="30" FontWeight="Black" TextAlignment="Right"/>
+                            <TextBlock Grid.Row="0" Grid.Column="0" VerticalAlignment="Center" Margin="0,0,16,0" Text="{i18n:Loc Sale.Pay.Total}" Foreground="{DynamicResource TextMuted}" FontSize="16"/>
+                            <TextBlock Grid.Row="0" Grid.Column="1" Text="{Binding Total, StringFormat='${0:N0}'}" Foreground="{DynamicResource Success}" FontSize="30" FontWeight="Black" TextAlignment="Right"/>
                             
-                            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="Recibido:" Foreground="#94A3B8" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
-                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="#38BDF8" FontSize="34" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="0" VerticalAlignment="Center" Text="{i18n:Loc Sale.Pay.Tendered}" Foreground="{DynamicResource TextMuted}" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="1" Grid.Column="1" Text="{Binding TenderedAmount, StringFormat='${0:N0}'}" Foreground="{DynamicResource Info}" FontSize="34" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
 
-                            <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="Cambio:" Foreground="#94A3B8" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
-                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="#F59E0B" FontSize="30" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="0" VerticalAlignment="Center" Text="{i18n:Loc Sale.Pay.Change}" Foreground="{DynamicResource TextMuted}" FontSize="16" Margin="0,8,16,0" IsVisible="{Binding IsCashPayment}"/>
+                            <TextBlock Grid.Row="2" Grid.Column="1" Text="{Binding ChangeAmount, StringFormat='${0:N0}'}" Foreground="{DynamicResource SuccessStrong}" FontSize="30" FontWeight="Black" TextAlignment="Right" Margin="0,8,0,0" IsVisible="{Binding IsCashPayment}"/>
                         </Grid>
                     </Border>
 
                     <!-- Shared touch numpad (64px keys, same as comandas/login). Cash only. -->
-                    <views:Numpad IsVisible="{Binding IsCashPayment}" ExactLabel="Exacto"
+                    <views:Numpad IsVisible="{Binding IsCashPayment}" ExactLabel="{i18n:Loc Sale.Pay.Exact}"
                                   DigitCommand="{Binding AppendNumpadCommand}"
                                   ClearCommand="{Binding ClearNumpadCommand}"
                                   ExactCommand="{Binding ExactAmountCommand}"/>
 
                     <!-- Card + terminals enabled: primary action sends the amount to the datáfono; "Confirmar" stays as the manual path -->
                     <StackPanel Spacing="6" IsVisible="{Binding IsTerminalChargeVisible}">
-                        <Button Height="56" Background="#2563EB" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="10"
+                        <Button Height="56" Background="{DynamicResource Accent}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black" CornerRadius="10"
                                 HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" VerticalContentAlignment="Center"
-                                Content="💳 Cobrar en datáfono" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
-                        <TextBlock Text="«Confirmar» registra la tarjeta sin pasar por el datáfono." Foreground="#64748B" FontSize="12" HorizontalAlignment="Center"/>
+                                Content="{i18n:Loc Sale.Pay.OnTerminal}" Command="{Binding ChargeOnTerminalCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
+                        <TextBlock Text="{i18n:Loc Sale.Pay.ManualHint}" Foreground="{DynamicResource TextFaint}" FontSize="12" HorizontalAlignment="Center"/>
                     </StackPanel>
 
                     <!-- Modal Action Buttons -->
                     <Grid ColumnDefinitions="*, *" Margin="0,8,0,0">
-                        <Button Grid.Column="0" Height="64" Margin="0,0,6,0" Background="#334155" Foreground="White" FontSize="17" FontWeight="Bold" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="Volver" Command="{Binding ClosePaymentModalCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
-                        <Button Grid.Column="1" Height="64" Margin="6,0,0,0" Background="#059669" Foreground="White" FontSize="18" FontWeight="Black" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="✅ Confirmar Pago" Command="{Binding CompleteSaleCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
+                        <Button Classes="neutral" Grid.Column="0" Height="64" Margin="0,0,6,0" FontSize="17" FontWeight="Bold" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Common.Back}" Command="{Binding ClosePaymentModalCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
+                        <Button Grid.Column="1" Height="64" Margin="6,0,0,0" Background="{DynamicResource SuccessStrong}" Foreground="{DynamicResource TextOnAccent}" FontSize="18" FontWeight="Black" CornerRadius="10" HorizontalAlignment="Stretch" HorizontalContentAlignment="Center" Content="{i18n:Loc Sale.Pay.Confirm}" Command="{Binding CompleteSaleCommand}" IsEnabled="{Binding IsPaymentIdle}"/>
                     </Grid>
                 </StackPanel>
             </Border>

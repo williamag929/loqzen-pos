@@ -1,3 +1,4 @@
+using Presentation.Desktop.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Globalization;
@@ -10,6 +11,7 @@ using Core.Application.Receipts;
 using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -64,25 +66,29 @@ public sealed partial class PaymentTerminalRowViewModel : ObservableObject
 
     public string Name => Dto.Name;
     public string ProviderLabel => Dto.ProviderLabel;
-    public string AddressText => string.IsNullOrWhiteSpace(Dto.Address) ? "Sin dirección" : Dto.Address!;
-    public string SerialText => string.IsNullOrWhiteSpace(Dto.SerialNumber) ? string.Empty : $"S/N {Dto.SerialNumber}";
-    public string OrderText => $"Orden {Dto.SortOrder}";
-    public string AssignmentLabel => Dto.AssignmentLabel;
+    public string AddressText => string.IsNullOrWhiteSpace(Dto.Address) ? T("Masters.PaymentTerminals.NoAddress") : Dto.Address!;
+    public string SerialText => string.IsNullOrWhiteSpace(Dto.SerialNumber) ? string.Empty : T("Masters.PaymentTerminals.SerialText", Dto.SerialNumber);
+    public string OrderText => T("Masters.OrderText", Dto.SortOrder);
+    public string AssignmentLabel => string.IsNullOrWhiteSpace(Dto.AssignedUserName)
+        ? T("Masters.PaymentTerminals.Assignment.AtRegister")
+        : T("Masters.PaymentTerminals.Assignment.With", Dto.AssignedUserName);
+
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
     public bool IsActive => Dto.IsActive;
     public bool IsInactive => !Dto.IsActive;
 
     /// <summary>● green = last ping ok, red = failed, grey = never tested.</summary>
-    public string DotColor => Dto.LastPingOk switch { true => "#34D399", false => "#F87171", null => "#64748B" };
+    public string DotColor => Dto.LastPingOk switch { true => ThemePalette.SuccessBright, false => ThemePalette.DangerBright, null => ThemePalette.TextFaint };
     public string LastPingText => Dto.LastSeenAt is { } s
-        ? (Dto.LastPingOk == true ? "respondió hace " : "falló hace ") + TerminalRowViewModel.Ago(_nowUtc - s)
-        : "sin probar";
+        ? T(Dto.LastPingOk == true ? "Masters.PaymentTerminals.PingOk" : "Masters.PaymentTerminals.PingFail", TerminalRowViewModel.Ago(_nowUtc - s))
+        : T("Masters.PaymentTerminals.NotTested");
 
     /// <summary>"Probar conexión" in flight / its last answer (shown under the row).</summary>
     [ObservableProperty] private bool _isTesting;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(HasTestResult))]
     private string _testResultText = string.Empty;
-    [ObservableProperty] private string _testResultColor = "#94A3B8";
+    [ObservableProperty] private string _testResultColor = ThemePalette.TextMuted;
     public bool HasTestResult => !string.IsNullOrEmpty(TestResultText);
 
     /// <summary>Inline "¿Desactivar?" Sí / No instead of a dialog.</summary>
@@ -96,6 +102,16 @@ public sealed partial class PaymentTerminalRowViewModel : ObservableObject
         _nowUtc = nowUtc;
         Dto = dto;
     }
+
+    /// <summary>Language toggle: re-read the translated texts without losing the row state (assign strip, test result).</summary>
+    public void RefreshLanguage()
+    {
+        OnPropertyChanged(nameof(AddressText));
+        OnPropertyChanged(nameof(SerialText));
+        OnPropertyChanged(nameof(OrderText));
+        OnPropertyChanged(nameof(AssignmentLabel));
+        OnPropertyChanged(nameof(LastPingText));
+    }
 }
 
 /// <summary>Row of the recent charges list (newest first): status colour, amount, reference, terminal, who, when.</summary>
@@ -106,21 +122,31 @@ public sealed class TerminalChargeRowViewModel
     public TerminalPaymentDto Dto { get; }
     public string TimeText => Dto.RequestedAt.ToLocalTime().ToString("dd/MM HH:mm", CultureInfo.InvariantCulture);
     public string AmountText => ReceiptFormatter.Cop(Dto.Amount);
-    public string StatusLabel => Dto.StatusLabel;
+    public string StatusLabel => Dto.Status switch
+    {
+        TerminalPaymentStatus.Pending => T("Masters.PaymentTerminals.Status.Pending"),
+        TerminalPaymentStatus.Approved => T("Masters.PaymentTerminals.Status.Approved"),
+        TerminalPaymentStatus.Declined => T("Masters.PaymentTerminals.Status.Declined"),
+        TerminalPaymentStatus.Cancelled => T("Masters.PaymentTerminals.Status.Cancelled"),
+        TerminalPaymentStatus.Timeout => T("Masters.PaymentTerminals.Status.Timeout"),
+        TerminalPaymentStatus.Error => T("Masters.PaymentTerminals.Status.Error"),
+        _ => Dto.StatusLabel
+    };
+    private static string T(string key) => Localizer.Instance.T(key);
     public string StatusColor => Dto.Status switch
     {
-        TerminalPaymentStatus.Approved => "#34D399",
-        TerminalPaymentStatus.Declined => "#F87171",
-        TerminalPaymentStatus.Timeout or TerminalPaymentStatus.Error => "#FBBF24",
-        TerminalPaymentStatus.Pending => "#38BDF8",
-        _ => "#94A3B8"
+        TerminalPaymentStatus.Approved => ThemePalette.SuccessBright,
+        TerminalPaymentStatus.Declined => ThemePalette.DangerBright,
+        TerminalPaymentStatus.Timeout or TerminalPaymentStatus.Error => ThemePalette.WarningBright,
+        TerminalPaymentStatus.Pending => ThemePalette.Info,
+        _ => ThemePalette.TextMuted
     };
     public string ReferenceText => Dto.IsApproved ? Dto.ReferenceText : (Dto.Message ?? string.Empty);
     public string PurposeText => Dto.Purpose switch
     {
-        TerminalPaymentPurpose.Sale => "Venta",
-        TerminalPaymentPurpose.Comanda => "Comanda",
-        TerminalPaymentPurpose.BillPayment => "Recaudo",
+        TerminalPaymentPurpose.Sale => T("Masters.PaymentTerminals.Purpose.Sale"),
+        TerminalPaymentPurpose.Comanda => T("Masters.PaymentTerminals.Purpose.Comanda"),
+        TerminalPaymentPurpose.BillPayment => T("Masters.PaymentTerminals.Purpose.BillPayment"),
         _ => Dto.Purpose.ToString()
     };
     public string DetailText => string.Join(" · ", new[]
@@ -147,14 +173,22 @@ public partial class MastersViewModel
     public bool HasTerminalCharges => TerminalCharges.Count > 0;
 
     [ObservableProperty] private bool _isLoadingPaymentTerminals;
-    [ObservableProperty] private string _paymentTerminalsSummary = string.Empty;
+
+    /// <summary>Active / answered counts from the last load (null = not loaded yet); the summary is derived so it follows the language.</summary>
+    private (int Active, int Answered)? _paymentTerminalCounts;
+    public string PaymentTerminalsSummary => _paymentTerminalCounts switch
+    {
+        null => string.Empty,
+        (0, _) => T("Masters.PaymentTerminals.NoActive"),
+        (var active, var answered) => T("Masters.PaymentTerminals.Summary", active, answered)
+    };
 
     // ── Terminal form (modal like the other Maestros forms) ──────────────────
     [ObservableProperty] private bool _isPaymentTerminalFormVisible;
     [ObservableProperty]
     [NotifyPropertyChangedFor(nameof(PaymentTerminalFormTitle))]
     private bool _isEditingPaymentTerminal;
-    public string PaymentTerminalFormTitle => IsEditingPaymentTerminal ? "💳 Editar datáfono" : "💳 Nuevo datáfono";
+    public string PaymentTerminalFormTitle => IsEditingPaymentTerminal ? T("Masters.PaymentTerminals.FormTitle.Edit") : T("Masters.PaymentTerminals.FormTitle.New");
 
     [ObservableProperty] private Guid _editPaymentTerminalId;
     [ObservableProperty] private string _paymentTerminalName = string.Empty;
@@ -168,10 +202,10 @@ public partial class MastersViewModel
 
     public string PaymentTerminalAddressHint => PaymentTerminalProviderOption?.Provider switch
     {
-        PaymentTerminalProvider.Mock => "Simulado: no necesita dirección. Montos terminados en 99 se rechazan, en 98 no responden.",
-        PaymentTerminalProvider.JsonTcp => "Dirección IP:puerto del emulador o del datáfono (ej. 192.168.1.50:9100).",
-        null => "Elija el proveedor.",
-        _ => "Dirección IP:puerto (o puerto serie) del datáfono, según el proveedor."
+        PaymentTerminalProvider.Mock => T("Masters.PaymentTerminals.Hint.Mock"),
+        PaymentTerminalProvider.JsonTcp => T("Masters.PaymentTerminals.Hint.JsonTcp"),
+        null => T("Masters.PaymentTerminals.Hint.None"),
+        _ => T("Masters.PaymentTerminals.Hint.Other")
     };
 
     private PaymentTerminalRowViewModel? _assignTarget;
@@ -213,13 +247,12 @@ public partial class MastersViewModel
             if (_assignTarget != null) _assignTarget.IsAssigning = true;
 
             var active = PaymentTerminals.Where(t => t.IsActive).ToList();
-            PaymentTerminalsSummary = active.Count == 0
-                ? "No hay datáfonos activos: las tarjetas se registran a mano. Agregue uno para cobrar desde el POS."
-                : $"{active.Count} datáfono(s) activo(s) · {active.Count(t => t.Dto.LastPingOk == true)} respondieron en la última prueba";
+            _paymentTerminalCounts = (active.Count, active.Count(t => t.Dto.LastPingOk == true));
+            OnPropertyChanged(nameof(PaymentTerminalsSummary));
         }
         catch (Exception ex)
         {
-            Notification = $"❌ Datáfonos: {ex.Message}";
+            Notification = T("Masters.PaymentTerminals.LoadError", ex.Message);
         }
         OnPropertyChanged(nameof(HasPaymentTerminals));
 
@@ -235,7 +268,7 @@ public partial class MastersViewModel
         }
         catch (Exception ex)
         {
-            Notification = $"❌ Cobros en datáfono: {ex.Message}";
+            Notification = T("Masters.PaymentTerminals.ChargesError", ex.Message);
         }
         OnPropertyChanged(nameof(HasTerminalCharges));
         IsLoadingPaymentTerminals = false;
@@ -248,7 +281,7 @@ public partial class MastersViewModel
         EnsureProviderOptions();
         IsEditingPaymentTerminal = false;
         EditPaymentTerminalId = Guid.Empty;
-        PaymentTerminalName = PaymentTerminals.Count == 0 ? "Datáfono 1" : $"Datáfono {PaymentTerminals.Count + 1}";
+        PaymentTerminalName = T("Masters.PaymentTerminals.DefaultName", PaymentTerminals.Count + 1);
         PaymentTerminalProviderOption = TerminalProviderOptions.FirstOrDefault(o => o.Provider == Core.Domain.Enums.PaymentTerminalProvider.Mock)
                                   ?? TerminalProviderOptions.FirstOrDefault();
         PaymentTerminalAddress = string.Empty;
@@ -276,12 +309,12 @@ public partial class MastersViewModel
     [RelayCommand]
     public async Task SavePaymentTerminalAsync()
     {
-        if (string.IsNullOrWhiteSpace(PaymentTerminalName)) { Notification = "⚠️ El nombre del datáfono es obligatorio."; return; }
-        if (PaymentTerminalProviderOption is not { } provider) { Notification = "⚠️ Elija el proveedor."; return; }
+        if (string.IsNullOrWhiteSpace(PaymentTerminalName)) { Notification = T("Masters.PaymentTerminals.NameRequired"); return; }
+        if (PaymentTerminalProviderOption is not { } provider) { Notification = T("Masters.PaymentTerminals.ChooseProviderWarn"); return; }
         var address = string.IsNullOrWhiteSpace(PaymentTerminalAddress) ? null : PaymentTerminalAddress.Trim();
         if (address == null && provider.Provider != Core.Domain.Enums.PaymentTerminalProvider.Mock)
         {
-            Notification = "⚠️ La dirección es obligatoria para este proveedor.";
+            Notification = T("Masters.PaymentTerminals.AddressRequired");
             return;
         }
         if (!int.TryParse(PaymentTerminalSortOrderStr, out var order)) order = 0;
@@ -299,10 +332,10 @@ public partial class MastersViewModel
                 await scope.ServiceProvider.GetRequiredService<IPaymentTerminalService>().SaveAsync(request);
             });
             IsPaymentTerminalFormVisible = false;
-            Notification = $"✅ Datáfono \"{request.Name}\" guardado";
+            Notification = T("Masters.PaymentTerminals.Saved", request.Name);
             await LoadPaymentTerminalsAsync();
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
     }
 
     [RelayCommand] public void CancelPaymentTerminalForm() => IsPaymentTerminalFormVisible = false;
@@ -312,8 +345,8 @@ public partial class MastersViewModel
     {
         if (row.IsTesting) return;
         row.IsTesting = true;
-        row.TestResultText = "Probando conexión…";
-        row.TestResultColor = "#94A3B8";
+        row.TestResultText = T("Masters.PaymentTerminals.Testing");
+        row.TestResultColor = ThemePalette.TextMuted;
         try
         {
             var id = row.Dto.Id;
@@ -325,13 +358,13 @@ public partial class MastersViewModel
                 return (result, await svc.GetByIdAsync(id));
             });
             if (fresh != null) row.Apply(fresh, DateTime.UtcNow);
-            row.TestResultText = ok ? "✅ El datáfono respondió" : "❌ Sin respuesta del datáfono (revise cable, red o dirección)";
-            row.TestResultColor = ok ? "#34D399" : "#F87171";
+            row.TestResultText = ok ? T("Masters.PaymentTerminals.TestOk") : T("Masters.PaymentTerminals.TestFail");
+            row.TestResultColor = ok ? ThemePalette.SuccessBright : ThemePalette.DangerBright;
         }
         catch (Exception ex)
         {
-            row.TestResultText = $"❌ {ex.Message}";
-            row.TestResultColor = "#F87171";
+            row.TestResultText = T("Masters.Error", ex.Message);
+            row.TestResultColor = ThemePalette.DangerBright;
         }
         finally
         {
@@ -356,17 +389,17 @@ public partial class MastersViewModel
     private async Task BuildAssignOptionsAsync(PaymentTerminalRowViewModel row)
     {
         TerminalAssignOptions.Clear();
-        TerminalAssignOptions.Add(new ChipViewModel("🏪 En caja", v => _ = AssignPaymentTerminalAsync(row, null, null), string.Empty));
+        TerminalAssignOptions.Add(new ChipViewModel(T("Masters.PaymentTerminals.AtRegister"), v => _ = AssignPaymentTerminalAsync(row, null, null), string.Empty));
         try
         {
             var users = await _users.GetAllAsync();
             foreach (var u in users.Where(u => u.IsActive).OrderBy(u => u.Name))
             {
                 var user = u;
-                TerminalAssignOptions.Add(new ChipViewModel($"👤 {user.Name}", v => _ = AssignPaymentTerminalAsync(row, user.Id, user.Name), user.Id.ToString("N")));
+                TerminalAssignOptions.Add(new ChipViewModel(T("Masters.PaymentTerminals.UserChip", user.Name), v => _ = AssignPaymentTerminalAsync(row, user.Id, user.Name), user.Id.ToString("N")));
             }
         }
-        catch (Exception ex) { Notification = $"❌ Usuarios: {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.PaymentTerminals.UsersError", ex.Message); }
         row.IsAssigning = true;
     }
 
@@ -381,11 +414,24 @@ public partial class MastersViewModel
                 return await scope.ServiceProvider.GetRequiredService<IPaymentTerminalService>().AssignAsync(id, userId, userName);
             });
             row.Apply(fresh, DateTime.UtcNow);
-            Notification = userName is null ? $"✅ {fresh.Name} queda en caja" : $"✅ {fresh.Name} asignado a {userName}";
+            Notification = userName is null ? T("Masters.PaymentTerminals.StaysAtRegister", fresh.Name) : T("Masters.PaymentTerminals.AssignedTo", fresh.Name, userName);
         }
-        catch (Exception ex) { Notification = $"❌ {ex.Message}"; }
+        catch (Exception ex) { Notification = T("Masters.Error", ex.Message); }
         row.IsAssigning = false;
         _assignTarget = null;
+    }
+
+    /// <summary>Language toggle: rows keep their state (assign strip, test result) and only re-read their texts.</summary>
+    private void RefreshPaymentTerminalRowsLanguage()
+    {
+        foreach (var row in PaymentTerminals) row.RefreshLanguage();
+        if (TerminalCharges.Count > 0)
+        {
+            var dtos = TerminalCharges.Select(c => c.Dto).ToList();
+            TerminalCharges.Clear();
+            foreach (var d in dtos) TerminalCharges.Add(new TerminalChargeRowViewModel(d));
+        }
+        if (_assignTarget is { } target && TerminalAssignOptions.Count > 0) _ = BuildAssignOptionsAsync(target);
     }
 
     // ── Deactivate (inline confirmation) ─────────────────────────────────────
@@ -399,13 +445,13 @@ public partial class MastersViewModel
                 using var scope = _scopes.CreateScope();
                 await scope.ServiceProvider.GetRequiredService<IPaymentTerminalService>().DeactivateAsync(id);
             });
-            Notification = $"🗑️ Datáfono \"{row.Name}\" desactivado";
+            Notification = T("Masters.PaymentTerminals.Deactivated", row.Name);
             await LoadPaymentTerminalsAsync();
         }
         catch (Exception ex)
         {
             row.IsConfirmingDeactivate = false;
-            Notification = $"❌ {ex.Message}";
+            Notification = T("Masters.Error", ex.Message);
         }
     }
 }

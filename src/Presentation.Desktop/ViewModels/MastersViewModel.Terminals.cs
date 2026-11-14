@@ -1,3 +1,4 @@
+using Presentation.Desktop.Services;
 using System;
 using System.Collections.ObjectModel;
 using System.Linq;
@@ -9,6 +10,7 @@ using Core.Application.Services;
 using Core.Domain.Enums;
 using Microsoft.Extensions.DependencyInjection;
 using Presentation.Server;
+using Presentation.Desktop.Localization;
 
 namespace Presentation.Desktop.ViewModels;
 
@@ -22,37 +24,39 @@ public sealed class TerminalRowViewModel
         Dto = dto;
         IsThisTerminal = isThisTerminal;
         IsOnline = isThisTerminal || dto.IsOnline(nowUtc, OnlineWindow);
-        LastSeenText = isThisTerminal ? "esta caja" : dto.LastSeenAt is { } s ? $"visto hace {Ago(nowUtc - s)}" : "nunca visto";
+        LastSeenText = isThisTerminal ? T("Masters.Terminals.ThisRegister") : dto.LastSeenAt is { } s ? T("Masters.Terminals.SeenAgo", Ago(nowUtc - s)) : T("Masters.Terminals.NeverSeen");
         LastSyncText = dto.Kind == TerminalKind.Master ? string.Empty
-            : dto.LastSyncAt is { } y ? $"última sync hace {Ago(nowUtc - y)}" : "sin ventas recibidas";
+            : dto.LastSyncAt is { } y ? T("Masters.Terminals.LastSyncAgo", Ago(nowUtc - y)) : T("Masters.Terminals.NoSalesReceived");
     }
+
+    private static string T(string key, params object?[] args) => Localizer.Instance.T(key, args);
 
     public TerminalDto Dto { get; }
     public bool IsThisTerminal { get; }
     public bool IsOnline { get; }
     public string Code => Dto.Code;
     public string Name => Dto.Name;
-    public string KindLabel => Dto.KindLabel;
-    public string KindColor => Dto.Kind == TerminalKind.Master ? "#2563EB" : "#475569";
-    public string DotColor => IsOnline ? "#34D399" : "#64748B";
+    public string KindLabel => Dto.Kind == TerminalKind.Master ? T("Masters.Terminals.Kind.Master") : T("Masters.Terminals.Kind.Satellite");
+    public string KindColor => Dto.Kind == TerminalKind.Master ? ThemePalette.Accent : ThemePalette.TextFaint;
+    public string DotColor => IsOnline ? ThemePalette.SuccessBright : ThemePalette.TextFaint;
     public string LastSeenText { get; }
     public string LastSyncText { get; }
     public string OpenShiftText => Dto.OpenShiftNumber is { } n
-        ? $"🟢 Turno #{n}" + (string.IsNullOrWhiteSpace(Dto.OpenShiftCashier) ? string.Empty : $" · {Dto.OpenShiftCashier}")
-        : "Sin turno abierto";
-    public string OpenShiftColor => Dto.OpenShiftNumber != null ? "#A7F3D0" : "#64748B";
+        ? T("Masters.Terminals.OpenShift", n) + (string.IsNullOrWhiteSpace(Dto.OpenShiftCashier) ? string.Empty : $" · {Dto.OpenShiftCashier}")
+        : T("Masters.Terminals.NoOpenShift");
+    public string OpenShiftColor => Dto.OpenShiftNumber != null ? ThemePalette.SuccessBright : ThemePalette.TextFaint;
     public string DetailText => string.Join(" · ", new[]
     {
         Dto.AppVersion is { Length: > 0 } v ? $"v{v}" : null,
         Dto.LastAddress,
-        Dto.IsActive ? null : "inactiva"
+        Dto.IsActive ? null : T("Masters.Terminals.InactiveDetail")
     }.Where(x => !string.IsNullOrWhiteSpace(x)));
 
     internal static string Ago(TimeSpan t) =>
-        t.TotalSeconds < 60 ? $"{Math.Max(0, (int)t.TotalSeconds)} s"
-        : t.TotalMinutes < 60 ? $"{(int)t.TotalMinutes} min"
-        : t.TotalHours < 48 ? $"{(int)t.TotalHours} h"
-        : $"{(int)t.TotalDays} días";
+        t.TotalSeconds < 60 ? T("Masters.Terminals.Ago.Seconds", Math.Max(0, (int)t.TotalSeconds))
+        : t.TotalMinutes < 60 ? T("Masters.Terminals.Ago.Minutes", (int)t.TotalMinutes)
+        : t.TotalHours < 48 ? T("Masters.Terminals.Ago.Hours", (int)t.TotalHours)
+        : T("Masters.Terminals.Ago.Days", (int)t.TotalDays);
 }
 
 /// <summary>Row of the inbox receipts list (one per envelope received from a satellite).</summary>
@@ -60,32 +64,34 @@ public sealed class InboxReceiptRowViewModel
 {
     public InboxReceiptRowViewModel(SyncInboxReceiptDto dto) => Dto = dto;
 
+    private static string T(string key) => Localizer.Instance.T(key);
+
     public SyncInboxReceiptDto Dto { get; }
     public string TimeText => Dto.ReceivedAt.ToLocalTime().ToString("dd/MM HH:mm:ss");
     public string TerminalCode => Dto.TerminalCode;
     public string EventText => Dto.EventType switch
     {
-        SyncEventTypes.OrderCompleted => "Venta",
-        SyncEventTypes.CashShiftOpened => "Apertura de turno",
-        SyncEventTypes.CashShiftClosed => "Cierre de turno",
-        SyncEventTypes.CashMovementRecorded => "Movimiento de caja",
-        SyncEventTypes.BillPaymentRecorded => "Recaudo",
-        SyncEventTypes.BillPaymentVoided => "Anulación de recaudo",
+        SyncEventTypes.OrderCompleted => T("Masters.Terminals.Event.Sale"),
+        SyncEventTypes.CashShiftOpened => T("Masters.Terminals.Event.ShiftOpened"),
+        SyncEventTypes.CashShiftClosed => T("Masters.Terminals.Event.ShiftClosed"),
+        SyncEventTypes.CashMovementRecorded => T("Masters.Terminals.Event.CashMovement"),
+        SyncEventTypes.BillPaymentRecorded => T("Masters.Terminals.Event.BillPayment"),
+        SyncEventTypes.BillPaymentVoided => T("Masters.Terminals.Event.BillPaymentVoided"),
         _ => Dto.EventType
     };
     public string OutcomeText => Dto.Outcome switch
     {
-        SyncInboxOutcome.Applied => "✔ Aplicado",
-        SyncInboxOutcome.Duplicate => "Duplicado",
-        SyncInboxOutcome.Ignored => "Ignorado",
-        SyncInboxOutcome.Rejected => "✖ Rechazado",
+        SyncInboxOutcome.Applied => T("Masters.Terminals.Outcome.Applied"),
+        SyncInboxOutcome.Duplicate => T("Masters.Terminals.Outcome.Duplicate"),
+        SyncInboxOutcome.Ignored => T("Masters.Terminals.Outcome.Ignored"),
+        SyncInboxOutcome.Rejected => T("Masters.Terminals.Outcome.Rejected"),
         _ => Dto.Outcome.ToString()
     };
     public string OutcomeColor => Dto.Outcome switch
     {
-        SyncInboxOutcome.Applied => "#34D399",
-        SyncInboxOutcome.Rejected => "#F87171",
-        _ => "#94A3B8"
+        SyncInboxOutcome.Applied => ThemePalette.SuccessBright,
+        SyncInboxOutcome.Rejected => ThemePalette.DangerBright,
+        _ => ThemePalette.TextMuted
     };
     public string ErrorText => Dto.Error ?? string.Empty;
     public bool HasError => !string.IsNullOrWhiteSpace(Dto.Error);
@@ -102,7 +108,15 @@ public partial class MastersViewModel
     public bool HasInboxReceipts => InboxReceipts.Count > 0;
 
     [ObservableProperty] private bool _isLoadingTerminals;
-    [ObservableProperty] private string _terminalsSummary = string.Empty;
+
+    /// <summary>Satellite counts from the last load (null = not loaded yet); the summary text is derived so it follows the language.</summary>
+    private (int Online, int Total)? _satelliteCounts;
+    public string TerminalsSummary => _satelliteCounts switch
+    {
+        null => string.Empty,
+        (_, 0) => T("Masters.Terminals.NoSatellites"),
+        (var online, var total) => T("Masters.Terminals.Summary", online, total)
+    };
 
     /// <summary>"CAJA-01 · Caja principal · Principal"</summary>
     public string ThisTerminalText
@@ -111,16 +125,16 @@ public partial class MastersViewModel
         {
             var code = _terminalContext.IsSet ? _terminalContext.Code : SafeCode(_terminalSettings.Code);
             var name = _terminalContext.IsSet ? _terminalContext.Name : _terminalSettings.Name;
-            return $"🖥️ Esta caja: {code} · {name} · {(_terminalSettings.IsSatellite ? "Satélite" : "Principal")}";
+            return T("Masters.Terminals.ThisTerminal", code, name, _terminalSettings.IsSatellite ? T("Masters.Terminals.Kind.Satellite") : T("Masters.Terminals.Kind.Master"));
         }
     }
 
     /// <summary>URL the satellites must put in Terminal:MasterUrl (this machine's LAN address + server port).</summary>
     public string MasterUrlText => $"http://{LoqzenServer.LanAddress()}:{_serverSettings.Port}";
     public string MasterUrlHint => _serverSettings.Enabled
-        ? "Escriba esta dirección en Terminal:MasterUrl del appsettings.json de cada caja satélite."
-        : "⚠️ El servidor LAN está desactivado (Server:Enabled=false): las cajas satélite no podrán conectarse.";
-    public string MasterUrlHintColor => _serverSettings.Enabled ? "#94A3B8" : "#FBBF24";
+        ? T("Masters.Terminals.MasterUrlHint")
+        : T("Masters.Terminals.ServerDisabled");
+    public string MasterUrlHintColor => _serverSettings.Enabled ? ThemePalette.TextMuted : ThemePalette.WarningBright;
 
     /// <summary>NormalizeCode without throwing on a bad config (the tab still renders).</summary>
     private static string SafeCode(string? code)
@@ -155,13 +169,12 @@ public partial class MastersViewModel
             foreach (var t in terminals)
                 Terminals.Add(new TerminalRowViewModel(t, now, string.Equals(t.Code, thisCode, StringComparison.OrdinalIgnoreCase)));
             var satellites = Terminals.Where(t => t.Dto.Kind == TerminalKind.Satellite).ToList();
-            TerminalsSummary = satellites.Count == 0
-                ? "Aún no hay cajas satélite registradas: aparecerán aquí con su primer latido."
-                : $"{satellites.Count(t => t.IsOnline)} de {satellites.Count} satélites en línea (vistas en los últimos 90 s)";
+            _satelliteCounts = (satellites.Count(t => t.IsOnline), satellites.Count);
+            OnPropertyChanged(nameof(TerminalsSummary));
         }
         catch (Exception ex)
         {
-            Notification = $"❌ Cajas: {ex.Message}";
+            Notification = T("Masters.Terminals.LoadError", ex.Message);
         }
         OnPropertyChanged(nameof(HasTerminals));
 
@@ -177,12 +190,30 @@ public partial class MastersViewModel
         }
         catch (Exception ex)
         {
-            Notification = $"❌ Recepciones: {ex.Message}";
+            Notification = T("Masters.Terminals.InboxError", ex.Message);
         }
         OnPropertyChanged(nameof(HasInboxReceipts));
         OnPropertyChanged(nameof(ThisTerminalText));
         OnPropertyChanged(nameof(MasterUrlText));
         IsLoadingTerminals = false;
+    }
+
+    /// <summary>Language toggle: rows cache translated texts, so re-wrap the same DTOs (no database access).</summary>
+    private void RefreshTerminalRowsLanguage()
+    {
+        if (Terminals.Count > 0)
+        {
+            var now = DateTime.UtcNow;
+            var rows = Terminals.Select(t => (t.Dto, t.IsThisTerminal)).ToList();
+            Terminals.Clear();
+            foreach (var (dto, mine) in rows) Terminals.Add(new TerminalRowViewModel(dto, now, mine));
+        }
+        if (InboxReceipts.Count > 0)
+        {
+            var dtos = InboxReceipts.Select(r => r.Dto).ToList();
+            InboxReceipts.Clear();
+            foreach (var d in dtos) InboxReceipts.Add(new InboxReceiptRowViewModel(d));
+        }
     }
 }
 

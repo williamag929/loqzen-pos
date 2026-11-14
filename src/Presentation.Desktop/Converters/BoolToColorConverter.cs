@@ -6,8 +6,11 @@ using Avalonia.Media;
 namespace Presentation.Desktop.Converters;
 
 /// <summary>
-/// Converts a boolean to one of two colors.
-/// Usage: ConverterParameter="TrueColor|FalseColor" (e.g., "#2563EB|#1E293B")
+/// LEGACY: converts a boolean to one of two hard-coded colors (ConverterParameter="TrueColor|FalseColor").
+/// Hex parameters ignore the theme (they look wrong in Light), so do NOT use this in new or migrated views:
+/// use <c>Classes.active="{Binding IsX}"</c> + a style, or <see cref="BoolToResourceConverter"/> with two theme
+/// token keys ("Accent|BgSurface"). Kept only until the last call site is migrated; still registered as
+/// "BoolToColor" in App.axaml.
 /// </summary>
 public class BoolToColorConverter : IValueConverter
 {
